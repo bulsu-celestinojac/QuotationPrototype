@@ -43,21 +43,31 @@ $default_quote_num = date('ydm') . '_PRJ_' . str_pad($nextId, 4, '0', STR_PAD_LE
 
 // Fetch clients & inventory for auto-suggest
 $clients = [];
-$inventory = [];
+$clean_inventory = [];
+
 try {
     $stmtClients = $pdo->query("SELECT company_name, email, client_address, contact_no FROM clients");
     if ($stmtClients) $clients = $stmtClients->fetchAll(PDO::FETCH_ASSOC);
     
-    // CRITICAL FIX: Only select columns that definitely exist in the database. 
-    // Selecting non-existent columns (like 'brand') will cause the query to fail and break suggestions.
+    // CRITICAL FIX: Explicitly query only the columns we know exist.
     $stmtItems = $pdo->query("SELECT model_no, description, selling_price, picture FROM items");
-    if ($stmtItems) $inventory = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    // Fails silently if table doesn't exist yet, avoiding fatal errors
-}
+    if ($stmtItems) {
+        $raw_inventory = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($raw_inventory as $row) {
+            // CRITICAL FIX: Force convert to UTF-8 to prevent JSON from silently crashing on special characters
+            $clean_inventory[] = [
+                'model_no' => mb_convert_encoding((string)($row['model_no'] ?? ''), 'UTF-8', 'auto'),
+                'description' => mb_convert_encoding((string)($row['description'] ?? ''), 'UTF-8', 'auto'),
+                'selling_price' => $row['selling_price'] ?? 0,
+                'picture' => mb_convert_encoding((string)($row['picture'] ?? ''), 'UTF-8', 'auto')
+            ];
+        }
+    }
+} catch (Exception $e) {}
 
+// JSON_INVALID_UTF8_SUBSTITUTE protects against any remaining bad characters
 $clients_json = json_encode($clients ?: []);
-$inventory_json = json_encode($inventory ?: []);
+$inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITUTE) ?: '[]';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -118,7 +128,7 @@ $inventory_json = json_encode($inventory ?: []);
 
         /* Project Items Design (Right Column) */
         .items-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px; }
-        .item-row { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; gap: 24px; align-items: center; position: relative; transition: all 0.3s ease; z-index: 1; }
+        .item-row { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; gap: 24px; align-items: center; position: relative; transition: all 0.3s ease; z-index: 1; overflow: visible !important; }
         .item-row:hover { border-color: #E4E4E7; box-shadow: 0 10px 30px rgba(0,0,0,0.03); transform: translateY(-1px); }
 
         /* Item Components */
@@ -130,41 +140,44 @@ $inventory_json = json_encode($inventory ?: []);
         .item-image span { font-size: 0.5rem; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
 
         /* Details */
-        .item-details { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; position: relative; }
+        .item-details { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; position: relative; overflow: visible !important; }
         .item-brand-text { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-light); font-weight: 700; margin-bottom: 2px; }
         .item-model-text { font-family: 'Outfit', sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--text-main); margin-bottom: 4px; line-height: 1.2; }
         .item-desc-text { font-size: 0.85rem; color: var(--text-muted); display: block; width: 100%; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Added Model Search */
+        /* Added Model Search (Invisible background) */
         .item-details input[type="text"].input-model-search { font-family: 'Outfit', sans-serif !important; font-size: 1.35rem !important; font-weight: 800 !important; color: var(--text-main) !important; background: transparent !important; border: none !important; border-radius: 0 !important; padding: 0 !important; margin-bottom: 4px !important; outline: none !important; width: 100% !important; box-shadow: none !important; line-height: 1.2 !important; }
         .item-details input[type="text"].input-model-search::placeholder { color: var(--text-light); font-weight: 400; }
+        .item-details input[type="text"].input-model-search.is-searching { border-bottom: 2px dashed var(--border) !important; }
         .badge-warning { background: #FEF2F2; color: #EF4444; font-size: 0.6rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 6px; align-self: flex-start; }
 
-        /* Metrics & QTY Shrink */
+        /* Metrics & QTY (Includes CSS Warning Fix) */
         .item-metrics { display: flex; gap: 32px; align-items: center; margin-right: 16px; }
         .metric-group { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .metric-group label { margin: 0; text-align: center; width: 100%; }
         .metric-value-text { font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600; color: var(--text-main); }
+        
         .input-qty-edit { 
             width: 45px; text-align: center; padding: 6px 4px; background: transparent !important; border: 1px solid transparent !important; 
             border-bottom: 1px dashed var(--text-light) !important; border-radius: 0 !important; font-size: 1rem; font-weight: 600; color: var(--text-main); height: auto; margin: 0; box-shadow: none !important;
         }
         .input-qty-edit:focus { border: 1px solid var(--border) !important; border-bottom: 1px solid var(--maroon) !important; background: var(--surface) !important; box-shadow: none !important; border-radius: 6px !important; }
-        .input-qty-edit::-webkit-outer-spin-button, .input-qty-edit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        .input-qty-edit[type=number] { -moz-appearance: textfield; }
+        .input-qty-edit::-webkit-outer-spin-button, .input-qty-edit::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+        .input-qty-edit[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
         /* Actions & Modals */
         .btn-delete { background: transparent; border: none; color: var(--text-light); font-size: 1.25rem; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s ease; }
         .btn-delete:hover { background: #FEF2F2; color: #EF4444; }
 
         /* Enhanced Autocomplete Dropdown Positioning */
-        .autocomplete-wrapper { position: relative; width: 100%; }
-        .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-height: 250px; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; margin-top: 4px; }
+        .autocomplete-wrapper { position: relative; width: 100%; overflow: visible !important; z-index: 10; }
+        .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-height: 250px; overflow-y: auto; z-index: 99999 !important; display: none; margin-top: 4px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
         .autocomplete-item { padding: 14px 20px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
         .autocomplete-item:last-child { border-bottom: none; }
         .autocomplete-item:hover { background: var(--bg); }
         .autocomplete-model { font-weight: 700; font-family: 'Outfit', sans-serif; color: var(--text-main); font-size: 1rem;}
         .autocomplete-brand { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .autocomplete-no-results { padding: 14px 20px; color: var(--text-muted); font-size: 0.9rem; font-style: italic; text-align: center; }
 
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(8px); }
         .modal-content { margin: auto; display: block; max-width: 85%; max-height: 85%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -372,9 +385,12 @@ $inventory_json = json_encode($inventory ?: []);
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             
-            // Injecting PHP Arrays safely with a fallback
+            // Injecting PHP Arrays safely
             const clientsData = <?= $clients_json ?>;
             const inventoryData = <?= $inventory_json ?>;
+            
+            // Helpful console log to verify data loaded
+            console.log("Database Inventory Loaded:", inventoryData.length, "items.");
 
             // === Automated Calculation Logic ===
             function calculateTotals() {
@@ -429,7 +445,6 @@ $inventory_json = json_encode($inventory ?: []);
             
             if (itemsContainer) {
                 
-                // Z-index management to prevent overlap hiding dropdowns
                 itemsContainer.addEventListener('focusin', function(e) {
                     if (e.target.classList.contains('input-model-search')) {
                         const row = e.target.closest('.item-row');
@@ -444,10 +459,9 @@ $inventory_json = json_encode($inventory ?: []);
                     }
                 });
 
-                // Prevent form submission on Enter inside search
                 itemsContainer.addEventListener('keydown', function(e) {
                     if (e.target.classList.contains('input-model-search') && e.key === 'Enter') {
-                        e.preventDefault();
+                        e.preventDefault(); // Prevent accidental form submission
                     }
                 });
 
@@ -473,19 +487,18 @@ $inventory_json = json_encode($inventory ?: []);
                         }
                         
                         const matches = inventoryData.filter(i => {
-                            // Ensure robust string comparison in case of nulls or numbers
                             const safeModel = String(i.model_no || '').toUpperCase();
                             return safeModel.includes(val);
                         });
                         
+                        list.innerHTML = '';
+                        
                         if (matches.length > 0) {
-                            list.innerHTML = '';
                             matches.slice(0, 15).forEach(match => { 
                                 const div = document.createElement('div');
                                 div.className = 'autocomplete-item';
                                 div.innerHTML = `
                                     <span class="autocomplete-model">${match.model_no}</span>
-                                    <span class="autocomplete-brand"></span>
                                 `;
                                 
                                 div.addEventListener('click', function() {
@@ -493,11 +506,10 @@ $inventory_json = json_encode($inventory ?: []);
                                     input.classList.remove('is-searching');
                                     
                                     row.querySelector('.i-model').value = match.model_no;
-                                    row.querySelector('.i-brand').value = 'MAPPED';
                                     row.querySelector('.i-full-desc').value = match.description || '';
                                     row.querySelector('.i-price').value = match.selling_price || 0;
                                     
-                                    row.querySelector('.item-brand-text').textContent = 'ITEM ADDED';
+                                    row.querySelector('.item-brand-text').textContent = 'DATABASE ITEM';
                                     
                                     let firstLine = (match.description || '').split(/\r?\n/)[0];
                                     row.querySelector('.item-desc-text').textContent = firstLine || 'No description available.';
@@ -519,10 +531,12 @@ $inventory_json = json_encode($inventory ?: []);
                                 });
                                 list.appendChild(div);
                             });
-                            list.style.display = 'block';
                         } else {
-                            list.style.display = 'none';
+                            // Provide visual feedback if typing but no match found
+                            list.innerHTML = `<div class="autocomplete-no-results">No match found in database</div>`;
                         }
+                        
+                        list.style.display = 'block';
                     }
                 });
 
