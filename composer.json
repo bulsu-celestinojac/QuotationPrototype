@@ -1,0 +1,7 @@
+{
+    "require": {
+        "dompdf/dompdf": "^3.1",
+        "phpoffice/phpspreadsheet": "*",
+        "smalot/pdfparser": "^2.12"
+    }
+}

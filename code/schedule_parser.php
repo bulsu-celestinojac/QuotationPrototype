@@ -1,6 +1,6 @@
 <?php
 // YOU MUST REQUIRE THE COMPOSER AUTOLOAD FILE TO USE THE LIBRARIES
-require '../vendor/autoload.php';
+require __DIR__ . '/../../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Smalot\PdfParser\Parser;
