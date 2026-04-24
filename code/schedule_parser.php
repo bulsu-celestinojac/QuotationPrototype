@@ -157,43 +157,37 @@ function processPdf($filePath) {
     return $data;
 }
 
+// ==============================================================
+// REVISED EXTRACTION LOGIC
+// ==============================================================
 function extractInfo($text) {
+    $text = trim($text);
     $model = '-';
-    $brand = '-';
+    $brand = 'UNKNOWN';
 
-    $stopWordsArray = [
-        'Brand', 'Model', 'Dimensions?', 'Dimension', 'Weight', 'Cooling', 'Defrost', 
-        'Capacity', 'Voltage', 'Power', 'Phase', 'Hz', 'Ph', 'kW', 'Watts?', 'Amps?', 
-        'Electrical', 'Material', 'Type', 'Temp', 'Temperature', 'Accessories', 
-        'Warranty', 'Include', 'Included', 'Gas', 'Water', 'Drain', 'Volume', 'Net', 'Gross', 'Speed',
-        'Standard', 'Fork', 'Dose', 'Adjustment', 'Adjustable', 'Blade', 'Blades', 'Diameter', 'Revs', 'RPM',
-        'Container', 'Bin', 'Dolly', 'Machine', 'Unit', 'System', 'Set', 'Kit', 
-        'Mixer', 'Fridge', 'Refrigerator', 'Freezer', 'Oven', 'Stove', 'Grill', 
-        'Kneading', 'Flour', 'Bowl', 'Trash', 'Cart', 'Grinder', 'Coffee', 'Dispenser', 'Maker'
-    ];
+    if (!empty($text)) {
+        // Split the string into exactly 2 pieces at the FIRST space
+        $parts = explode(' ', $text, 2);
 
-    $stopWords = implode('|', $stopWordsArray);
-
-    if (preg_match('/Model\s*[:\-]?\s*(.*?)(?=[,;\n\r\(]|\s+(?:' . $stopWords . ')\b|\s+[A-Za-z]+\s*:|$)/i', $text, $matches)) {
-        $model = trim($matches[1]);
-        $model = preg_replace('/[^A-Za-z0-9]$/', '', $model); 
-        $model = rtrim($model, " :"); 
+        if (count($parts) === 2) {
+            // Found a space: First part is Model, Second part is Brand/Desc
+            $model = trim($parts[0]);
+            $brand = trim($parts[1]);
+        } else {
+            // No space found: Assume the whole string is the Model
+            $model = trim($parts[0]);
+        }
     }
 
-    if (preg_match('/Brand\s*[:\-]?\s*(.*?)(?=[,;\n\r\(]|\s+(?:' . $stopWords . ')\b|\s+[A-Za-z]+\s*:|$)/i', $text, $matches)) {
-        $brand = trim($matches[1]);
-        $brand = preg_replace('/[^A-Za-z0-9]$/', '', $brand);
-        $brand = rtrim($brand, " :");
-    }
-
+    // Optional safety net: prevent massive strings breaking the table UI
     if (strlen($model) > 40) { $model = trim(substr($model, 0, 40)); }
-    if (strlen($brand) > 40) { $brand = trim(substr($brand, 0, 40)); }
-
+    
     return [
         'model' => !empty($model) ? $model : '-', 
-        'brand' => !empty($brand) ? $brand : '-'
+        'brand' => (!empty($brand) && $brand !== '-') ? $brand : 'UNKNOWN'
     ];
 }
+// ==============================================================
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -293,7 +287,7 @@ function extractInfo($text) {
                                             <td class="item-number" style="padding-left: 48px;"><?= $itemNumber++ ?></td>
                                             <td><strong><?= htmlspecialchars($row['mark']) ?></strong></td>
                                             <td>
-                                                <?php if ($row['brand'] !== '-'): ?>
+                                                <?php if ($row['brand'] !== '-' && $row['brand'] !== 'UNKNOWN'): ?>
                                                     <span class="badge-brand"><?= htmlspecialchars($row['brand']) ?></span>
                                                 <?php else: ?>
                                                     <span style="color: var(--border); font-weight: bold; font-size: 0.8rem;">UNKNOWN</span>

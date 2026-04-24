@@ -52,7 +52,7 @@ $default_quote_num = date('ydm') . '_PRJ_' . str_pad($nextId, 4, '0', STR_PAD_LE
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .full { grid-column: 1/-1; }
         label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
-        input[type="text"], input[type="date"], input[type="number"], textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); margin-top: 5px; box-sizing: border-box; font-family: 'DM Sans', sans-serif; }
+        input[type="text"], input[type="date"], input[type="number"], select, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); margin-top: 5px; box-sizing: border-box; font-family: 'DM Sans', sans-serif; }
         .btn-submit { background: var(--maroon); color: white; border: none; padding: 15px 30px; border-radius: 50px; font-weight: 700; cursor: pointer; width: 100%; text-transform: uppercase; margin-top: 20px; }
         
         .item-row { display: grid; grid-template-columns: 70px 70px 100px 1fr 120px; gap: 15px; padding: 15px; border-bottom: 1px solid var(--border); align-items: center; }
@@ -95,6 +95,15 @@ $default_quote_num = date('ydm') . '_PRJ_' . str_pad($nextId, 4, '0', STR_PAD_LE
                             <div class="full"><label>Inclusions</label><textarea name="inclusions" rows="3">1 Year Warranty&#10;1 Year After Sales Service&#10;Delivery Included</textarea></div>
 
                             <div class="full"><label>Discount Amount (₱)</label><input type="number" step="0.01" name="discount_amount" value="0"></div>
+                            
+                            <div class="full">
+                                <label>Paper Size</label>
+                                <select name="paper_size">
+                                    <option value="A4">A4 (Standard)</option>
+                                    <option value="A3">A3 (Large Format)</option>
+                                </select>
+                            </div>
+                            
                             <div class="full"><label>Prepared By</label><input type="text" name="prepared_by" required></div>
                         </div>
                     </div>

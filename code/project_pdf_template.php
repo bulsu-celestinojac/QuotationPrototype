@@ -6,6 +6,23 @@
     <style>
         @page { margin: 0.5in 0.5in 1.0in 0.5in; }
         body { font-family: 'DejaVu Sans', Helvetica, Arial, sans-serif; color: #000; font-size: 11px; }
+
+        /* ==========================================
+           DYNAMIC A3 SCALING
+           ========================================== */
+        <?php if (isset($paper_size) && $paper_size === 'A3'): ?>
+            body { font-size: 14px; }
+            .company-name { font-size: 20px !important; }
+            .company-details { font-size: 12px !important; }
+            .info-grid td { font-size: 12px !important; padding: 10px 12px !important; }
+            .items-table th { font-size: 12px !important; padding: 14px 6px !important; }
+            .items-table td { font-size: 12px !important; }
+            .desc-col { font-size: 11px !important; }
+            .mark-badge { font-size: 15px !important; }
+            .summary-table { font-size: 14px !important; }
+            .footer-terms { font-size: 12px !important; }
+        <?php endif; ?>
+        /* ========================================== */
         
         /* Main Header Layout matching your image */
         .top-header { width: 100%; margin-bottom: 20px; }
@@ -43,7 +60,6 @@
         <tr>
             <td style="width: 15%;">
                 <?php 
-                // Based on your VS Code path:
                 $logoPath = __DIR__ . '/../images/other_images/AMGLOGO.png';
                 $logoBase64 = '';
                 if (file_exists($logoPath)) {
@@ -122,7 +138,6 @@
                     $amount = $item['qty'] * $item['unit_price'];
                     $sub_total += $amount;
                     
-                    // Product Image Rendering
                     $base64_img = '';
                     if (!empty($item['picture'])) {
                         $imagePath = __DIR__ . '/../images/machine_images/' . $item['picture'];
@@ -223,4 +238,4 @@
     </table>
 
 </body>
-</html> 
+</html>

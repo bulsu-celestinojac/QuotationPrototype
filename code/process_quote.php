@@ -74,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $pdf_template = 'quote_pdf_template.php';
+            $paper_size = 'A4'; // Sales quotes always A4
 
         // ==========================================
         // ROUTE 2: PROJECT QUOTATION (MASSIVE)
@@ -83,7 +84,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $items = json_decode($_POST['items_json'] ?? '[]', true);
             if (empty($items)) die("No project items received. Please try again.");
 
-            // Capture ALL the new variables mapped to your new document
             $trans = [
                 'quotation_no'       => trim($_POST['quotation_no'] ?? ''),
                 'project_name'       => strtoupper(trim($_POST['project_name'] ?? 'EQUIPMENT OFFER')),
@@ -102,6 +102,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'discount_amount'    => (float)($_POST['discount_amount'] ?? 0),
                 'prepared_by'        => trim($_POST['prepared_by'] ?? '')
             ];
+
+            // Capture chosen paper size
+            $paper_size = strtoupper($_POST['paper_size'] ?? 'A4');
+            if (!in_array($paper_size, ['A4', 'A3'])) {
+                $paper_size = 'A4'; 
+            }
 
             $stmtTrans = $pdo->prepare("
                 INSERT INTO project_quotations 
@@ -138,7 +144,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
             }
 
-            // Save Subtotal safely using Prepared Statements
             $stmtTotal = $pdo->prepare("UPDATE project_quotations SET total_amount = ? WHERE id = ?");
             $stmtTotal->execute([$gross_total, $project_id]);
 
@@ -158,11 +163,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $dompdf = new Dompdf($options);
         ob_start();
-        include $pdf_template; 
+        include $pdf_template; // The template will now have access to $paper_size
         $html = ob_get_clean();
 
         $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->setPaper($paper_size, 'portrait');
         $dompdf->render();
         $dompdf->stream($trans['quotation_no'] . ".pdf", ["Attachment" => false]);
         exit;
