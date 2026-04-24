@@ -1,0 +1,105 @@
+:root { 
+    --bg: #FAFAFA; 
+    --surface: #FFFFFF; 
+    --text-main: #18181B; 
+    --text-muted: #71717A; 
+    --text-light: #A1A1AA;
+    --border: #F4F4F5; 
+    --maroon: #8B1538; 
+    --maroon-light: #FDF2F4;
+    --input-bg: #F4F4F5;
+}
+
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); padding: 40px; color: var(--text-main); line-height: 1.5; }
+.container { max-width: 1500px; margin: 0 auto; }
+
+/* Typography */
+h1 { font-family: 'Outfit', sans-serif; font-size: 2.75rem; font-weight: 800; margin-bottom: 40px; letter-spacing: -0.02em; color: var(--text-main); }
+h1 span { color: var(--maroon); }
+h3 { font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 700; margin-bottom: 24px; color: var(--text-main); }
+
+/* Layout Grid - Balanced to 420px for the form and the rest for items */
+.layout-grid { display: grid; grid-template-columns: 420px 1fr; gap: 40px; align-items: start; }
+.card { background: var(--surface); border-radius: 20px; padding: 32px; border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 10px 40px rgba(0,0,0,0.03); }
+.project-items-wrapper { display: flex; flex-direction: column; min-width: 0; }
+
+/* Soft Form Inputs */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.full { grid-column: 1/-1; }
+label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--text-light); letter-spacing: 0.08em; display: block; margin-bottom: 6px; }
+
+input[type="text"], input[type="date"], input[type="number"], input[type="tel"], input[type="email"], select, textarea { 
+    width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid transparent; background: var(--input-bg); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--text-main); font-weight: 500; transition: all 0.3s ease; outline: none; box-sizing: border-box;
+}
+input:focus, textarea:focus, select:focus { background: var(--surface); border-color: var(--maroon); box-shadow: 0 0 0 4px var(--maroon-light); }
+input::placeholder, textarea::placeholder { color: var(--text-light); font-weight: 400; }
+.readonly-input { background: transparent; border: 1px solid var(--border); color: var(--text-muted); pointer-events: none; }
+hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+
+/* Buttons */
+.btn { padding: 16px 32px; border-radius: 50px; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; border: none; display: inline-flex; align-items: center; justify-content: center; width: 100%; }
+.btn-primary { background: var(--maroon); color: white; box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); margin-top: 30px; }
+.btn-primary:hover { background: #6A0D28; transform: translateY(-2px); box-shadow: 0 12px 24px rgba(139, 21, 56, 0.3); }
+.btn-secondary { background: transparent; border: 2px dashed #E4E4E7; color: var(--text-muted); margin-top: 10px; }
+.btn-secondary:hover { background: #FAFAFA; border-color: var(--text-main); color: var(--text-main); }
+
+/* Premium Items Design */
+.items-list { display: flex; flex-direction: column; gap: 16px; }
+.item-row { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; gap: 24px; align-items: center; position: relative; transition: all 0.3s ease; }
+.item-row:hover { border-color: #E4E4E7; box-shadow: 0 10px 30px rgba(0,0,0,0.03); transform: translateY(-1px); }
+
+/* Item Elements */
+.item-mark { min-width: 65px; display: flex; align-items: center; justify-content: center; }
+.mark-badge { background: var(--maroon-light); color: var(--maroon); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1rem; padding: 8px 14px; border-radius: 10px; text-align: center; }
+.item-image { width: 72px; height: 72px; border-radius: 14px; border: 1px solid var(--border); background: #FFF; display: flex; align-items: center; justify-content: center; padding: 6px; cursor: pointer; transition: all 0.3s ease; }
+.item-image:hover { border-color: var(--maroon); box-shadow: 0 4px 12px var(--maroon-light); }
+.item-image img { width: 100%; height: 100%; object-fit: contain; }
+.item-image span { font-size: 0.5rem; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+
+/* Item Details */
+.item-details { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; position: relative; }
+.item-brand-text { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-light); font-weight: 700; margin-bottom: 2px; }
+.item-model-text { font-family: 'Outfit', sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--text-main); margin-bottom: 4px; line-height: 1.2; }
+.item-desc-text { font-size: 0.85rem; color: var(--text-muted); display: block; width: 100%; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Dynamic Added Model Search */
+.item-details input[type="text"].input-model-search { font-family: 'Outfit', sans-serif !important; font-size: 1.35rem !important; font-weight: 800 !important; color: var(--text-main) !important; background: transparent !important; border: none !important; border-radius: 0 !important; padding: 0 !important; margin-bottom: 4px !important; outline: none !important; width: 100% !important; box-shadow: none !important; line-height: 1.2 !important; }
+.item-details input[type="text"].input-model-search::placeholder { color: var(--text-light); font-weight: 400; }
+.item-details input[type="text"].input-model-search.is-searching { border-bottom: 2px dashed var(--border) !important; }
+.badge-warning { background: #FEF2F2; color: #EF4444; font-size: 0.6rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 6px; align-self: flex-start; }
+
+/* Metrics & Smaller QTY */
+.item-metrics { display: flex; gap: 32px; align-items: center; margin-right: 16px; }
+.metric-group { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.metric-group label { margin: 0; text-align: center; width: 100%; }
+.metric-value-text { font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600; color: var(--text-main); }
+
+.input-qty-edit { 
+    width: 45px; /* SHRUNK WIDTH */
+    text-align: center; /* CENTER TEXT */
+    padding: 6px 4px; 
+    background: transparent !important; border: 1px solid transparent !important; 
+    border-bottom: 1px dashed var(--text-light) !important; border-radius: 0 !important; 
+    font-size: 1rem; font-weight: 600; color: var(--text-main); height: auto; margin: 0; box-shadow: none !important;
+}
+.input-qty-edit:focus { border: 1px solid var(--border) !important; border-bottom: 1px solid var(--maroon) !important; background: var(--surface) !important; box-shadow: none !important; border-radius: 6px !important; }
+
+/* Hide Number Arrows in WebKit for cleaner QTY box */
+.input-qty-edit::-webkit-outer-spin-button, .input-qty-edit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.input-qty-edit[type=number] { -moz-appearance: textfield; }
+
+/* Actions & Modals */
+.btn-delete { background: transparent; border: none; color: var(--text-light); font-size: 1.25rem; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s ease; }
+.btn-delete:hover { background: #FEF2F2; color: #EF4444; }
+
+.autocomplete-list { position: absolute; top: 65px; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-height: 250px; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.08); display: none; }
+.autocomplete-item { padding: 14px 20px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover { background: var(--bg); }
+.autocomplete-model { font-weight: 700; font-family: 'Outfit', sans-serif; color: var(--text-main); font-size: 1rem;}
+.autocomplete-brand { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(8px); }
+.modal-content { margin: auto; display: block; max-width: 85%; max-height: 85%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.modal-close { position: absolute; top: 30px; right: 40px; color: rgba(255,255,255,0.6); font-size: 40px; font-weight: 300; transition: 0.3s; cursor: pointer; line-height: 1; }
+.modal-close:hover { color: #FFF; transform: scale(1.1); }
