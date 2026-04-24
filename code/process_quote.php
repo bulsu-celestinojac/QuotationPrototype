@@ -138,8 +138,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
             }
 
-            // Save Subtotal (You can run an UPDATE here if you add a subtotal column later)
-            $pdo->query("UPDATE project_quotations SET total_amount = $gross_total WHERE id = $project_id");
+            // Save Subtotal safely using Prepared Statements
+            $stmtTotal = $pdo->prepare("UPDATE project_quotations SET total_amount = ? WHERE id = ?");
+            $stmtTotal->execute([$gross_total, $project_id]);
 
             $pdf_template = 'project_pdf_template.php';
 
