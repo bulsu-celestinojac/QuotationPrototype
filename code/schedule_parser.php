@@ -40,12 +40,24 @@ function processCsv($filePath) {
         $markIndex = false;
         $keynoteIndex = false;
 
+        // 1. Scan the first 10 rows to find headers safely
         for ($i = 0; $i < 10; $i++) {
             $row = fgetcsv($handle, 10000, ",");
             if ($row !== false) {
+                // CRITICAL FIX: Strip hidden UTF-8 BOM from the very first cell
+                if ($i === 0 && isset($row[0])) {
+                    $row[0] = preg_replace('/^\xEF\xBB\xBF/', '', $row[0]);
+                }
+
                 $cleanRow = array_map('trim', $row);
-                $tempMark = array_search('Mark', $cleanRow);
-                $tempKeynote = array_search('Keynote', $cleanRow) ?: array_search('Type Comments', $cleanRow);
+                $lowerRow = array_map('strtolower', $cleanRow);
+                
+                $tempMark = array_search('mark', $lowerRow);
+                $tempKeynote = array_search('keynote', $lowerRow);
+                
+                if ($tempKeynote === false) {
+                    $tempKeynote = array_search('type comments', $lowerRow);
+                }
 
                 if ($tempMark !== false && $tempKeynote !== false) {
                     $headers = $cleanRow;
@@ -56,20 +68,24 @@ function processCsv($filePath) {
             }
         }
 
+        // 2. Extract Data
         if ($markIndex !== false && $keynoteIndex !== false) {
             while (($row = fgetcsv($handle, 10000, ",")) !== false) {
                 $mark = trim($row[$markIndex] ?? '');
                 $keynote = trim($row[$keynoteIndex] ?? '');
                 
-                if (!empty($mark) && !empty($keynote)) {
-                    $extracted = extractInfo($keynote);
-                    $data[] = ['mark' => $mark, 'original_text' => $keynote, 'model' => $extracted['model'], 'brand' => $extracted['brand']];
-                }
+                // Skip empty rows or repeated headers
+                if (empty($mark) || empty($keynote) || strtolower($mark) === 'mark') continue;
+
+                $extracted = extractInfo($keynote);
+                $data[] = ['mark' => $mark, 'original_text' => $keynote, 'model' => $extracted['model'], 'brand' => $extracted['brand']];
             }
         } else {
-            throw new Exception("Could not find 'Mark' and 'Keynote' columns in CSV.");
+            throw new Exception("Could not find 'Mark' and 'Keynote' (or 'Type Comments') columns in the CSV. Please check your headers.");
         }
         fclose($handle);
+    } else {
+        throw new Exception("Failed to open the CSV file.");
     }
     return $data;
 }
@@ -83,13 +99,19 @@ function processExcel($filePath) {
     $markIndex = false;
     $keynoteIndex = false;
 
+    // 1. Find Headers
     foreach ($rows as $rowIndex => $row) {
         if ($rowIndex > 10) break; 
         
         $cleanRow = array_map(function($val) { return trim((string)$val); }, $row);
+        $lowerRow = array_map('strtolower', $cleanRow);
         
-        $tempMark = array_search('Mark', $cleanRow);
-        $tempKeynote = array_search('Keynote', $cleanRow) ?: array_search('Type Comments', $cleanRow);
+        $tempMark = array_search('mark', $lowerRow);
+        $tempKeynote = array_search('keynote', $lowerRow);
+        
+        if ($tempKeynote === false) {
+            $tempKeynote = array_search('type comments', $lowerRow);
+        }
 
         if ($tempMark !== false && $tempKeynote !== false) {
             $markIndex = $tempMark;
@@ -98,20 +120,22 @@ function processExcel($filePath) {
         }
     }
 
+    // 2. Extract Data
     if ($markIndex !== false && $keynoteIndex !== false) {
         foreach ($rows as $row) {
             $mark = trim((string)($row[$markIndex] ?? ''));
             $keynote = trim((string)($row[$keynoteIndex] ?? ''));
             
-            if ($mark === 'Mark' || $keynote === 'Keynote' || $keynote === 'Type Comments') continue;
+            // Skip headers or empty rows
+            if (empty($mark) || strtolower($mark) === 'mark' || strtolower($keynote) === 'keynote' || strtolower($keynote) === 'type comments') continue;
 
-            if (!empty($mark) && !empty($keynote)) {
+            if (!empty($keynote)) {
                 $extracted = extractInfo($keynote);
                 $data[] = ['mark' => $mark, 'original_text' => $keynote, 'model' => $extracted['model'], 'brand' => $extracted['brand']];
             }
         }
     } else {
-        throw new Exception("Could not find 'Mark' and 'Keynote' columns in Excel file.");
+        throw new Exception("Could not find 'Mark' and 'Keynote' columns in the Excel file.");
     }
     
     return $data;
@@ -132,54 +156,89 @@ function processPdf($filePath) {
         $line = trim($line);
         if (empty($line)) continue;
 
-        if (preg_match('/^([A-Z]{2,3}-\d{2,3})/', $line, $matches)) {
+        // STRICT PDF REGEX: Must have 2-4 letters, a hyphen, and digits (e.g., BK-01)
+        if (preg_match('/^([A-Z]{2,4}-\d{1,4})\b/i', $line, $matches)) {
             if (!empty($currentMark) && !empty($currentKeynote)) {
                 $extracted = extractInfo($currentKeynote);
                 $data[] = ['mark' => $currentMark, 'original_text' => $currentKeynote, 'model' => $extracted['model'], 'brand' => $extracted['brand']];
             }
-            $currentMark = $matches[1];
-            $currentKeynote = trim(str_replace($currentMark, '', $line)); 
+            
+            $currentMark = strtoupper(trim($matches[1]));
+            // Safely remove only the exact mark from the start of the line
+            $currentKeynote = trim(preg_replace('/^' . preg_quote($matches[1], '/') . '/i', '', $line, 1)); 
         } 
         elseif (!empty($currentMark)) {
             $currentKeynote .= " " . $line;
         }
     }
 
+    // Push the final item
     if (!empty($currentMark) && !empty($currentKeynote)) {
         $extracted = extractInfo($currentKeynote);
         $data[] = ['mark' => $currentMark, 'original_text' => $currentKeynote, 'model' => $extracted['model'], 'brand' => $extracted['brand']];
     }
 
     if (empty($data)) {
-         throw new Exception("Could not extract Mark/Keynote data from PDF. Ensure the PDF contains searchable text (not just an image) and uses formatting like 'BK-01'.");
+         throw new Exception("Could not extract Mark/Keynote data from PDF. Ensure the PDF uses standard formatting like 'BK-01'.");
     }
 
     return $data;
 }
 
 // ==============================================================
-// REVISED EXTRACTION LOGIC
+// BULLETPROOF EXTRACTION LOGIC (EXPLICIT + SMART FALLBACK)
 // ==============================================================
 function extractInfo($text) {
     $text = trim($text);
     $model = '-';
     $brand = 'UNKNOWN';
 
-    if (!empty($text)) {
-        // Split the string into exactly 2 pieces at the FIRST space
-        $parts = explode(' ', $text, 2);
+    if (empty($text)) {
+        return ['model' => '-', 'brand' => 'UNKNOWN'];
+    }
 
-        if (count($parts) === 2) {
-            // Found a space: First part is Model, Second part is Brand/Desc
-            $model = trim($parts[0]);
-            $brand = trim($parts[1]);
+    $foundExplicit = false;
+    
+    // 1. EXPLICIT MATCHING (Best for structured Excel/CSV)
+    if (preg_match('/Model\s*:\s*([A-Za-z0-9\-\/]+)/i', $text, $matchModel)) {
+        $model = strtoupper(trim($matchModel[1]));
+        $foundExplicit = true;
+    }
+
+    if (preg_match('/Brand\s*:\s*([A-Za-z0-9\s\.\-\&]+?)(?=\s+(?:Dimensions|Model|Weight|Capacity|Power|Voltage|Speed|Net|LxDxH|HxDxH|Bowl|$))/i', $text, $matchBrand)) {
+        $brand = strtoupper(trim($matchBrand[1]));
+        $foundExplicit = true;
+    }
+
+    // 2. SMART FALLBACK (For unstructured PDFs or text missing labels)
+    if (!$foundExplicit) {
+        if (preg_match_all('/\b([A-Za-z0-9\-\/]*\d+[A-Za-z0-9\-\/]*)\b/', $text, $matches)) {
+            foreach ($matches[1] as $candidate) {
+                // Prefer alphanumeric codes over simple numbers
+                if (preg_match('/[A-Za-z]/', $candidate) || strlen($candidate) >= 3) {
+                    $model = strtoupper($candidate);
+                    break;
+                }
+            }
+            
+            // Absolute last resort for model
+            if ($model === '-' && isset($matches[1][0])) {
+                $model = strtoupper($matches[1][0]);
+            }
+            
+            // Clean up the remaining string for the brand
+            $remaining_text = trim(str_replace($model, '', $text));
+            $remaining_text = preg_replace('/\s+/', ' ', $remaining_text);
+            if (!empty($remaining_text)) {
+                $brand = strtoupper($remaining_text);
+            }
         } else {
-            // No space found: Assume the whole string is the Model
-            $model = trim($parts[0]);
+            // No numbers found at all
+            $model = strtoupper($text); 
         }
     }
 
-    // Optional safety net: prevent massive strings breaking the table UI
+    // UI Safety Net
     if (strlen($model) > 40) { $model = trim(substr($model, 0, 40)); }
     
     return [
