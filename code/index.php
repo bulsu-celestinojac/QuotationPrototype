@@ -6,7 +6,11 @@ if (empty($_SESSION['csrf_token'])) {
 $csrf_token = $_SESSION['csrf_token'];
 
 require 'db.php';
-require_once 'functions.php'; // Required for flash messages
+require_once 'functions.php';
+
+// Fetch data for search suggestions
+$suggestionStmt = $pdo->query("SELECT brand, model_no FROM items");
+$allSuggestions = $suggestionStmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Pagination setup
 $perPage = 50;
@@ -45,6 +49,85 @@ $items = $stmt->fetchAll();
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/inventory.css">
+    <style>
+        /* Modern Search Overrides & Bug Fixes */
+        .search-wrapper { 
+            position: relative; 
+            overflow: visible !important; /* Allow dropdown to overflow */
+            background: var(--surface);
+        }
+        
+        /* Restore the rounded corners that were lost when overflow was made visible */
+        .search-input {
+            border-top-left-radius: 50px;
+            border-bottom-left-radius: 50px;
+            background: transparent;
+        }
+        .search-btn {
+            background: var(--maroon);
+            color: white;
+            border: none;
+            border-top-right-radius: 50px;
+            border-bottom-right-radius: 50px;
+            padding: 0 24px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .search-btn:hover {
+            background: #5A0000; /* Slightly darker maroon when hovered */
+        }
+        .clear-btn {
+            background: transparent; 
+            border: none; 
+            color: var(--maroon); /* CHANGED: Now clearly maroon by default */
+            font-size: 1.4rem;
+            cursor: pointer; 
+            padding: 0 12px; 
+            line-height: 1; 
+            display: none; /* Toggled by JS */
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            transition: all 0.2s ease;
+        }
+        .clear-btn:hover { 
+            color: #5A0000; /* Darkens slightly on hover */
+            transform: scale(1.15); /* Adds a nice little "pop" effect so it feels clickable */
+        }
+
+        /* Auto-suggestion Dropdown Styles */
+        .custom-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 10px 30px rgba(42, 8, 8, 0.08);
+        }
+        .custom-dropdown-item {
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .custom-dropdown-item:last-child { border-bottom: none; }
+        .custom-dropdown-item:hover { background: var(--maroon-light); }
+        .sugg-model { font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); font-size: 1rem; }
+        .sugg-brand { font-size: 0.7rem; color: var(--maroon); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -52,10 +135,17 @@ $items = $stmt->fetchAll();
         <div class="top-bar">
             <h1 class="page-title">Machine <span class="accent">List</span></h1>
             <div class="controls">
-                <form method="get" class="search-wrapper">
-                    <input type="text" name="search" class="search-input" placeholder="Search inventory..." value="<?=htmlspecialchars($search)?>">
+                
+                <form method="get" class="search-wrapper" id="searchForm">
+                    <input type="text" name="search" id="searchInput" class="search-input" placeholder="Search inventory..." value="<?=htmlspecialchars($search)?>" autocomplete="off">
+                    
+                    <button type="button" id="clearSearchBtn" class="clear-btn" style="display: <?= $search ? 'flex' : 'none' ?>;" title="Clear Search">&times;</button>
+                    
                     <button type="submit" class="search-btn">Find</button>
+                    
+                    <div id="searchSuggestions" class="custom-dropdown"></div>
                 </form>
+
                 <a href="add.php" class="btn">+ Add Item</a>
                 <a href="schedule_parser.php" class="btn" id="projectQuotationBtn">Project Quotation</a>
                 <button class="btn cart-trigger" id="cartTrigger" onclick="openCart()">
@@ -172,6 +262,110 @@ $items = $stmt->fetchAll();
     </div>
 
     <script>
+        // ==========================================
+        // 1. MODERN SEARCH & SUGGESTIONS LOGIC
+        // ==========================================
+        const searchInput = document.getElementById('searchInput');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        const suggestionBox = document.getElementById('searchSuggestions');
+        const searchForm = document.getElementById('searchForm');
+        
+        // Pass PHP array to JS safely
+        const suggestionsData = <?= json_encode($allSuggestions, JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+        // Toggle clear button and show suggestions
+        searchInput.addEventListener('input', function() {
+            const val = this.value.trim().toLowerCase();
+            clearSearchBtn.style.display = val ? 'flex' : 'none'; // Fixed bug here: using 'flex' to center the X
+            suggestionBox.innerHTML = '';
+            
+            if (val.length >= 2) {
+                // Filter matches based on Brand or Model
+                const matches = suggestionsData.filter(item => 
+                    (item.brand && item.brand.toLowerCase().includes(val)) || 
+                    (item.model_no && item.model_no.toLowerCase().includes(val))
+                );
+
+                if (matches.length > 0) {
+                    // Create unique map to prevent showing duplicates
+                    const uniqueMatches = new Map();
+                    matches.forEach(item => {
+                        if (!uniqueMatches.has(item.model_no)) {
+                            uniqueMatches.set(item.model_no, item.brand);
+                        }
+                    });
+
+                    // Limit to top 10 results
+                    let count = 0;
+                    uniqueMatches.forEach((brand, model) => {
+                        if (count >= 10) return;
+                        const div = document.createElement('div');
+                        div.className = 'custom-dropdown-item';
+                        div.innerHTML = `
+                            <span class="sugg-model">${model}</span>
+                            <span class="sugg-brand">${brand || 'UNBRANDED'}</span>
+                        `;
+                        
+                        div.addEventListener('click', () => {
+                            searchInput.value = model;
+                            suggestionBox.style.display = 'none';
+                            searchForm.submit(); // Auto-submit when suggestion clicked
+                        });
+                        suggestionBox.appendChild(div);
+                        count++;
+                    });
+                    suggestionBox.style.display = 'block';
+                } else {
+                    suggestionBox.style.display = 'none';
+                }
+            } else {
+                suggestionBox.style.display = 'none';
+            }
+        });
+
+        // Clear search logic (Clicking the X)
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            window.location.href = 'index.php'; // Reload cleanly
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-wrapper')) {
+                suggestionBox.style.display = 'none';
+            }
+        });
+
+        // ==========================================
+        // 2. SMARTER 30-SECOND IDLE TIMEOUT
+        // ==========================================
+        let idleTimer;
+        const idleTime = 30000; // 30 seconds
+
+        function resetIdleTimer() {
+            clearTimeout(idleTimer);
+            
+            // Only trigger countdown if there is text in the search box OR an active search URL
+            const isCurrentlySearching = searchInput.value.trim() !== '' || <?= !empty($search) ? 'true' : 'false' ?>;
+            
+            if (isCurrentlySearching) {
+                idleTimer = setTimeout(() => {
+                    window.location.href = 'index.php'; // Wipe the slate clean
+                }, idleTime);
+            }
+        }
+
+        // Listen for user activity
+        ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'].forEach(evt => {
+            window.addEventListener(evt, resetIdleTimer);
+        });
+
+        // Start timer immediately on load just in case
+        resetIdleTimer();
+
+        // ==========================================
+        // 3. CART & MODAL LOGIC 
+        // ==========================================
         let cartData = JSON.parse(sessionStorage.getItem('quoteCartData') || '[]');
 
         function toggleCartItem(event, id, brand, model) {
@@ -271,7 +465,6 @@ $items = $stmt->fetchAll();
                 noImgElement.style.display = 'block';
             }
 
-            // PDF Logic
             const pdfSection = document.getElementById('modalPdfSection');
             if (data.pdf_path) {
                 pdfSection.innerHTML = `

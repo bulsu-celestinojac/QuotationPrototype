@@ -210,8 +210,17 @@
         }
 
         .btn-select:hover { border-color: var(--maroon); color: var(--maroon); }
-        .card.is-selected .btn-select { background: var(--maroon); color: white; border-color: var(--maroon); }
-        .card.is-selected .btn-select::after { content: "ED"; }
+        .card.is-selected .btn-select { 
+            background: var(--maroon); 
+            color: white; 
+            border-color: var(--maroon); 
+            font-size: 0; /* Hides the original "Select" and the extra HTML spaces */
+        }
+
+        .card.is-selected .btn-select::after { 
+            content: "SELECTED"; /* Replaces the whole word cleanly */
+            font-size: 0.8rem; /* Restores the correct font size */
+        }
 
         .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 50px; }
         .page-link {

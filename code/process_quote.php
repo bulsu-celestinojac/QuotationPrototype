@@ -172,9 +172,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dompdf->stream($trans['quotation_no'] . ".pdf", ["Attachment" => false]);
         exit;
 
-    } catch (Exception $e) {
+} catch (Exception $e) {
         if ($pdo->inTransaction()) { $pdo->rollBack(); }
-        if ($e->getCode() == 23000) { die("Error: Quotation number '" . $trans['quotation_no'] . "' already exists."); }
+        
+        // Safely grab the quotation number, falling back to POST data if $trans isn't defined yet
+        $failed_quote_no = $trans['quotation_no'] ?? $_POST['quotation_no'] ?? 'Unknown';
+        
+        if ($e->getCode() == 23000) { 
+            die("Error: Quotation number '" . $failed_quote_no . "' already exists."); 
+        }
         die("System Error: " . $e->getMessage());
     }
 } else {

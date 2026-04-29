@@ -194,9 +194,12 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         .btn-delete:hover { background: #FEF2F2; color: #EF4444; }
 
         .autocomplete-wrapper { position: relative; width: 100%; z-index: 10; }
-        .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-height: 300px; overflow-y: auto; display: none; margin-top: 4px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+        .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-height: 300px; overflow-y: auto; display: none; margin-top: 4px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); z-index: 9999; }
         .autocomplete-item { padding: 14px 20px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .autocomplete-item:hover { background: var(--maroon-light); }
+        
+        /* Updated Hover and Keyboard Focus State */
+        .autocomplete-item:hover, .autocomplete-item.active-sugg { background: var(--maroon-light); }
+        
         .autocomplete-model { font-weight: 800; font-family: 'Outfit', sans-serif; color: var(--text-main); font-size: 1.1rem;}
         .autocomplete-brand { font-size: 0.7rem; color: var(--maroon); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
         .autocomplete-no-results { padding: 14px 20px; color: var(--text-muted); font-size: 0.9rem; font-style: italic; text-align: center; }
@@ -227,8 +230,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
     <script>
         const clientsData = <?= $clients_json_safe ?>;
         const inventoryData = <?= $inventory_json_safe ?>;
-        
-        // This will print exactly how many items successfully loaded!
         console.log("SUCCESS! Inventory Loaded:", inventoryData.length, "items.");
     </script>
 
@@ -274,7 +275,10 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                                     <span class="item-brand-text"><?= htmlspecialchars($item['brand'] ?: 'NO BRAND') ?></span>
                                     <input type="hidden" class="i-brand" value="<?= htmlspecialchars($item['brand']) ?>">
                                     
-                                    <span class="item-model-text"><?= htmlspecialchars($item['model']) ?></span>
+                                    <div class="autocomplete-wrapper">
+                                        <input type="text" class="input-model-search" value="<?= htmlspecialchars($item['model']) ?>" autocomplete="off" placeholder="Search Model...">
+                                        <div class="autocomplete-list"></div>
+                                    </div>
                                     <input type="hidden" class="i-model" value="<?= htmlspecialchars($item['model']) ?>">
                                     
                                     <span class="item-desc-text" title="<?= htmlspecialchars($item['full_desc']) ?>"><?= htmlspecialchars($first_line_desc) ?></span>
@@ -465,8 +469,103 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
             let addCounter = 1;
             const itemsContainer = document.getElementById('items-container');
             
+            // 🌟 UNIVERSAL AUTO-FILL FUNCTION 🌟
+            function applyInventoryMatch(row, match, input, forceValue = false) {
+                if (input && forceValue) {
+                    input.value = match.model_no;
+                }
+                if (input) input.classList.remove('is-searching');
+                
+                row.querySelector('.i-model').value = match.model_no;
+                row.querySelector('.i-brand').value = match.brand || '';
+                row.querySelector('.i-full-desc').value = match.description || '';
+                row.querySelector('.i-price').value = match.selling_price || 0;
+                
+                row.querySelector('.item-brand-text').textContent = match.brand || 'NO BRAND';
+                
+                const warningBadge = row.querySelector('.badge-warning');
+                if(warningBadge) warningBadge.style.display = 'none';
+
+                let firstLine = (match.description || '').split(/\r?\n/)[0];
+                row.querySelector('.item-desc-text').textContent = firstLine || 'No description available.';
+                
+                const priceFormatted = parseFloat(match.selling_price || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                row.querySelector('.metric-value-text').textContent = priceFormatted;
+                
+                const imgBox = row.querySelector('.item-image');
+                if (match.picture) {
+                    imgBox.innerHTML = `<img src="../images/machine_images/${match.picture}" alt="IMG"><input type="hidden" class="i-pic" value="${match.picture}">`;
+                    imgBox.setAttribute('data-large-src', `../images/machine_images/${match.picture}`);
+                } else {
+                    imgBox.innerHTML = `<span>NO IMG</span><input type="hidden" class="i-pic" value="">`;
+                    imgBox.setAttribute('data-large-src', '');
+                }
+                calculateTotals();
+            }
+
+            // 🌟 FUNCTION TO REVERT TO PENDING IF MISMATCHED 🌟
+            function clearInventoryMatch(row, typedValue) {
+                row.querySelector('.i-model').value = typedValue;
+                row.querySelector('.i-brand').value = '';
+                row.querySelector('.i-full-desc').value = '';
+                row.querySelector('.i-price').value = 0;
+                
+                row.querySelector('.item-brand-text').textContent = 'PENDING...';
+                row.querySelector('.item-desc-text').textContent = 'Search a model to populate description.';
+                row.querySelector('.metric-value-text').textContent = '0.00';
+                
+                const imgBox = row.querySelector('.item-image');
+                imgBox.innerHTML = `<span>NO IMG</span><input type="hidden" class="i-pic" value="">`;
+                imgBox.setAttribute('data-large-src', '');
+                
+                const warningBadge = row.querySelector('.badge-warning');
+                if(warningBadge) warningBadge.style.display = 'inline-block';
+                
+                calculateTotals();
+            }
+
             if (itemsContainer) {
                 
+                // Keyboard navigation logic
+                itemsContainer.addEventListener('keydown', function(e) {
+                    if (e.target.classList.contains('input-model-search')) {
+                        const input = e.target;
+                        const row = input.closest('.item-row');
+                        const list = row.querySelector('.autocomplete-list');
+                        
+                        if (!list || list.style.display === 'none') {
+                            if (e.key === 'Enter') e.preventDefault();
+                            return;
+                        }
+
+                        const items = list.querySelectorAll('.autocomplete-item');
+                        if (items.length === 0) return;
+
+                        let currentIndex = Array.from(items).findIndex(item => item.classList.contains('active-sugg'));
+
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            if (currentIndex < items.length - 1) {
+                                if (currentIndex >= 0) items[currentIndex].classList.remove('active-sugg');
+                                items[currentIndex + 1].classList.add('active-sugg');
+                                items[currentIndex + 1].scrollIntoView({ block: 'nearest' });
+                            }
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            if (currentIndex > 0) {
+                                items[currentIndex].classList.remove('active-sugg');
+                                items[currentIndex - 1].classList.add('active-sugg');
+                                items[currentIndex - 1].scrollIntoView({ block: 'nearest' });
+                            }
+                        } else if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (currentIndex >= 0) {
+                                items[currentIndex].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                            }
+                        }
+                    }
+                });
+
                 itemsContainer.addEventListener('focusin', function(e) {
                     if (e.target.classList.contains('input-model-search')) {
                         const row = e.target.closest('.item-row');
@@ -478,12 +577,10 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                     if (e.target.classList.contains('input-model-search')) {
                         const row = e.target.closest('.item-row');
                         if (row) row.style.zIndex = '1';
-                    }
-                });
-
-                itemsContainer.addEventListener('keydown', function(e) {
-                    if (e.target.classList.contains('input-model-search') && e.key === 'Enter') {
-                        e.preventDefault(); 
+                        
+                        const list = row.querySelector('.autocomplete-list');
+                        if(list) list.style.display = 'none';
+                        e.target.classList.remove('is-searching');
                     }
                 });
 
@@ -503,13 +600,32 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                         if (!list) return;
                         input.classList.add('is-searching');
 
+                        // Clear and hide if empty
                         if (val.length < 1) {
                             list.style.display = 'none';
+                            clearInventoryMatch(row, val);
                             return;
                         }
                         
                         const cleanVal = val.replace(/[\s\-]/g, '');
 
+                        // 🌟 INSTANT EXACT MATCH AUTO-FETCH 🌟
+                        const exactMatch = inventoryData.find(i => {
+                            const safeModel = String(i.model_no || '').toUpperCase();
+                            return safeModel === val || safeModel.replace(/[\s\-]/g, '') === cleanVal;
+                        });
+
+                        if (exactMatch) {
+                            // If exactly matched, instantly fetch without altering typing cursor
+                            applyInventoryMatch(row, exactMatch, input, false); 
+                            list.style.display = 'none';
+                            return;
+                        } else {
+                            // If user deleted a letter, instantly revert to "Pending"
+                            clearInventoryMatch(row, val); 
+                        }
+
+                        // 🌟 FALLBACK TO PARTIAL MATCH DROPDOWN 🌟
                         const matches = inventoryData.filter(i => {
                             const safeModel = String(i.model_no || '').toUpperCase();
                             const safeBrand = String(i.brand || '').toUpperCase();
@@ -526,40 +642,16 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                                 div.className = 'autocomplete-item';
                                 
                                 div.innerHTML = `
-                                    <div style="display:flex; flex-direction:column;">
+                                    <div style="display:flex; flex-direction:column; pointer-events:none;">
                                         <span class="autocomplete-model">${match.model_no}</span>
                                         <span class="autocomplete-brand">${match.brand || 'NO BRAND'}</span>
                                     </div>
                                 `;
                                 
-                                div.addEventListener('click', function() {
-                                    input.value = match.model_no;
-                                    input.classList.remove('is-searching');
-                                    
-                                    row.querySelector('.i-model').value = match.model_no;
-                                    row.querySelector('.i-brand').value = match.brand || '';
-                                    row.querySelector('.i-full-desc').value = match.description || '';
-                                    row.querySelector('.i-price').value = match.selling_price || 0;
-                                    
-                                    row.querySelector('.item-brand-text').textContent = match.brand || 'NO BRAND';
-                                    
-                                    let firstLine = (match.description || '').split(/\r?\n/)[0];
-                                    row.querySelector('.item-desc-text').textContent = firstLine || 'No description available.';
-                                    
-                                    const priceFormatted = parseFloat(match.selling_price || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                                    row.querySelector('.metric-value-text').textContent = priceFormatted;
-                                    
-                                    const imgBox = row.querySelector('.item-image');
-                                    if (match.picture) {
-                                        imgBox.innerHTML = `<img src="../images/machine_images/${match.picture}" alt="IMG"><input type="hidden" class="i-pic" value="${match.picture}">`;
-                                        imgBox.setAttribute('data-large-src', `../images/machine_images/${match.picture}`);
-                                    } else {
-                                        imgBox.innerHTML = `<span>NO IMG</span><input type="hidden" class="i-pic" value="">`;
-                                        imgBox.setAttribute('data-large-src', '');
-                                    }
-                                    
+                                div.addEventListener('mousedown', function(evt) {
+                                    evt.preventDefault();
+                                    applyInventoryMatch(row, match, input, true); // Force full model name on click
                                     list.style.display = 'none';
-                                    calculateTotals();
                                 });
                                 list.appendChild(div);
                             });
@@ -597,12 +689,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                     }
                 });
 
-                document.addEventListener('click', function(e) {
-                    if (!e.target.closest('.item-details')) {
-                        document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
-                    }
-                });
-
                 if (spanClose) spanClose.onclick = () => { modal.style.display = 'none'; };
                 if (modal) modal.onclick = (e) => { if (e.target === modal) { modal.style.display = 'none'; } };
             }
@@ -627,6 +713,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                             <input type="hidden" class="i-pic" value="">
                         </div>
                         <div class="item-details">
+                            <span class="badge-warning">Not In Inventory</span>
                             <span class="item-brand-text">PENDING...</span>
                             <input type="hidden" class="i-brand" value="">
                             
@@ -647,7 +734,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                             <div class="metric-group">
                                 <label>PRICE</label>
                                 <span class="metric-value-text">0.00</span>
-                                <input type="hidden" class="i-price" value="0.00">
+                                <input type="hidden" class="i-price" value="0">
                             </div>
                         </div>
                         <button type="button" class="btn-delete" title="Remove Item">
@@ -695,8 +782,3 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
     </script>   
 </body>
 </html>
-
-
-
-
-
