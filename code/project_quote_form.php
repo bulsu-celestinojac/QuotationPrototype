@@ -18,10 +18,18 @@ if (empty($incoming_items)) {
     exit;
 }
 
-// Auto-match models with inventory to fetch prices, descriptions, and pictures
+// FUZZY AUTO-MATCH: Strip spaces and hyphens from the incoming parsed model to match the DB safely
 foreach ($incoming_items as &$item) {
-    $stmt = $pdo->prepare("SELECT id, selling_price, description, picture FROM items WHERE model_no = ? LIMIT 1");
-    $stmt->execute([$item['model']]);
+    $clean_incoming_model = preg_replace('/[\s\-]/', '', $item['model']);
+    
+    // Check database by ignoring spaces and hyphens on both sides
+    $stmt = $pdo->prepare("
+        SELECT id, selling_price, description, picture 
+        FROM items 
+        WHERE REPLACE(REPLACE(model_no, ' ', ''), '-', '') = ? 
+        LIMIT 1
+    ");
+    $stmt->execute([$clean_incoming_model]);
     $match = $stmt->fetch();
     
     if ($match) {
@@ -49,31 +57,46 @@ try {
     $stmtClients = $pdo->query("SELECT company_name, email, client_address, contact_no FROM clients");
     if ($stmtClients) $clients = $stmtClients->fetchAll(PDO::FETCH_ASSOC);
     
-    // CRITICAL FIX: Explicitly query only the columns we know exist.
-    $stmtItems = $pdo->query("SELECT model_no, description, selling_price, picture FROM items");
+    $stmtItems = $pdo->query("SELECT brand, model_no, description, selling_price, picture FROM items");
     if ($stmtItems) {
         $raw_inventory = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
         foreach ($raw_inventory as $row) {
-            // CRITICAL FIX: Force convert to UTF-8 to prevent JSON from silently crashing on special characters
+            
+            $brand = (string)($row['brand'] ?? '');
+            $model_no = (string)($row['model_no'] ?? '');
+            $desc = (string)($row['description'] ?? '');
+            $pic = (string)($row['picture'] ?? '');
+
+            // CRITICAL FIX: Force UTF-8 Encoding to prevent json_encode from crashing on bad characters like ° or ™
+            if (function_exists('mb_convert_encoding')) {
+                $brand = mb_convert_encoding($brand, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+                $model_no = mb_convert_encoding($model_no, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+                $desc = mb_convert_encoding($desc, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+                $pic = mb_convert_encoding($pic, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+            }
+
             $clean_inventory[] = [
-                'model_no' => mb_convert_encoding((string)($row['model_no'] ?? ''), 'UTF-8', 'auto'),
-                'description' => mb_convert_encoding((string)($row['description'] ?? ''), 'UTF-8', 'auto'),
-                'selling_price' => $row['selling_price'] ?? 0,
-                'picture' => mb_convert_encoding((string)($row['picture'] ?? ''), 'UTF-8', 'auto')
+                'brand' => trim($brand),
+                'model_no' => trim($model_no),
+                'description' => trim($desc),
+                'selling_price' => (float)($row['selling_price'] ?? 0),
+                'picture' => trim($pic)
             ];
         }
     }
 } catch (Exception $e) {}
 
-// JSON_INVALID_UTF8_SUBSTITUTE protects against any remaining bad characters
-$clients_json = json_encode($clients ?: []);
-$inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITUTE) ?: '[]';
+// Safe encoding flags to ensure quotes and brackets don't break the HTML
+$json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+$clients_json_safe = json_encode($clients ?: [], $json_flags) ?: '[]';
+$inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Project Quote Builder - AM Group</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
@@ -89,115 +112,125 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
             --input-bg: #F4F4F5;
         }
 
-        body { font-family: 'DM Sans', sans-serif; background: var(--bg); padding: 40px; color: var(--text-main); line-height: 1.5; }
-        .container { max-width: 1500px; margin: 0 auto; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); line-height: 1.5; padding: 30px 20px; overflow-x: hidden; }
+        .container { width: 100%; max-width: 1400px; margin: 0 auto; }
 
-        /* Header & Back Button */
-        .page-header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
-        h1 { font-family: 'Outfit', sans-serif; font-size: 2.75rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; color: var(--text-main); line-height: 1; }
+        .page-header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 20px; flex-wrap: wrap; gap: 16px; }
+        h1 { font-family: 'Outfit', sans-serif; font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 800; margin: 0; letter-spacing: -0.02em; color: var(--text-main); line-height: 1; }
         h1 span { color: var(--maroon); }
-        .btn-back { color: var(--text-muted); text-decoration: none; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; transition: color 0.2s ease; margin-bottom: 6px; display: inline-block; }
+        .btn-back { color: var(--text-muted); text-decoration: none; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; transition: color 0.2s ease; display: inline-block; }
         .btn-back:hover { color: var(--maroon); }
 
-        h3 { font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 700; margin-bottom: 24px; margin-top: 0; color: var(--text-main); }
-
-        /* Layout Grid */
-        .layout-grid { display: grid; grid-template-columns: 550px 1fr; gap: 40px; align-items: start; }
-        .card { background: var(--surface); border-radius: 20px; padding: 32px; border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 10px 40px rgba(0,0,0,0.03); }
+        .layout-grid { display: flex; flex-direction: column; gap: 40px; }
         
-        /* Form Inputs (Left Column) */
+        .card { background: var(--surface); border-radius: 20px; padding: 32px; border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 10px 40px rgba(0,0,0,0.03); width: 100%; }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif; 
+            font-size: 1.5rem; 
+            font-weight: 800; 
+            margin-bottom: 24px; 
+            color: var(--text-main);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 12px;
+        }
+
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .full { grid-column: 1/-1; }
         label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--text-light); letter-spacing: 0.08em; display: block; margin-bottom: 6px; }
         input[type="text"], input[type="date"], input[type="number"], input[type="tel"], input[type="email"], select, textarea { 
-            width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid transparent; background: var(--input-bg); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--text-main); font-weight: 500; transition: all 0.3s ease; outline: none; box-sizing: border-box;
+            width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid transparent; background: var(--input-bg); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--text-main); font-weight: 500; transition: all 0.3s ease; outline: none;
         }
         input:focus, textarea:focus, select:focus { background: var(--surface); border-color: var(--maroon); box-shadow: 0 0 0 4px var(--maroon-light); }
         input::placeholder, textarea::placeholder { color: var(--text-light); font-weight: 400; }
         .readonly-input { background: transparent; border: 1px solid var(--border); color: var(--text-muted); pointer-events: none; }
-        hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+        hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 
-        /* Buttons */
+        .financial-summary-block { background: var(--bg); padding: 24px 32px; border-radius: 16px; border: 1px solid var(--border); margin-top: 32px; }
+        .summary-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+        .summary-row.total-row { border-top: 1px dashed var(--border); padding-top: 20px; margin-top: 20px; }
+        .input-discount { width: 150px !important; text-align: right; padding: 12px 16px !important; border: 1px solid var(--border) !important; border-radius: 10px !important; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 1.05rem; color: var(--maroon) !important; background: var(--surface) !important; transition: 0.2s; margin: 0 !important; }
+        .input-discount:focus { border-color: var(--maroon) !important; box-shadow: 0 0 0 4px var(--maroon-light) !important; }
+
         .btn { padding: 16px 32px; border-radius: 50px; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; border: none; display: inline-flex; align-items: center; justify-content: center; width: 100%; }
         .btn-primary { background: var(--maroon); color: white; box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); }
         .btn-primary:hover { background: #6A0D28; transform: translateY(-2px); box-shadow: 0 12px 24px rgba(139, 21, 56, 0.3); }
-        
-        /* Dashed Add Item Button */
-        .btn-dashed { background: transparent; border: 2px dashed #E4E4E7; color: #71717A; border-radius: 16px; font-weight: 800; font-size: 0.9rem; padding: 20px; transition: all 0.2s ease; margin-bottom: 24px; }
-        .btn-dashed:hover { background: #FAFAFA; border-color: var(--text-main); color: var(--text-main); }
+        .btn-dashed { background: transparent; border: 2px dashed #E4E4E7; color: #71717A; border-radius: 16px; font-weight: 800; font-size: 0.9rem; padding: 20px; transition: all 0.2s ease; margin-bottom: 0; }
+        .btn-dashed:hover { background: var(--surface); border-color: var(--text-main); color: var(--text-main); }
 
-        /* Project Items Design (Right Column) */
-        .items-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px; }
-        .item-row { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; gap: 24px; align-items: center; position: relative; transition: all 0.3s ease; z-index: 1; overflow: visible !important; }
+        .items-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; width: 100%; }
+        .item-row { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px 24px; display: flex; flex-wrap: wrap; gap: 24px; align-items: center; position: relative; transition: all 0.3s ease; z-index: 1; }
         .item-row:hover { border-color: #E4E4E7; box-shadow: 0 10px 30px rgba(0,0,0,0.03); transform: translateY(-1px); }
 
-        /* Item Components */
-        .item-mark { min-width: 65px; display: flex; align-items: center; justify-content: center; }
-        .mark-badge { background: var(--maroon-light); color: var(--maroon); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1rem; padding: 8px 14px; border-radius: 10px; text-align: center; }
-        .item-image { width: 72px; height: 72px; border-radius: 14px; border: 1px solid var(--border); background: #FFF; display: flex; align-items: center; justify-content: center; padding: 6px; cursor: pointer; transition: all 0.3s ease; flex-shrink: 0;}
+        .item-mark { min-width: 60px; display: flex; align-items: center; justify-content: center; }
+        .mark-badge { background: var(--maroon-light); color: var(--maroon); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.05rem; padding: 8px 14px; border-radius: 10px; text-align: center; }
+        .item-image { width: 80px; height: 80px; border-radius: 12px; border: 1px solid var(--border); background: #FFF; display: flex; align-items: center; justify-content: center; padding: 6px; cursor: pointer; transition: all 0.3s ease; flex-shrink: 0;}
         .item-image:hover { border-color: var(--maroon); box-shadow: 0 4px 12px var(--maroon-light); }
         .item-image img { width: 100%; height: 100%; object-fit: contain; }
         .item-image span { font-size: 0.5rem; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* Details */
-        .item-details { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; position: relative; overflow: visible !important; }
-        .item-brand-text { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-light); font-weight: 700; margin-bottom: 2px; }
-        .item-model-text { font-family: 'Outfit', sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--text-main); margin-bottom: 4px; line-height: 1.2; }
-        .item-desc-text { font-size: 0.85rem; color: var(--text-muted); display: block; width: 100%; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-details { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 250px; position: relative; }
+        .item-brand-text { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-light); font-weight: 700; margin-bottom: 4px; }
+        .item-model-text { font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin-bottom: 4px; line-height: 1.2; }
+        .item-desc-text { font-size: 0.9rem; color: var(--text-muted); display: block; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Added Model Search (Invisible background) */
-        .item-details input[type="text"].input-model-search { font-family: 'Outfit', sans-serif !important; font-size: 1.35rem !important; font-weight: 800 !important; color: var(--text-main) !important; background: transparent !important; border: none !important; border-radius: 0 !important; padding: 0 !important; margin-bottom: 4px !important; outline: none !important; width: 100% !important; box-shadow: none !important; line-height: 1.2 !important; }
+        .item-details input[type="text"].input-model-search { font-family: 'Outfit', sans-serif !important; font-size: 1.4rem !important; font-weight: 800 !important; color: var(--text-main) !important; background: transparent !important; border: none !important; border-radius: 0 !important; padding: 0 !important; margin-bottom: 4px !important; outline: none !important; width: 100% !important; box-shadow: none !important; line-height: 1.2 !important; }
         .item-details input[type="text"].input-model-search::placeholder { color: var(--text-light); font-weight: 400; }
         .item-details input[type="text"].input-model-search.is-searching { border-bottom: 2px dashed var(--border) !important; }
         .badge-warning { background: #FEF2F2; color: #EF4444; font-size: 0.6rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 6px; align-self: flex-start; }
 
-        /* Metrics & QTY (Includes CSS Warning Fix) */
-        .item-metrics { display: flex; gap: 32px; align-items: center; margin-right: 16px; }
+        .item-metrics { display: flex; gap: 32px; align-items: center; padding-right: 40px; }
         .metric-group { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .metric-group label { margin: 0; text-align: center; width: 100%; }
-        .metric-value-text { font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600; color: var(--text-main); }
+        .metric-value-text { font-family: 'DM Sans', sans-serif; font-size: 1.1rem; font-weight: 600; color: var(--text-main); white-space: nowrap; }
         
-        .input-qty-edit { 
-            width: 45px; text-align: center; padding: 6px 4px; background: transparent !important; border: 1px solid transparent !important; 
-            border-bottom: 1px dashed var(--text-light) !important; border-radius: 0 !important; font-size: 1rem; font-weight: 600; color: var(--text-main); height: auto; margin: 0; box-shadow: none !important;
-        }
-        .input-qty-edit:focus { border: 1px solid var(--border) !important; border-bottom: 1px solid var(--maroon) !important; background: var(--surface) !important; box-shadow: none !important; border-radius: 6px !important; }
+        .input-qty-edit { width: 55px; text-align: center; padding: 6px; background: transparent !important; border: 1px solid transparent !important; border-bottom: 1px dashed var(--text-light) !important; border-radius: 0 !important; font-size: 1.1rem; font-weight: 600; color: var(--text-main); height: auto; margin: 0; box-shadow: none !important; }
+        .input-qty-edit:focus { border: 1px solid var(--border) !important; border-bottom: 1px solid var(--maroon) !important; background: var(--surface) !important; border-radius: 6px !important; }
         .input-qty-edit::-webkit-outer-spin-button, .input-qty-edit::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
         .input-qty-edit[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
-        /* Actions & Modals */
-        .btn-delete { background: transparent; border: none; color: var(--text-light); font-size: 1.25rem; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s ease; }
+        .btn-delete { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: var(--text-light); font-size: 1.5rem; cursor: pointer; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s ease; }
         .btn-delete:hover { background: #FEF2F2; color: #EF4444; }
 
-        /* Enhanced Autocomplete Dropdown Positioning */
-        .autocomplete-wrapper { position: relative; width: 100%; overflow: visible !important; z-index: 10; }
-        .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-height: 250px; overflow-y: auto; z-index: 99999 !important; display: none; margin-top: 4px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
-        .autocomplete-item { padding: 14px 20px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
-        .autocomplete-item:last-child { border-bottom: none; }
-        .autocomplete-item:hover { background: var(--bg); }
-        .autocomplete-model { font-weight: 700; font-family: 'Outfit', sans-serif; color: var(--text-main); font-size: 1rem;}
-        .autocomplete-brand { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .autocomplete-wrapper { position: relative; width: 100%; z-index: 10; }
+        .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-height: 300px; overflow-y: auto; display: none; margin-top: 4px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+        .autocomplete-item { padding: 14px 20px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .autocomplete-item:hover { background: var(--maroon-light); }
+        .autocomplete-model { font-weight: 800; font-family: 'Outfit', sans-serif; color: var(--text-main); font-size: 1.1rem;}
+        .autocomplete-brand { font-size: 0.7rem; color: var(--maroon); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
         .autocomplete-no-results { padding: 14px 20px; color: var(--text-muted); font-size: 0.9rem; font-style: italic; text-align: center; }
 
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(8px); }
-        .modal-content { margin: auto; display: block; max-width: 85%; max-height: 85%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-        .modal-close { position: absolute; top: 30px; right: 40px; color: rgba(255,255,255,0.6); font-size: 40px; font-weight: 300; transition: 0.3s; cursor: pointer; line-height: 1; }
-        .modal-close:hover { color: #FFF; transform: scale(1.1); }
+        .modal-content { margin: auto; display: block; max-width: 85%; max-height: 85%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 16px; }
+        .modal-close { position: absolute; top: 30px; right: 40px; color: rgba(255,255,255,0.6); font-size: 40px; font-weight: 300; cursor: pointer; }
+        .modal-close:hover { color: #FFF; }
 
-        /* Automated Totals Summary Card */
-        .summary-card { background: var(--surface); border-radius: 20px; padding: 24px 32px; border: 1px solid var(--border); margin-bottom: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.02); }
-        .summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 1.05rem; font-weight: 600; color: var(--text-muted); }
-        .summary-row.total-row { border-top: 1px dashed var(--border); padding-top: 20px; margin-top: 20px; margin-bottom: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main); font-family: 'Outfit', sans-serif; }
-        .summary-value { font-family: 'DM Sans', sans-serif; font-weight: 700; color: var(--text-main); }
-        
-        .input-discount { 
-            width: 140px !important; text-align: right; padding: 10px 14px !important; border: 1px solid var(--border) !important; 
-            border-radius: 10px !important; font-family: 'DM Sans', sans-serif; font-weight: 700; color: var(--maroon) !important; background: var(--surface) !important; transition: 0.2s; margin-top: 0 !important;
+        @media (max-width: 768px) {
+            body { padding: 15px 10px; }
+            .form-grid { grid-template-columns: 1fr; } 
+            .item-row { padding: 16px; flex-direction: column; align-items: flex-start; gap: 12px; }
+            .item-mark { width: auto; margin-bottom: 0; }
+            .item-details { width: 100%; }
+            .item-desc-text { white-space: normal; }
+            .item-metrics { width: 100%; justify-content: flex-start; padding-right: 0; border-top: 1px dashed var(--border); padding-top: 12px; margin-top: 8px; gap: 32px; }
+            .metric-group { align-items: flex-start; }
+            .metric-group label { text-align: left; }
+            .btn-delete { position: absolute; top: 16px; right: 16px; transform: none; }
+            .summary-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .input-discount { width: 100% !important; }
         }
-        .input-discount:focus { border-color: var(--maroon) !important; box-shadow: 0 0 0 4px var(--maroon-light) !important; }
     </style>
 </head>
 <body>
+
+    <script>
+        const clientsData = <?= $clients_json_safe ?>;
+        const inventoryData = <?= $inventory_json_safe ?>;
+        
+        // This will print exactly how many items successfully loaded!
+        console.log("SUCCESS! Inventory Loaded:", inventoryData.length, "items.");
+    </script>
 
     <div class="container">
         
@@ -211,9 +244,68 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
             <input type="hidden" name="items_json" id="items_json" value="">
             
             <div class="layout-grid">
-                
+
+                <div class="project-items-wrapper">
+                    <h2 class="section-title">1. Review Equipment List</h2>
+                        
+                    <div class="items-list" id="items-container">
+                        <?php foreach ($incoming_items as $index => $item): 
+                            $first_line_desc = explode("\n", str_replace("\r", "", $item['full_desc']))[0];
+                        ?>
+                            <div class="item-row">
+                                <div class="item-mark">
+                                    <span class="mark-badge"><?= htmlspecialchars($item['mark']) ?></span>
+                                    <input type="hidden" class="i-mark" value="<?= htmlspecialchars($item['mark']) ?>">
+                                </div>
+                                
+                                <div class="item-image" data-large-src="<?= !empty($item['picture']) ? '../images/machine_images/' . htmlspecialchars($item['picture']) : '' ?>">
+                                    <?php if (!empty($item['picture'])): ?>
+                                        <img src="../images/machine_images/<?= htmlspecialchars($item['picture']) ?>" alt="IMG">
+                                    <?php else: ?>
+                                        <span>NO IMG</span>
+                                    <?php endif; ?>
+                                    <input type="hidden" class="i-pic" value="<?= htmlspecialchars($item['picture'] ?? '') ?>">
+                                </div>
+
+                                <div class="item-details">
+                                    <?php if(!$item['db_id']): ?>
+                                        <span class="badge-warning">Not In Inventory</span>
+                                    <?php endif; ?>
+                                    <span class="item-brand-text"><?= htmlspecialchars($item['brand'] ?: 'NO BRAND') ?></span>
+                                    <input type="hidden" class="i-brand" value="<?= htmlspecialchars($item['brand']) ?>">
+                                    
+                                    <span class="item-model-text"><?= htmlspecialchars($item['model']) ?></span>
+                                    <input type="hidden" class="i-model" value="<?= htmlspecialchars($item['model']) ?>">
+                                    
+                                    <span class="item-desc-text" title="<?= htmlspecialchars($item['full_desc']) ?>"><?= htmlspecialchars($first_line_desc) ?></span>
+                                    <input type="hidden" class="i-full-desc" value="<?= htmlspecialchars($item['full_desc']) ?>">
+                                </div>
+
+                                <div class="item-metrics">
+                                    <div class="metric-group">
+                                        <label>QTY</label>
+                                        <input type="number" class="input-qty-edit i-qty" value="<?= $item['qty'] ?? 1 ?>" min="1" max="999">
+                                    </div>
+                                    <div class="metric-group">
+                                        <label>PRICE</label>
+                                        <span class="metric-value-text"><?= number_format((float)$item['price'], 2) ?></span>
+                                        <input type="hidden" class="i-price" value="<?= $item['price'] ?>">
+                                    </div>
+                                </div>
+
+                                <button type="button" class="btn-delete" title="Remove Item">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                                </button>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <button type="button" id="btnAddItem" class="btn btn-dashed">+ ADD ADDITIONAL ITEM</button>
+                </div>
+
                 <div class="card project-details-card">
-                    <h3>Project Details</h3>
+                    <h2 class="section-title" style="border:none; padding:0; margin-bottom:24px;">2. Project Details</h2>
+                    
                     <div class="form-grid">
                         <div class="full">
                             <label>Company Name (Auto Caps)</label>
@@ -294,83 +386,24 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                             <input type="text" name="prepared_by" required>
                         </div>
                     </div>
-                </div>
 
-                <div class="project-items-wrapper">
-                    <div style="margin-bottom: 24px;">
-                        <h3 style="margin: 0;">Project Items</h3>
-                    </div>
-                        
-                    <div class="items-list" id="items-container">
-                        <?php foreach ($incoming_items as $index => $item): 
-                            $first_line_desc = explode("\n", str_replace("\r", "", $item['full_desc']))[0];
-                        ?>
-                            <div class="item-row">
-                                <div class="item-mark">
-                                    <span class="mark-badge"><?= htmlspecialchars($item['mark']) ?></span>
-                                    <input type="hidden" class="i-mark" value="<?= htmlspecialchars($item['mark']) ?>">
-                                </div>
-                                
-                                <div class="item-image" data-large-src="<?= !empty($item['picture']) ? '../images/machine_images/' . htmlspecialchars($item['picture']) : '' ?>">
-                                    <?php if (!empty($item['picture'])): ?>
-                                        <img src="../images/machine_images/<?= htmlspecialchars($item['picture']) ?>" alt="IMG">
-                                    <?php else: ?>
-                                        <span>NO IMG</span>
-                                    <?php endif; ?>
-                                    <input type="hidden" class="i-pic" value="<?= htmlspecialchars($item['picture'] ?? '') ?>">
-                                </div>
-
-                                <div class="item-details">
-                                    <?php if(!$item['db_id']): ?>
-                                        <span class="badge-warning">Not In Inventory</span>
-                                    <?php endif; ?>
-                                    <span class="item-brand-text"><?= htmlspecialchars($item['brand'] ?: 'NO BRAND') ?></span>
-                                    <input type="hidden" class="i-brand" value="<?= htmlspecialchars($item['brand']) ?>">
-                                    
-                                    <span class="item-model-text"><?= htmlspecialchars($item['model']) ?></span>
-                                    <input type="hidden" class="i-model" value="<?= htmlspecialchars($item['model']) ?>">
-                                    
-                                    <span class="item-desc-text" title="<?= htmlspecialchars($item['full_desc']) ?>"><?= htmlspecialchars($first_line_desc) ?></span>
-                                    <input type="hidden" class="i-full-desc" value="<?= htmlspecialchars($item['full_desc']) ?>">
-                                </div>
-
-                                <div class="item-metrics">
-                                    <div class="metric-group">
-                                        <label>QTY</label>
-                                        <input type="number" class="input-qty-edit i-qty" value="<?= $item['qty'] ?? 1 ?>" min="1" max="999">
-                                    </div>
-                                    <div class="metric-group">
-                                        <label>PRICE</label>
-                                        <span class="metric-value-text"><?= number_format((float)$item['price'], 2) ?></span>
-                                        <input type="hidden" class="i-price" value="<?= $item['price'] ?>">
-                                    </div>
-                                </div>
-
-                                <button type="button" class="btn-delete" title="Remove Item">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                                </button>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-
-                    <button type="button" id="btnAddItem" class="btn btn-dashed">+ ADD ADDITIONAL ITEM</button>
-
-                    <div class="summary-card">
-                        <div class="summary-row">
-                            <span>Subtotal:</span>
-                            <span class="summary-value" id="display-subtotal">₱0.00</span>
+                    <div class="financial-summary-block">
+                        <div class="summary-row" style="margin-bottom: 16px;">
+                            <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Subtotal:</span>
+                            <span class="summary-value" id="display-subtotal" style="font-size: 1.25rem; font-weight: 700; color: var(--text-main);">₱0.00</span>
                         </div>
                         <div class="summary-row">
-                            <span>Discount Amount (₱):</span>
+                            <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Discount (₱):</span>
                             <input type="number" step="0.01" name="discount_amount" id="discount_amount" value="0" class="input-discount">
                         </div>
                         <div class="summary-row total-row">
-                            <span>Total Net Amount:</span>
-                            <span id="display-total">₱0.00</span>
+                            <span style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); text-transform: uppercase;">Total Net Amount:</span>
+                            <span id="display-total" style="font-size: 2rem; color: var(--maroon); font-weight: 800; font-family: 'Outfit', sans-serif;">₱0.00</span>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary" style="margin-top: 0;">Generate Project PDF</button>
+                    <button type="submit" class="btn btn-primary" style="margin-top: 32px; font-size: 1.1rem; padding: 20px;">Generate Project PDF</button>
+
                 </div>
             </div>
         </form>
@@ -381,18 +414,9 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
         <img class="modal-content" id="img01">
     </div>
 
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             
-            // Injecting PHP Arrays safely
-            const clientsData = <?= $clients_json ?>;
-            const inventoryData = <?= $inventory_json ?>;
-            
-            // Helpful console log to verify data loaded
-            console.log("Database Inventory Loaded:", inventoryData.length, "items.");
-
-            // === Automated Calculation Logic ===
             function calculateTotals() {
                 let subtotal = 0;
                 document.querySelectorAll('.item-row').forEach(row => {
@@ -412,7 +436,6 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
             calculateTotals();
             document.getElementById('discount_amount').addEventListener('input', calculateTotals);
 
-            // === Company Auto-Suggest Logic ===
             const companyInput = document.getElementById('company_name');
             if (companyInput) {
                 companyInput.addEventListener('input', function() {
@@ -439,7 +462,6 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                 });
             }
 
-            // === Inventory Model Auto-Suggest & Z-Index Management ===
             let addCounter = 1;
             const itemsContainer = document.getElementById('items-container');
             
@@ -461,7 +483,7 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
 
                 itemsContainer.addEventListener('keydown', function(e) {
                     if (e.target.classList.contains('input-model-search') && e.key === 'Enter') {
-                        e.preventDefault(); // Prevent accidental form submission
+                        e.preventDefault(); 
                     }
                 });
 
@@ -481,14 +503,19 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                         if (!list) return;
                         input.classList.add('is-searching');
 
-                        if (val.length < 2) {
+                        if (val.length < 1) {
                             list.style.display = 'none';
                             return;
                         }
                         
+                        const cleanVal = val.replace(/[\s\-]/g, '');
+
                         const matches = inventoryData.filter(i => {
                             const safeModel = String(i.model_no || '').toUpperCase();
-                            return safeModel.includes(val);
+                            const safeBrand = String(i.brand || '').toUpperCase();
+                            const cleanModel = safeModel.replace(/[\s\-]/g, '');
+                            
+                            return cleanModel.includes(cleanVal) || safeBrand.includes(val) || safeModel.includes(val);
                         });
                         
                         list.innerHTML = '';
@@ -497,8 +524,12 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                             matches.slice(0, 15).forEach(match => { 
                                 const div = document.createElement('div');
                                 div.className = 'autocomplete-item';
+                                
                                 div.innerHTML = `
-                                    <span class="autocomplete-model">${match.model_no}</span>
+                                    <div style="display:flex; flex-direction:column;">
+                                        <span class="autocomplete-model">${match.model_no}</span>
+                                        <span class="autocomplete-brand">${match.brand || 'NO BRAND'}</span>
+                                    </div>
                                 `;
                                 
                                 div.addEventListener('click', function() {
@@ -506,10 +537,11 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                                     input.classList.remove('is-searching');
                                     
                                     row.querySelector('.i-model').value = match.model_no;
+                                    row.querySelector('.i-brand').value = match.brand || '';
                                     row.querySelector('.i-full-desc').value = match.description || '';
                                     row.querySelector('.i-price').value = match.selling_price || 0;
                                     
-                                    row.querySelector('.item-brand-text').textContent = 'DATABASE ITEM';
+                                    row.querySelector('.item-brand-text').textContent = match.brand || 'NO BRAND';
                                     
                                     let firstLine = (match.description || '').split(/\r?\n/)[0];
                                     row.querySelector('.item-desc-text').textContent = firstLine || 'No description available.';
@@ -532,7 +564,6 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                                 list.appendChild(div);
                             });
                         } else {
-                            // Provide visual feedback if typing but no match found
                             list.innerHTML = `<div class="autocomplete-no-results">No match found in database</div>`;
                         }
                         
@@ -540,7 +571,6 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                     }
                 });
 
-                // === Image Modal and Delete Row ===
                 const modal = document.getElementById('imageModal');
                 const modalImg = document.getElementById('img01');
                 const spanClose = document.getElementsByClassName('modal-close')[0];
@@ -577,7 +607,6 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                 if (modal) modal.onclick = (e) => { if (e.target === modal) { modal.style.display = 'none'; } };
             }
 
-            // === Add Additional Item Block ===
             const btnAddItem = document.getElementById('btnAddItem');
             if (btnAddItem) {
                 btnAddItem.addEventListener('click', function() {
@@ -588,7 +617,6 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                     const currentMark = 'ADD' + addCounter;
                     addCounter++;
                     
-                    // Note the autocomplete-wrapper div added for robust positioning
                     newRow.innerHTML = `
                         <div class="item-mark">
                             <span class="mark-badge">${currentMark}</span>
@@ -623,7 +651,7 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                             </div>
                         </div>
                         <button type="button" class="btn-delete" title="Remove Item">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                         </button>
                     `;
                     
@@ -635,7 +663,6 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                 });
             }
 
-            // === Form Submission ===
             const projectForm = document.getElementById('projectForm');
             if (projectForm) {
                 projectForm.addEventListener('submit', function(e) {
@@ -659,13 +686,17 @@ $inventory_json = json_encode($clean_inventory ?: [], JSON_INVALID_UTF8_SUBSTITU
                     });
                     document.getElementById('items_json').value = JSON.stringify(items);
                     
-                    // Clean inputs so they don't double-post
                     document.querySelectorAll('input.i-qty, input.i-price, input.i-mark, input.i-brand, input.i-model, input.i-full-desc, input.i-pic, .input-model-search').forEach(el => el.removeAttribute('name'));
                     
                     this.submit();
                 });
             }
         });
-    </script>
+    </script>   
 </body>
 </html>
+
+
+
+
+

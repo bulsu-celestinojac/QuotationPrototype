@@ -6,6 +6,7 @@ if (empty($_SESSION['csrf_token'])) {
 $csrf_token = $_SESSION['csrf_token'];
 
 require 'db.php';
+require_once 'functions.php'; // Required for flash messages
 
 // Pagination setup
 $perPage = 50;
@@ -63,6 +64,8 @@ $items = $stmt->fetchAll();
             </div>
         </div>
 
+        <?php display_flash_message(); ?>
+
         <div class="grid">
             <?php foreach ($items as $item):
                 $serverFilePath = __DIR__ . '/../images/machine_images/' . $item['picture'];
@@ -78,7 +81,8 @@ $items = $stmt->fetchAll();
                     "buying_cost" => $item["buying_cost"],
                     "factor" => $item["factor"],
                     "selling_price" => number_format($item["selling_price"], 2),
-                    "image" => $hasImage ? $publicFilePath : null
+                    "image" => $hasImage ? $publicFilePath : null,
+                    "pdf_path" => $item["pdf_path"] ?? null
                 ], JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, "UTF-8")?>)'>
                     
                     <div class="card-image">
@@ -158,7 +162,9 @@ $items = $stmt->fetchAll();
                     <p id="modalDesc" style="font-size: 0.9rem; line-height: 1.6; white-space: pre-line; color: var(--text-main);"></p>
                 </div>
                 
-                <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); text-align: right;">
+                <div id="modalPdfSection" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);"></div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border); text-align: right;">
                     <a id="modalDeleteBtn" href="#" style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 700; text-decoration: underline;">Delete Record</a>
                 </div>
             </div>
@@ -263,6 +269,27 @@ $items = $stmt->fetchAll();
             } else {
                 imgElement.style.display = 'none';
                 noImgElement.style.display = 'block';
+            }
+
+            // PDF Logic
+            const pdfSection = document.getElementById('modalPdfSection');
+            if (data.pdf_path) {
+                pdfSection.innerHTML = `
+                    <label style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.1em; display: block; margin-bottom: 8px;">Documentation</label>
+                    <a href="../pdfs/machine_pdfs/${data.pdf_path}" target="_blank" style="display: inline-flex; align-items: center; justify-content: center; background: var(--maroon); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.85rem; transition: background 0.2s;">
+                        📄 View PDF Brochure
+                    </a>
+                `;
+            } else {
+                pdfSection.innerHTML = `
+                    <label style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.1em; display: block; margin-bottom: 8px;">Upload PDF Documentation</label>
+                    <form action="upload_pdf.php" method="POST" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
+                        <input type="hidden" name="item_id" value="${data.id}">
+                        <input type="hidden" name="token" value="${csrfToken}">
+                        <input type="file" name="pdf_file" accept="application/pdf" required style="font-size: 0.85rem; border: 1px solid var(--border); border-radius: 8px; padding: 8px; flex: 1;">
+                        <button type="submit" style="background: var(--surface); border: 1px solid var(--maroon); color: var(--maroon); padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s;">Upload</button>
+                    </form>
+                `;
             }
 
             document.getElementById('detailModal').classList.add('active');
