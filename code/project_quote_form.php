@@ -49,45 +49,41 @@ $stmtId = $pdo->query("SELECT MAX(id) FROM project_quotations");
 $nextId = (int)$stmtId->fetchColumn() + 1;
 $default_quote_num = date('ydm') . '_PRJ_' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
 
-// Fetch clients & inventory for auto-suggest
+// ==========================================
+// BULLETPROOF AUTO-SUGGEST DATA LOADING
+// ==========================================
 $clients = [];
 $clean_inventory = [];
 
+// 1. Fetch Clients (Isolated try/catch so failure doesn't break inventory)
 try {
     $stmtClients = $pdo->query("SELECT company_name, email, client_address, contact_no FROM clients");
     if ($stmtClients) $clients = $stmtClients->fetchAll(PDO::FETCH_ASSOC);
-    
+} catch (Exception $e) {}
+
+// 2. Fetch Inventory (Isolated try/catch)
+try {
     $stmtItems = $pdo->query("SELECT brand, model_no, description, selling_price, picture FROM items");
     if ($stmtItems) {
         $raw_inventory = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
         foreach ($raw_inventory as $row) {
-            
-            $brand = (string)($row['brand'] ?? '');
-            $model_no = (string)($row['model_no'] ?? '');
-            $desc = (string)($row['description'] ?? '');
-            $pic = (string)($row['picture'] ?? '');
-
-            // CRITICAL FIX: Force UTF-8 Encoding to prevent json_encode from crashing on bad characters like ° or ™
-            if (function_exists('mb_convert_encoding')) {
-                $brand = mb_convert_encoding($brand, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
-                $model_no = mb_convert_encoding($model_no, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
-                $desc = mb_convert_encoding($desc, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
-                $pic = mb_convert_encoding($pic, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
-            }
-
             $clean_inventory[] = [
-                'brand' => trim($brand),
-                'model_no' => trim($model_no),
-                'description' => trim($desc),
+                'brand' => trim((string)($row['brand'] ?? '')),
+                'model_no' => trim((string)($row['model_no'] ?? '')),
+                'description' => trim((string)($row['description'] ?? '')),
                 'selling_price' => (float)($row['selling_price'] ?? 0),
-                'picture' => trim($pic)
+                'picture' => trim((string)($row['picture'] ?? ''))
             ];
         }
     }
 } catch (Exception $e) {}
 
-// Safe encoding flags to ensure quotes and brackets don't break the HTML
+// Safe encoding flags to ensure quotes, brackets, and weird symbols don't break the HTML
 $json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+    $json_flags |= JSON_INVALID_UTF8_SUBSTITUTE; // Prevents json_encode from crashing on bad characters
+}
+
 $clients_json_safe = json_encode($clients ?: [], $json_flags) ?: '[]';
 $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
 ?>
@@ -631,7 +627,8 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                             const safeBrand = String(i.brand || '').toUpperCase();
                             const cleanModel = safeModel.replace(/[\s\-]/g, '');
                             
-                            return cleanModel.includes(cleanVal) || safeBrand.includes(val) || safeModel.includes(val);
+                            // FIXED: Allows the model to show up even if the user types more letters than the exact model length!
+                            return cleanModel.includes(cleanVal) || cleanVal.includes(cleanModel) || safeBrand.includes(val) || val.includes(safeBrand) || safeModel.includes(val) || val.includes(safeModel);
                         });
                         
                         list.innerHTML = '';

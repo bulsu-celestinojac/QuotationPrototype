@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['import_file'])) {
 }
 
 // ==============================================================
-// 1. ROBUST CSV PARSER
+// 1. ROBUST CSV PARSER (WITH STRICT COLUMN CHECKING)
 // ==============================================================
 function processCsv($filePath) {
     $data = [];
@@ -60,40 +60,49 @@ function processCsv($filePath) {
                     if ($descIndex === false && in_array($val, $descAliases)) $descIndex = $idx;
                     if ($qtyIndex === false && in_array($val, $qtyAliases)) $qtyIndex = $idx;
                 }
-                if ($markIndex !== false && $descIndex !== false) break; 
+                // Break early ONLY if all three are found
+                if ($markIndex !== false && $descIndex !== false && $qtyIndex !== false) break; 
             }
         }
 
-        if ($markIndex !== false && $descIndex !== false) {
-            while (($row = fgetcsv($handle, 10000, ",")) !== false) {
-                $mark = trim($row[$markIndex] ?? '');
-                
-                // FLATTEN TEXT
-                $rawDesc = str_replace(["\xA0", "\xC2\xA0"], ' ', (string)($row[$descIndex] ?? ''));
-                $desc = trim(preg_replace('/\s+/', ' ', $rawDesc));
-                
-                // STRICT QTY EXTRACTION
-                $qty = 1;
-                if ($qtyIndex !== false && isset($row[$qtyIndex])) {
-                    if (preg_match('/[0-9]+(?:\.[0-9]+)?/', (string)$row[$qtyIndex], $matches)) {
-                        $parsed = floatval($matches[0]);
-                        if ($parsed > 0) $qty = $parsed;
-                    }
-                }
-                
-                if (empty($mark) || empty($desc) || in_array(strtolower($mark), $markAliases)) continue;
+        // --- STRICT ERROR CHECKING ---
+        $missingColumns = [];
+        if ($markIndex === false) $missingColumns[] = "MARK";
+        if ($qtyIndex === false) $missingColumns[] = "COUNT / QTY";
+        if ($descIndex === false) $missingColumns[] = "KEYNOTE / DESCRIPTION";
 
-                $extracted = extractInfo($desc);
-                $data[] = [
-                    'mark' => $mark, 
-                    'qty' => $qty, 
-                    'original_text' => $desc, 
-                    'model' => $extracted['model'], 
-                    'brand' => $extracted['brand']
-                ];
+        if (!empty($missingColumns)) {
+            fclose($handle);
+            throw new Exception("Invalid Template. Missing required column(s): " . implode(", ", $missingColumns) . ".");
+        }
+        // -----------------------------
+
+        while (($row = fgetcsv($handle, 10000, ",")) !== false) {
+            $mark = trim($row[$markIndex] ?? '');
+            
+            // FLATTEN TEXT
+            $rawDesc = str_replace(["\xA0", "\xC2\xA0"], ' ', (string)($row[$descIndex] ?? ''));
+            $desc = trim(preg_replace('/\s+/', ' ', $rawDesc));
+            
+            // STRICT QTY EXTRACTION
+            $qty = 1;
+            if (isset($row[$qtyIndex])) {
+                if (preg_match('/[0-9]+(?:\.[0-9]+)?/', (string)$row[$qtyIndex], $matches)) {
+                    $parsed = floatval($matches[0]);
+                    if ($parsed > 0) $qty = $parsed;
+                }
             }
-        } else {
-            throw new Exception("Could not identify 'Mark' and 'Description' columns.");
+            
+            if (empty($mark) || empty($desc) || in_array(strtolower($mark), $markAliases)) continue;
+
+            $extracted = extractInfo($desc);
+            $data[] = [
+                'mark' => $mark, 
+                'qty' => $qty, 
+                'original_text' => $desc, 
+                'model' => $extracted['model'], 
+                'brand' => $extracted['brand']
+            ];
         }
         fclose($handle);
     }
@@ -101,7 +110,7 @@ function processCsv($filePath) {
 }
 
 // ==============================================================
-// 2. ROBUST EXCEL PARSER
+// 2. ROBUST EXCEL PARSER (WITH STRICT COLUMN CHECKING)
 // ==============================================================
 function processExcel($filePath) {
     $data = [];
@@ -127,41 +136,49 @@ function processExcel($filePath) {
             if ($descIndex === false && in_array($val, $descAliases)) $descIndex = $idx;
             if ($qtyIndex === false && in_array($val, $qtyAliases)) $qtyIndex = $idx;
         }
-        if ($markIndex !== false && $descIndex !== false) break; 
+        // Break early ONLY if all three are found
+        if ($markIndex !== false && $descIndex !== false && $qtyIndex !== false) break; 
     }
 
-    if ($markIndex !== false && $descIndex !== false) {
-        foreach ($rows as $row) {
-            $mark = trim((string)($row[$markIndex] ?? ''));
-            
-            // FLATTEN TEXT
-            $rawDesc = str_replace(["\xA0", "\xC2\xA0"], ' ', (string)($row[$descIndex] ?? ''));
-            $desc = trim(preg_replace('/\s+/', ' ', $rawDesc));
-            
-            // STRICT QTY EXTRACTION
-            $qty = 1;
-            if ($qtyIndex !== false && isset($row[$qtyIndex])) {
-                if (preg_match('/[0-9]+(?:\.[0-9]+)?/', (string)$row[$qtyIndex], $matches)) {
-                    $parsed = floatval($matches[0]);
-                    if ($parsed > 0) $qty = $parsed;
-                }
-            }
-            
-            if (empty($mark) || in_array(strtolower($mark), $markAliases)) continue;
+    // --- STRICT ERROR CHECKING ---
+    $missingColumns = [];
+    if ($markIndex === false) $missingColumns[] = "MARK";
+    if ($qtyIndex === false) $missingColumns[] = "COUNT / QTY";
+    if ($descIndex === false) $missingColumns[] = "KEYNOTE / DESCRIPTION";
 
-            if (!empty($desc)) {
-                $extracted = extractInfo($desc);
-                $data[] = [
-                    'mark' => $mark, 
-                    'qty' => $qty, 
-                    'original_text' => $desc, 
-                    'model' => $extracted['model'], 
-                    'brand' => $extracted['brand']
-                ];
+    if (!empty($missingColumns)) {
+        throw new Exception("Invalid Template. Missing required column(s): " . implode(", ", $missingColumns) . ".");
+    }
+    // -----------------------------
+
+    foreach ($rows as $row) {
+        $mark = trim((string)($row[$markIndex] ?? ''));
+        
+        // FLATTEN TEXT
+        $rawDesc = str_replace(["\xA0", "\xC2\xA0"], ' ', (string)($row[$descIndex] ?? ''));
+        $desc = trim(preg_replace('/\s+/', ' ', $rawDesc));
+        
+        // STRICT QTY EXTRACTION
+        $qty = 1;
+        if (isset($row[$qtyIndex])) {
+            if (preg_match('/[0-9]+(?:\.[0-9]+)?/', (string)$row[$qtyIndex], $matches)) {
+                $parsed = floatval($matches[0]);
+                if ($parsed > 0) $qty = $parsed;
             }
         }
-    } else {
-        throw new Exception("Could not identify 'Mark' and 'Description' columns in Excel.");
+        
+        if (empty($mark) || in_array(strtolower($mark), $markAliases)) continue;
+
+        if (!empty($desc)) {
+            $extracted = extractInfo($desc);
+            $data[] = [
+                'mark' => $mark, 
+                'qty' => $qty, 
+                'original_text' => $desc, 
+                'model' => $extracted['model'], 
+                'brand' => $extracted['brand']
+            ];
+        }
     }
     
     return $data;
@@ -225,7 +242,7 @@ function processPdf($filePath) {
 }
 
 // ==============================================================
-// 4. BEAST MODE EXTRACTION ALGORITHM
+// 4. BEAST MODE EXTRACTION ALGORITHM (FIXED)
 // ==============================================================
 function extractInfo($text) {
     $cleanText = trim(preg_replace('/\s+/', ' ', $text)); 
@@ -234,27 +251,34 @@ function extractInfo($text) {
 
     if (empty($cleanText)) return ['model' => $model, 'brand' => $brand];
 
+    // Strip out common dimensions and power specs so they aren't confused for models
     $analysisText = preg_replace('/\b\d+(?:\.\d+)?\s*[xX*]\s*\d+(?:\.\d+)?\s*(?:[xX*]\s*\d+(?:\.\d+)?)?\s*(?:mm|cm|in|inches|")?\b/i', '', $cleanText);
     $analysisText = preg_replace('/\b\d+(?:\.\d+)?\s*(?:V|Hz|kW|W|Ph|Amp|A|HP)\b/i', '', $analysisText);
 
     $foundModel = false;
     $foundBrand = false;
 
+    // List of words that signal the end of a Model or Brand string
     $stopWords = 'Brand|Make|Mfg|Manufacturer|Model|Mdl|Mod|Item No|Dim|Dimensions|Cap|Capacity|Desc|Description|Weight|Volts|Voltage|Power|Temp|Cooling|Net|Gross|Fuel|Container|Dolly|Open stand|Vanishing|Volume|Max|Average|Electric|Supply|Distance|Defrosting|Ambient|Refrigerant|Materials|Controller|Yield|Climate|Valve|Bowl|Kneading|Flour|Motor|Speed|Gas|Phase|Cycle|Rate|Absorbed|Current|Internal|External|Productivity|Fire up|Charcoal|Performance|Broiling|Exhaust|Heat|Extraction|Installation|Cord';
-    $stopPattern = '(?=\s*(?:' . $stopWords . ')\b|\s*[A-Z][a-zA-Z0-9\s\/\-\.\(\)]{2,30}\s*:|$)';
+    
+    // THE FIX: Removed the aggressive colon-catcher that was truncating to 1 letter.
+    $stopPattern = '(?=\s*(?:' . $stopWords . ')\b|$)';
 
+    // Extract Model
     if (preg_match('/\b(?:Model|Mdl|Mod|Item No\.?)\b[\s:#\-\.]*([A-Za-z0-9\&\.\-\/\|\+\s]+?)' . $stopPattern . '/i', $analysisText, $matchModel)) {
         $model = strtoupper(trim($matchModel[1]));
         $analysisText = str_replace($matchModel[0], '', $analysisText);
         $foundModel = true;
     }
 
+    // Extract Brand
     if (preg_match('/\b(?:Brand|Make|Mfg|Manufacturer)\b[\s:#\-\.]*([A-Za-z0-9\&\.\-\/\|\+\s]+?)' . $stopPattern . '/i', $analysisText, $matchBrand)) {
         $brand = strtoupper(trim($matchBrand[1]));
         $analysisText = str_replace($matchBrand[0], '', $analysisText);
         $foundBrand = true;
     }
 
+    // Fallback logic if explicit "Model:" or "Brand:" labels are missing
     if (!$foundModel) {
         if (preg_match('/\b([A-Z]{1,4}[-\s]?\d{2,5}[A-Z0-9\-\/\|\._+]*)\b/i', $analysisText, $m)) {
             $model = strtoupper($m[1]);
@@ -266,6 +290,7 @@ function extractInfo($text) {
         }
     }
 
+    // Fallback logic for Brand if missing
     if (!$foundBrand && !empty($analysisText)) {
         $words = explode(' ', trim($analysisText));
         if (isset($words[0]) && preg_match('/^[A-Za-z]+$/', $words[0]) && strlen($words[0]) > 2) {
@@ -281,8 +306,9 @@ function extractInfo($text) {
         }
     }
 
-    $model = rtrim($model, '.-_+|');
-    $brand = rtrim($brand, '.-_+|');
+    // Clean up trailing punctuation just in case
+    $model = rtrim($model, '.-_+|:');
+    $brand = rtrim($brand, '.-_+|:');
 
     return [
         'model' => substr(trim($model), 0, 80), 
@@ -400,31 +426,19 @@ function extractInfo($text) {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th style="width: 5%; padding-left: 48px; text-align: center;">Status</th>
-                                        <th style="width: 5%;">Qty</th>
+                                        <th style="width: 5%; padding-left: 48px;">Qty</th>
                                         <th style="width: 10%;">Mark</th>
                                         <th style="width: 15%;">Smart Brand</th>
                                         <th style="width: 20%;">Smart Model</th>
-                                        <th style="width: 45%; padding-right: 48px;">Raw Description</th>
+                                        <th style="width: 50%; padding-right: 48px;">Raw Description</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php 
-                                    $itemNumber = 1;
-                                    foreach ($extractedData as $index => $row): 
-                                        
-                                        // STATUS DOT LOGIC
-                                        $isComplete = ($row['brand'] !== 'NO BRAND' && $row['model'] !== 'NO MODEL');
-                                        $isWarning = ($row['brand'] !== 'NO BRAND' || $row['model'] !== 'NO MODEL') && !$isComplete;
-                                        $statusColor = $isComplete ? '#10B981' : ($isWarning ? '#F59E0B' : '#EF4444');
-                                        $statusGlow = $isComplete ? 'rgba(16, 185, 129, 0.4)' : ($isWarning ? 'rgba(245, 158, 11, 0.4)' : 'rgba(239, 68, 68, 0.4)');
-                                    ?>
+                                    <?php foreach ($extractedData as $index => $row): ?>
                                         <tr>
-                                            <td style="padding-left: 48px; text-align: center; vertical-align: middle;">
-                                                <div style="width: 12px; height: 12px; border-radius: 50%; background: <?= $statusColor ?>; box-shadow: 0 0 10px <?= $statusGlow ?>; margin: 0 auto;" title="<?= $isComplete ? 'Complete' : 'Needs Review' ?>"></div>
+                                            <td style="padding-left: 48px;">
+                                                <div class="qty-badge">x<?= htmlspecialchars($row['qty']) ?></div>
                                             </td>
-                                            
-                                            <td><div class="qty-badge">x<?= htmlspecialchars($row['qty']) ?></div></td>
                                             
                                             <td><strong style="font-size: 1.1rem; color: var(--maroon);"><?= htmlspecialchars($row['mark']) ?></strong></td>
                                             
