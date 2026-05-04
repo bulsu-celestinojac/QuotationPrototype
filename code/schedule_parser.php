@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['import_file'])) {
 // ==============================================================
 // 1. ROBUST CSV PARSER (WITH STRICT COLUMN CHECKING)
 // ==============================================================
-function processCsv($filePath) {
+function processCsv(string $filePath) {
     $data = [];
     if (($handle = fopen($filePath, 'r')) !== false) {
         $markIndex = false;
@@ -112,7 +112,7 @@ function processCsv($filePath) {
 // ==============================================================
 // 2. ROBUST EXCEL PARSER (WITH STRICT COLUMN CHECKING)
 // ==============================================================
-function processExcel($filePath) {
+function processExcel(string $filePath) {
     $data = [];
     $spreadsheet = IOFactory::load($filePath);
     $sheet = $spreadsheet->getActiveSheet();
@@ -187,7 +187,7 @@ function processExcel($filePath) {
 // ==============================================================
 // 3. SMART PDF PARSER
 // ==============================================================
-function processPdf($filePath) {
+function processPdf(string $filePath) {
     $data = [];
     $parser = new Parser();
     $pdf = $parser->parseFile($filePath);
@@ -244,7 +244,7 @@ function processPdf($filePath) {
 // ==============================================================
 // 4. BEAST MODE EXTRACTION ALGORITHM (FIXED)
 // ==============================================================
-function extractInfo($text) {
+function extractInfo(string $text) {
     $cleanText = trim(preg_replace('/\s+/', ' ', $text)); 
     $model = 'NO MODEL';
     $brand = 'NO BRAND';
@@ -351,7 +351,7 @@ function extractInfo($text) {
         .alert { padding: 16px 24px; border-radius: 12px; font-size: 0.9rem; font-weight: 700; margin-bottom: 32px; text-align: center; }
         .alert-error { color: var(--maroon); background: var(--maroon-light); border: 1px solid #ebccd1; }
         
-        /* PREMIUM TABLE STYLES */
+        /* PREMIUM TABLE STYLES - Streamlined */
         .table-container { width: 100%; overflow-x: auto; max-height: 650px; overflow-y: auto; border-radius: 0 0 24px 24px; }
         table { width: 100%; border-collapse: collapse; text-align: left; position: relative; }
         
@@ -360,26 +360,92 @@ function extractInfo($text) {
             font-family: 'Outfit', sans-serif; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; 
             color: var(--text-muted); border-bottom: 1px solid var(--border); padding: 20px 24px; 
             position: sticky; top: 0; z-index: 10;
-            background: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
         }
         
-        td { padding: 24px; border-bottom: 1px solid var(--border); font-size: 0.95rem; color: var(--text-main); vertical-align: top; transition: background 0.2s; }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background-color: var(--maroon-light); }
+        /* Removed bottom borders, set vertical alignment to middle */
+        td { 
+            padding: 16px 24px; 
+            border-bottom: none; 
+            font-size: 0.95rem; 
+            color: var(--text-main); 
+            vertical-align: middle; 
+            transition: background 0.2s; 
+        }
+        
+        /* Subtle zebra striping instead of hard lines */
+        tbody tr:nth-child(even) td { background-color: #FAFAF9; }
+        tbody tr:hover td { background-color: var(--maroon-light); }
         
         /* UI Badges & Typography */
         .item-number { font-weight: 700; color: var(--text-muted); font-family: 'Outfit', sans-serif; }
-        .qty-badge { background: #1E293B; color: #FFFFFF; padding: 6px 12px; border-radius: 8px; font-weight: 900; font-size: 1rem; text-align: center; display: inline-block; min-width: 40px; box-shadow: 0 4px 10px rgba(30,41,59,0.2); }
         
-        .badge-brand { background: var(--maroon-light); color: var(--maroon); padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; }
-        .model-text { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 1.25rem; color: var(--text-main); }
+        /* Softer, pill-shaped QTY badge */
+        .qty-badge { 
+            background: var(--surface); 
+            color: var(--maroon); 
+            padding: 6px 16px; 
+            border: 1px solid rgba(139,21,56,0.2);
+            border-radius: 50px; 
+            font-weight: 900; 
+            font-size: 0.95rem; 
+            text-align: center; 
+            display: inline-block; 
+            min-width: 44px; 
+            box-shadow: 0 2px 8px rgba(139,21,56,0.05); 
+        }
         
-        /* Error Chips */
-        .badge-error { background: #FEF2F2; color: #EF4444; border: 1px solid #FCA5A5; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; display: inline-block; letter-spacing: 0.05em; }
+        /* Forced to one line with white-space: nowrap */
+        .badge-brand { 
+            background: var(--maroon-light); 
+            color: var(--maroon); 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            font-size: 0.75rem; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+            display: inline-block; 
+            white-space: nowrap; 
+        }
         
-        .desc-text { color: var(--text-muted); font-size: 0.9rem; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.6; }
+        /* Forced to one line */
+        .model-text { 
+            font-family: 'Outfit', sans-serif; 
+            font-weight: 900; 
+            font-size: 1.15rem; 
+            color: var(--text-main); 
+            white-space: nowrap; 
+        }
+        
+        /* Forced to one line */
+        .badge-error { 
+            background: #FEF2F2; 
+            color: #EF4444; 
+            border: 1px solid #FCA5A5; 
+            padding: 4px 8px; 
+            border-radius: 6px; 
+            font-size: 0.75rem; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            display: inline-block; 
+            letter-spacing: 0.05em; 
+            white-space: nowrap; 
+        }
+        
+        /* Tighter description: 2 lines max */
+        .desc-text { 
+            color: var(--text-muted); 
+            font-size: 0.85rem; 
+            display: -webkit-box; 
+            -webkit-line-clamp: 2; 
+            line-clamp: 2; 
+            -webkit-box-orient: vertical; 
+            overflow: hidden; 
+            line-height: 1.5; 
+        }
     </style>
 </head>
 <body>
@@ -437,10 +503,12 @@ function extractInfo($text) {
                                     <?php foreach ($extractedData as $index => $row): ?>
                                         <tr>
                                             <td style="padding-left: 48px;">
-                                                <div class="qty-badge">x<?= htmlspecialchars($row['qty']) ?></div>
+                                                <div class="qty-badge"><?= htmlspecialchars($row['qty']) ?></div>
                                             </td>
                                             
-                                            <td><strong style="font-size: 1.1rem; color: var(--maroon);"><?= htmlspecialchars($row['mark']) ?></strong></td>
+                                            <td style="white-space: nowrap;">
+                                                <strong style="font-size: 1.1rem; color: var(--maroon);"><?= htmlspecialchars($row['mark']) ?></strong>
+                                            </td>
                                             
                                             <td>
                                                 <?php if ($row['brand'] !== 'NO BRAND'): ?>
