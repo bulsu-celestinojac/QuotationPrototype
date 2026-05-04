@@ -119,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             --text-muted: #8C7373;
             --border: #E8D8D7;
             --maroon: #8B1538;
-            --maroon-light: #FAF5F6;
+            --maroon-light: #FFF5F7;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -144,7 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             position: relative;
             max-height: 95vh;
             overflow-y: auto;
-            border: 1px solid var(--border);
+            border: 1px solid var(--maroon);
+            box-shadow: 0 24px 60px rgba(139, 21, 56, 0.12);
         }
 
         .modal-card::-webkit-scrollbar { width: 0px; }
@@ -158,9 +159,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .modal-header {
-            background: var(--surface);
+            background: linear-gradient(135deg, #FFFFFF 0%, #FFF5F7 100%);
             padding: 40px 48px 24px 48px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px dashed rgba(139, 21, 56, 0.2);
             position: sticky;
             top: 0;
             z-index: 10;
@@ -170,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-family: 'Outfit', sans-serif; 
             font-size: 2.2rem; 
             font-weight: 900; 
-            color: var(--text-main); 
+            color: var(--maroon); 
             text-transform: uppercase;
             letter-spacing: -0.02em;
             line-height: 1;
@@ -192,10 +193,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 1.5rem;
             color: var(--text-muted);
             cursor: pointer;
-            transition: color 0.2s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
             z-index: 20;
         }
-        .close-btn:hover { color: var(--maroon); }
+        .close-btn:hover { 
+            color: var(--maroon); 
+            background: #FFF5F7;
+            border-radius: 50%;
+        }
 
         .form-group {
             display: flex;
@@ -208,8 +218,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         label {
             font-size: 0.65rem;
-            font-weight: 700;
-            color: var(--text-muted);
+            font-weight: 800;
+            color: var(--maroon);
             text-transform: uppercase;
             letter-spacing: 0.1em;
         }
@@ -220,12 +230,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 100%;
             padding: 14px 16px;
             border-radius: 12px;
-            border: 1px solid var(--border);
-            background: var(--surface);
+            border: 1px solid rgba(139, 21, 56, 0.2);
+            background: #FAFAFA;
             font-size: 0.95rem;
             font-family: 'DM Sans', sans-serif;
             color: var(--text-main);
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             outline: none;
         }
 
@@ -243,10 +253,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         input:focus:not([readonly]), textarea:focus, select:focus {
             border-color: var(--maroon);
+            box-shadow: 0 0 0 4px var(--maroon-light);
+            background: var(--surface);
         }
         
         .input-readonly {
-            background-color: var(--bg) !important;
+            background-color: var(--maroon-light) !important;
             color: var(--maroon) !important;
             font-weight: 700;
             cursor: not-allowed;
@@ -268,13 +280,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         /* File Drop Area */
         .file-drop-area {
-            border: 1px dashed var(--border);
+            border: 1px dashed rgba(139, 21, 56, 0.4);
             border-radius: 16px;
             padding: 32px 24px;
             text-align: center;
-            background: var(--surface);
+            background: var(--maroon-light);
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
             min-height: 140px;
@@ -285,7 +297,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .file-drop-area:hover, .file-drop-area.is-active {
-            background: var(--maroon-light);
+            background: #FFF0F3;
             border-color: var(--maroon);
         }
 
@@ -299,8 +311,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             z-index: 1;
         }
 
-        .file-msg { font-size: 0.9rem; color: var(--text-muted); position: relative; z-index: 1; transition: color 0.2s; }
-        .file-drop-area.is-active .file-msg { color: var(--maroon); font-weight: 700; }
+        .file-msg { font-size: 0.9rem; color: var(--maroon); font-weight: 600; position: relative; z-index: 1; transition: color 0.2s; }
+        .file-drop-area.is-active .file-msg { font-weight: 800; }
 
         .preview-container {
             position: relative;
@@ -327,7 +339,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             right: -10px;
             background: var(--surface);
             color: var(--maroon);
-            border: 1px solid var(--border);
+            border: 1px solid rgba(139, 21, 56, 0.2);
             border-radius: 50%;
             width: 28px;
             height: 28px;
@@ -361,34 +373,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             letter-spacing: 0.05em;
             cursor: pointer;
             margin-top: 40px;
-            transition: background 0.3s ease;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 24px rgba(139, 21, 56, 0.2);
         }
 
-        .btn-submit:hover { background: #5A0000; }
+        .btn-submit:hover { 
+            background: #5A0000; 
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(139, 21, 56, 0.3);
+        }
 
         .alert { padding: 16px 48px; margin: 0; font-size: 0.9rem; font-weight: 500; border-bottom: 1px solid var(--border); }
         .alert-error { color: var(--maroon); background: var(--maroon-light); }
         .alert-success { color: #166534; background: #F0FDF4; }
 
-        /* UPGRADED SMART DROPDOWN */
+        /* UPGRADED SMART DROPDOWN - Premium Aesthetics */
         .custom-dropdown {
             position: absolute;
             top: calc(100% + 8px);
             left: 0;
             width: 100%;
             background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            max-height: 220px;
+            border: 1px solid rgba(139, 21, 56, 0.15);
+            border-radius: 16px;
+            max-height: 240px;
             overflow-y: auto;
-            z-index: 9999; /* Increased z-index to pop over everything */
-            box-shadow: 0 10px 30px rgba(42, 8, 8, 0.1);
+            z-index: 9999;
+            box-shadow: 0 16px 40px rgba(139, 21, 56, 0.12);
             display: none;
+            padding: 8px 0;
         }
 
-        .custom-dropdown.active { display: block; }
-        .custom-dropdown-item { padding: 12px 16px; font-size: 0.9rem; color: var(--text-main); cursor: pointer; transition: all 0.2s ease; }
-        .custom-dropdown-item:hover { background: var(--maroon-light); color: var(--maroon); font-weight: 500; }
+        /* Custom Sleek Scrollbar */
+        .custom-dropdown::-webkit-scrollbar { width: 6px; }
+        .custom-dropdown::-webkit-scrollbar-track { background: transparent; }
+        .custom-dropdown::-webkit-scrollbar-thumb { 
+            background: rgba(139, 21, 56, 0.2); 
+            border-radius: 10px; 
+        }
+        .custom-dropdown::-webkit-scrollbar-thumb:hover { background: rgba(139, 21, 56, 0.4); }
+
+        .custom-dropdown.active { 
+            display: block; 
+            animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .custom-dropdown-item { 
+            padding: 12px 20px; 
+            font-size: 0.9rem; 
+            color: var(--text-main); 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            font-weight: 600;
+        }
+        
+        .custom-dropdown-item:hover { 
+            background: var(--maroon-light); 
+            color: var(--maroon); 
+            padding-left: 26px; /* Nice slight indent on hover */
+        }
 
         .zoom-overlay {
             position: fixed;
@@ -608,7 +656,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     fileInput.files = dataTransfer.files;
                     fileInput.dispatchEvent(new Event('change'));
                     
-                    dropArea.style.backgroundColor = 'var(--maroon-light)';
+                    dropArea.style.backgroundColor = '#FFF0F3';
                     setTimeout(() => { dropArea.style.backgroundColor = ''; }, 200);
                     return; 
                 }
@@ -688,10 +736,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Smarter display function
+        // Smarter display function with 2-letter rule
         function showBrands(filterText = '') {
             customDropdown.innerHTML = '';
             const val = filterText.trim().toLowerCase();
+            
+            // 🛑 ONLY SHOW IF 2 OR MORE CHARACTERS
+            if (val.length < 2) {
+                customDropdown.classList.remove('active');
+                return;
+            }
             
             const filteredBrands = allBrands.filter(brand => 
                 brand.toLowerCase().includes(val)
@@ -701,11 +755,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 filteredBrands.forEach(brand => {
                     const div = document.createElement('div');
                     div.className = 'custom-dropdown-item';
-                    div.textContent = brand;
+                    
+                    // ✨ Highlight the matching text in maroon
+                    const regex = new RegExp(`(${val})`, "gi");
+                    const highlightedBrand = brand.replace(regex, "<span style='color: var(--maroon); font-weight: 900;'>$1</span>");
+                    
+                    div.innerHTML = highlightedBrand;
                     
                     div.addEventListener('click', function(e) {
-                        e.stopPropagation(); // Stop click from closing menu instantly
-                        brandInput.value = brand;
+                        e.stopPropagation(); 
+                        brandInput.value = brand; // Inject the raw brand text, not the HTML
                         customDropdown.classList.remove('active');
                     });
                     
@@ -717,12 +776,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Show all brands immediately when clicked
-        brandInput.addEventListener('focus', function() {
-            showBrands(this.value);
-        });
-
-        // Filter instantly as the user types
+        // Trigger only on input typing
         brandInput.addEventListener('input', function() {
             showBrands(this.value);
         });

@@ -53,11 +53,10 @@ $items = $stmt->fetchAll();
         /* Modern Search Overrides & Bug Fixes */
         .search-wrapper { 
             position: relative; 
-            overflow: visible !important; /* Allow dropdown to overflow */
+            overflow: visible !important; 
             background: var(--surface);
         }
         
-        /* Restore the rounded corners that were lost when overflow was made visible */
         .search-input {
             border-top-left-radius: 50px;
             border-bottom-left-radius: 50px;
@@ -76,25 +75,25 @@ $items = $stmt->fetchAll();
         }
         
         .search-btn:hover {
-            background: #5A0000; /* Slightly darker maroon when hovered */
+            background: #5A0000; 
         }
         .clear-btn {
             background: transparent; 
             border: none; 
-            color: var(--maroon); /* CHANGED: Now clearly maroon by default */
+            color: var(--maroon); 
             font-size: 1.4rem;
             cursor: pointer; 
             padding: 0 12px; 
             line-height: 1; 
-            display: none; /* Toggled by JS */
+            display: none; 
             align-items: center;
             justify-content: center;
             height: 100%;
             transition: all 0.2s ease;
         }
         .clear-btn:hover { 
-            color: #5A0000; /* Darkens slightly on hover */
-            transform: scale(1.15); /* Adds a nice little "pop" effect so it feels clickable */
+            color: #5A0000; 
+            transform: scale(1.15); 
         }
 
         /* Auto-suggestion Dropdown Styles */
@@ -138,11 +137,8 @@ $items = $stmt->fetchAll();
                 
                 <form method="get" class="search-wrapper" id="searchForm">
                     <input type="text" name="search" id="searchInput" class="search-input" placeholder="Search inventory..." value="<?=htmlspecialchars($search)?>" autocomplete="off">
-                    
                     <button type="button" id="clearSearchBtn" class="clear-btn" style="display: <?= $search ? 'flex' : 'none' ?>;" title="Clear Search">&times;</button>
-                    
                     <button type="submit" class="search-btn">Find</button>
-                    
                     <div id="searchSuggestions" class="custom-dropdown"></div>
                 </form>
 
@@ -230,6 +226,7 @@ $items = $stmt->fetchAll();
         </div>
     </div>
 
+    <!-- UPDATED PREMIUM MODAL -->
     <div class="modal-overlay" id="detailModal">
         <div class="modal-card">
             <div class="modal-img" id="modalImg">
@@ -255,39 +252,35 @@ $items = $stmt->fetchAll();
                 <div id="modalPdfSection" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);"></div>
                 
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border); text-align: right;">
-                    <a id="modalDeleteBtn" href="#" style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 700; text-decoration: underline;">Delete Record</a>
+                    <a id="modalDeleteBtn" href="#" style="color: var(--maroon); font-size: 0.75rem; text-transform: uppercase; font-weight: 800; text-decoration: none; padding: 8px 16px; border: 1px solid rgba(139, 21, 56, 0.2); border-radius: 8px; transition: all 0.2s; background: #FFF5F7;">
+                        Delete Record
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // ==========================================
         // 1. MODERN SEARCH & SUGGESTIONS LOGIC
-        // ==========================================
         const searchInput = document.getElementById('searchInput');
         const clearSearchBtn = document.getElementById('clearSearchBtn');
         const suggestionBox = document.getElementById('searchSuggestions');
         const searchForm = document.getElementById('searchForm');
         
-        // Pass PHP array to JS safely
         const suggestionsData = <?= json_encode($allSuggestions, JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
-        // Toggle clear button and show suggestions
         searchInput.addEventListener('input', function() {
             const val = this.value.trim().toLowerCase();
-            clearSearchBtn.style.display = val ? 'flex' : 'none'; // Fixed bug here: using 'flex' to center the X
+            clearSearchBtn.style.display = val ? 'flex' : 'none'; 
             suggestionBox.innerHTML = '';
             
             if (val.length >= 2) {
-                // Filter matches based on Brand or Model
                 const matches = suggestionsData.filter(item => 
                     (item.brand && item.brand.toLowerCase().includes(val)) || 
                     (item.model_no && item.model_no.toLowerCase().includes(val))
                 );
 
                 if (matches.length > 0) {
-                    // Create unique map to prevent showing duplicates
                     const uniqueMatches = new Map();
                     matches.forEach(item => {
                         if (!uniqueMatches.has(item.model_no)) {
@@ -295,7 +288,6 @@ $items = $stmt->fetchAll();
                         }
                     });
 
-                    // Limit to top 10 results
                     let count = 0;
                     uniqueMatches.forEach((brand, model) => {
                         if (count >= 10) return;
@@ -309,7 +301,7 @@ $items = $stmt->fetchAll();
                         div.addEventListener('click', () => {
                             searchInput.value = model;
                             suggestionBox.style.display = 'none';
-                            searchForm.submit(); // Auto-submit when suggestion clicked
+                            searchForm.submit(); 
                         });
                         suggestionBox.appendChild(div);
                         count++;
@@ -323,49 +315,37 @@ $items = $stmt->fetchAll();
             }
         });
 
-        // Clear search logic (Clicking the X)
         clearSearchBtn.addEventListener('click', () => {
             searchInput.value = '';
-            window.location.href = 'index.php'; // Reload cleanly
+            window.location.href = 'index.php'; 
         });
 
-        // Hide suggestions when clicking outside
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.search-wrapper')) {
                 suggestionBox.style.display = 'none';
             }
         });
 
-        // ==========================================
         // 2. SMARTER 30-SECOND IDLE TIMEOUT
-        // ==========================================
         let idleTimer;
-        const idleTime = 30000; // 30 seconds
+        const idleTime = 30000; 
 
         function resetIdleTimer() {
             clearTimeout(idleTimer);
-            
-            // Only trigger countdown if there is text in the search box OR an active search URL
             const isCurrentlySearching = searchInput.value.trim() !== '' || <?= !empty($search) ? 'true' : 'false' ?>;
-            
             if (isCurrentlySearching) {
                 idleTimer = setTimeout(() => {
-                    window.location.href = 'index.php'; // Wipe the slate clean
+                    window.location.href = 'index.php'; 
                 }, idleTime);
             }
         }
 
-        // Listen for user activity
         ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'].forEach(evt => {
             window.addEventListener(evt, resetIdleTimer);
         });
-
-        // Start timer immediately on load just in case
         resetIdleTimer();
 
-        // ==========================================
         // 3. CART & MODAL LOGIC 
-        // ==========================================
         let cartData = JSON.parse(sessionStorage.getItem('quoteCartData') || '[]');
 
         function toggleCartItem(event, id, brand, model) {
@@ -474,13 +454,14 @@ $items = $stmt->fetchAll();
                     </a>
                 `;
             } else {
+                // UPDATED UI FOR FILE UPLOAD
                 pdfSection.innerHTML = `
-                    <label style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.1em; display: block; margin-bottom: 8px;">Upload PDF Documentation</label>
+                    <label style="font-size: 0.65rem; text-transform: uppercase; font-weight: 800; color: var(--maroon); letter-spacing: 0.1em; display: block; margin-bottom: 8px;">Upload PDF Documentation</label>
                     <form action="upload_pdf.php" method="POST" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
                         <input type="hidden" name="item_id" value="${data.id}">
                         <input type="hidden" name="token" value="${csrfToken}">
-                        <input type="file" name="pdf_file" accept="application/pdf" required style="font-size: 0.85rem; border: 1px solid var(--border); border-radius: 8px; padding: 8px; flex: 1;">
-                        <button type="submit" style="background: var(--surface); border: 1px solid var(--maroon); color: var(--maroon); padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s;">Upload</button>
+                        <input type="file" name="pdf_file" accept="application/pdf" required style="font-size: 0.85rem; border: 1px dashed var(--maroon); background: #FFF5F7; border-radius: 8px; padding: 8px; flex: 1; color: var(--maroon); font-weight: 500;">
+                        <button type="submit" style="background: var(--maroon); border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: background 0.3s; box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2);">Upload</button>
                     </form>
                 `;
             }
