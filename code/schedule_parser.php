@@ -351,9 +351,9 @@ function extractInfo(string $text) {
         .alert { padding: 16px 24px; border-radius: 12px; font-size: 0.9rem; font-weight: 700; margin-bottom: 32px; text-align: center; }
         .alert-error { color: var(--maroon); background: var(--maroon-light); border: 1px solid #ebccd1; }
         
-        /* PREMIUM TABLE STYLES - Streamlined */
+        /* PREMIUM TABLE STYLES - Centered & Streamlined */
         .table-container { width: 100%; overflow-x: auto; max-height: 650px; overflow-y: auto; border-radius: 0 0 24px 24px; }
-        table { width: 100%; border-collapse: collapse; text-align: left; position: relative; }
+        table { width: 100%; border-collapse: collapse; text-align: center; position: relative; } /* Added text-align: center */
         
         /* Glassmorphism Header */
         th { 
@@ -379,10 +379,7 @@ function extractInfo(string $text) {
         tbody tr:nth-child(even) td { background-color: #FAFAF9; }
         tbody tr:hover td { background-color: var(--maroon-light); }
         
-        /* UI Badges & Typography */
-        .item-number { font-weight: 700; color: var(--text-muted); font-family: 'Outfit', sans-serif; }
-        
-        /* Softer, pill-shaped QTY badge */
+        /* Softer, pill-shaped QTY badge without 'x' */
         .qty-badge { 
             background: var(--surface); 
             color: var(--maroon); 
@@ -434,18 +431,59 @@ function extractInfo(string $text) {
             letter-spacing: 0.05em; 
             white-space: nowrap; 
         }
-        
-        /* Tighter description: 2 lines max */
-        .desc-text { 
-            color: var(--text-muted); 
-            font-size: 0.85rem; 
-            display: -webkit-box; 
-            -webkit-line-clamp: 2; 
-            line-clamp: 2; 
-            -webkit-box-orient: vertical; 
-            overflow: hidden; 
-            line-height: 1.5; 
+
+        /* View Details Button */
+        .btn-view {
+            background: transparent;
+            color: var(--maroon);
+            border: 1px solid var(--maroon);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
         }
+
+        .btn-view:hover {
+            background: var(--maroon);
+            color: white;
+            box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(248, 246, 245, 0.9); backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 40px;
+        }
+        
+        .modal-overlay.active { display: flex; }
+        
+        .modal-card-small { 
+            background: var(--surface); 
+            border: 1px solid var(--maroon); 
+            box-shadow: 0 24px 60px rgba(139, 21, 56, 0.12);
+            border-radius: 24px; 
+            max-width: 600px; 
+            width: 100%; 
+            padding: 40px;
+            position: relative;
+        }
+
+        .modal-close-btn { 
+            position: absolute; top: 24px; right: 24px; background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); transition: all 0.2s ease; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+        }
+        
+        .modal-close-btn:hover { color: var(--maroon); background: #FFF5F7; border-radius: 50%; }
+
+        .detail-item { margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+        .detail-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .detail-label { font-size: 0.7rem; font-weight: 800; color: var(--maroon); text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 4px; }
+        .detail-value { font-size: 1rem; color: var(--text-main); font-weight: 500; }
     </style>
 </head>
 <body>
@@ -480,7 +518,7 @@ function extractInfo(string $text) {
                     <div class="card" style="padding: 24px 0 0 0; overflow: hidden;">
                         <div style="padding: 0 48px 24px 48px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <h2 class="card-title" style="margin: 0;">Extraction Results</h2>
+                                <h2 class="card-title" style="margin: 0;">EXTRACT REVIT DATA</h2>
                                 <div class="card-subtitle" style="margin-top: 8px; margin-bottom: 0;">Review the parsed data before finalizing in the quote builder.</div>
                             </div>
                             <div style="background: var(--maroon-light); color: var(--maroon); font-weight: 800; padding: 10px 20px; border-radius: 50px; font-family: 'Outfit', sans-serif;">
@@ -492,11 +530,12 @@ function extractInfo(string $text) {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th style="width: 5%; padding-left: 48px;">Qty</th>
-                                        <th style="width: 10%;">Mark</th>
-                                        <th style="width: 15%;">Smart Brand</th>
-                                        <th style="width: 20%;">Smart Model</th>
-                                        <th style="width: 50%; padding-right: 48px;">Raw Description</th>
+                                        <!-- Header alignment updated to match data alignment -->
+                                        <th style="width: 10%; padding-left: 48px; text-align: center;">Qty</th>
+                                        <th style="width: 20%; text-align: center;">Mark</th>
+                                        <th style="width: 25%; text-align: center;">Smart Brand</th>
+                                        <th style="width: 30%; text-align: center;">Smart Model</th>
+                                        <th style="width: 15%; padding-right: 48px; text-align: right;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -526,8 +565,14 @@ function extractInfo(string $text) {
                                                 <?php endif; ?>
                                             </td>
 
-                                            <td class="desc-text" title="<?= htmlspecialchars($row['original_text']) ?>" style="padding-right: 48px;">
-                                                <?= htmlspecialchars($row['original_text']) ?>
+                                            <td style="padding-right: 48px; text-align: right;">
+                                                <button type="button" class="btn-view" onclick='viewDetails(<?= json_encode([
+                                                    "mark" => $row["mark"],
+                                                    "qty" => $row["qty"],
+                                                    "brand" => $row["brand"],
+                                                    "model" => $row["model"],
+                                                    "desc" => $row["original_text"]
+                                                ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>View Details</button>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -547,6 +592,39 @@ function extractInfo(string $text) {
         </div>
     </div>
 
+    <!-- Comprehensive Details Modal -->
+    <div class="modal-overlay" id="descModal">
+        <div class="modal-card-small">
+            <button type="button" class="modal-close-btn" onclick="closeDescModal()">✕</button>
+            <h3 style="font-family: 'Outfit', sans-serif; color: var(--maroon); font-size: 1.5rem; margin-bottom: 24px; text-transform: uppercase; font-weight: 900;">Item Details</h3>
+            
+            <div class="detail-item">
+                <span class="detail-label">Mark</span>
+                <div class="detail-value"><strong style="color: var(--maroon);" id="modalMarkVal"></strong></div>
+            </div>
+            
+            <div class="detail-item" style="display: flex; gap: 40px;">
+                <div>
+                    <span class="detail-label">Quantity</span>
+                    <div class="detail-value" id="modalQtyVal"></div>
+                </div>
+                <div>
+                    <span class="detail-label">Brand</span>
+                    <div class="detail-value" id="modalBrandVal"></div>
+                </div>
+                <div>
+                    <span class="detail-label">Model</span>
+                    <div class="detail-value"><strong id="modalModelVal"></strong></div>
+                </div>
+            </div>
+
+            <div class="detail-item" style="border: none; padding-bottom: 0;">
+                <span class="detail-label">Raw Description</span>
+                <div class="detail-value" id="modalDescContent" style="font-size: 0.9rem; line-height: 1.6; padding: 12px; background: #FAFAF9; border-radius: 8px; border: 1px solid var(--border);"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const fileInput = document.getElementById('import_file');
         const fileMsg = document.getElementById('file-msg');
@@ -559,6 +637,32 @@ function extractInfo(string $text) {
             } else {
                 dropArea.classList.remove('is-active');
                 fileMsg.textContent = "Browse or drag-and-drop a file here";
+            }
+        });
+
+        // Comprehensive Modal Logic
+        const descModal = document.getElementById('descModal');
+        
+        function viewDetails(data) {
+            document.getElementById('modalMarkVal').textContent = data.mark || '-';
+            document.getElementById('modalQtyVal').textContent = data.qty || '-';
+            document.getElementById('modalBrandVal').textContent = data.brand || '-';
+            document.getElementById('modalModelVal').textContent = data.model || '-';
+            document.getElementById('modalDescContent').textContent = data.desc || 'No description available.';
+            
+            descModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDescModal() {
+            descModal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close when clicking outside
+        descModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDescModal();
             }
         });
     </script>
