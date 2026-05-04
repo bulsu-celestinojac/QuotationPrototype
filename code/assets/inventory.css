@@ -186,8 +186,8 @@ body {
 
 .card-price {
     font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--maroon); /* <-- Changed this line */
+    font-weight: 900; 
+    color: var(--maroon);
     margin-bottom: 24px;
 }
 
@@ -281,12 +281,39 @@ body {
 
 .cart-items { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
 
-.cart-item-row { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+/* --- UPGRADED CART ITEM ROW --- */
+.cart-item-row { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; /* Aligns the pill button perfectly with the text */
+    padding-bottom: 20px; 
+    border-bottom: 1px solid var(--border); 
+}
+
 .cart-item-info .c-brand { font-size: 0.65rem; text-transform: uppercase; color: var(--maroon); font-weight: 800; letter-spacing: 0.1em; }
 .cart-item-info .c-model { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 1.15rem; color: var(--text-main); margin-top: 2px; }
 
-.btn-remove { background: transparent; border: none; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 700; cursor: pointer; transition: color 0.2s; }
-.btn-remove:hover { color: var(--maroon); }
+/* --- UPGRADED REMOVE BUTTON (PREMIUM PILL) --- */
+.btn-remove { 
+    background: #FFF5F7; 
+    border: 1px solid rgba(139, 21, 56, 0.15); 
+    color: var(--maroon); 
+    font-size: 0.7rem; 
+    text-transform: uppercase; 
+    font-weight: 800; 
+    cursor: pointer; 
+    padding: 8px 14px; 
+    border-radius: 50px; 
+    transition: all 0.2s ease; 
+    letter-spacing: 0.05em;
+}
+
+.btn-remove:hover { 
+    background: var(--maroon); 
+    color: white; 
+    box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2);
+    transform: translateY(-1px);
+}
 
 .cart-footer { padding: 30px; border-top: 1px solid var(--border); background: var(--surface); }
 .btn-checkout { 
@@ -304,7 +331,7 @@ body {
 
 .modal-overlay.active { display: flex; }
 
-/* --- UPDATED PREMIUM MODAL --- */
+/* --- PREMIUM MODAL --- */
 .modal-card { 
     background: var(--surface); 
     border: 1px solid var(--maroon); 

@@ -1,187 +1,346 @@
+<?php
+/**
+ * @var array $trans
+ * @var array $payload_items
+ */
+
+// 1. Base64 Encode the Header Logo (Ensures it loads flawlessly in PDF)
+$logoPath = __DIR__ . '/../images/other_images/AMGLOGO.png';
+$logoBase64 = '';
+if (file_exists($logoPath)) {
+    $logoData = file_get_contents($logoPath);
+    $logoType = pathinfo($logoPath, PATHINFO_EXTENSION);
+    $logoBase64 = 'data:image/' . $logoType . ';base64,' . base64_encode($logoData);
+}
+?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Quotation</title>
+    <title>Quotation PDF</title>
     <style>
-        @page { margin: 0.5in 0.5in 1.0in 0.5in; }
+        /* PDF-Safe CSS Reset & A4 Base Sizing */
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #000;
+            margin: 0;
+            padding: 0;
+            font-size: 12px; /* Perfect for A4 readability */
+        }
 
-        body { font-family: 'DejaVu Sans', Helvetica, Arial, sans-serif; color: #000000; font-size: 11px; margin: 0; padding: 0; }
-        table { width: 100%; border-collapse: collapse; }
+        /* CENTERED GROUPED HEADER */
+        .header-title {
+            font-family: 'Arial', sans-serif;
+            font-size: 20px; 
+            font-weight: bold;
+            margin: 0 0 6px 0;
+            color: #000;
+            letter-spacing: -0.2px;
+        }
 
-        #footer { position: fixed; bottom: -0.6in; left: 0; right: 0; text-align: right; font-size: 10px; font-weight: bold; }
-        .page-number:after { content: "Page " counter(page) " of " counter(pages); }
+        .header-address {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            margin: 0 0 4px 0;
+            color: #000;
+        }
 
-        .header-container { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 15px; }
-        .company-name { font-size: 18px; font-weight: bold; color: #000000; text-transform: uppercase; vertical-align: middle; display: inline-block; }
-        .company-details { font-size: 10px; margin-top: 8px; line-height: 1.4; }
+        .header-contacts {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            margin: 0;
+            color: #000;
+            line-height: 1.5;
+        }
+
+        .header-link {
+            color: #000;
+            text-decoration: underline;
+        }
+
+        /* PDF BODY STYLES */
+        .section-title {
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-decoration: underline;
+            margin-bottom: 12px;
+            margin-top: 15px;
+        }
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
         
-        .meta-table { margin-bottom: 30px; }
-        .meta-table td { vertical-align: top; }
-        .client-info { width: 55%; padding-right: 20px; line-height: 1.5; }
-        .doc-info { width: 45%; text-align: left; line-height: 1.5; }
-        .meta-label { font-weight: bold; color: #000000; text-transform: uppercase; font-size: 11px; text-decoration: underline; }
-        
-        .items-table { width: 100%; border: 1px solid #000000; margin-bottom: 25px; table-layout: fixed; }
-        .items-table th { background-color: #000000; color: #FFFFFF; font-size: 9px; text-transform: uppercase; padding: 10px 4px; border: 1px solid #000000; }
-        .items-table td { padding: 12px 4px; text-align: center; border: 1px solid #000000; vertical-align: middle; word-wrap: break-word; }
-        .desc-col { text-align: left !important; font-size: 10px; line-height: 1.4; }
-        
-        .summary-table { width: 100%; font-size: 11px; margin-bottom: 30px; border-collapse: collapse; }
-        .summary-table td { padding: 6px 8px; border-bottom: 1px solid #EEEEEE; }
-        .summary-table .label-col { text-align: right; font-weight: bold; width: 75%; text-transform: uppercase; }
-        .summary-table .amount-col { text-align: right; font-weight: bold; width: 25%; white-space: nowrap; font-size: 12px; }
-        
-        .footer-heading { font-weight: bold; text-transform: uppercase; margin-bottom: 5px; font-size: 11px; text-decoration: underline; }
+        .info-table td {
+            padding: 5px 0;
+            vertical-align: top;
+        }
+
+        .info-label {
+            font-weight: bold;
+            width: 35%;
+        }
+
+        .proposal-title {
+            text-align: center;
+            font-size: 15px;
+            font-weight: bold;
+            margin: 30px 0 15px 0;
+        }
+
+        /* Items Table Styling */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-bottom: 20px;
+        }
+
+        .items-table th {
+            background-color: #000;
+            color: #fff;
+            padding: 10px 6px;
+            text-align: center; /* Headers stay centered */
+            font-weight: bold;
+            text-transform: uppercase;
+            border: 1px solid #000;
+        }
+
+        .items-table td {
+            border: 1px solid #000;
+            padding: 8px 6px;
+            text-align: center; /* Default center, overridden inline for specific columns */
+            vertical-align: middle;
+        }
+
+        /* BIGGER, EXACT PHOTO SIZING */
+        .item-image {
+            max-width: 160px; /* Pushed even larger for exact photo fit */
+            max-height: 140px;
+            width: auto;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Summary Styling */
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .summary-table td {
+            padding: 6px;
+            font-weight: bold;
+        }
+
+        .text-red { color: #cc0000; }
+        .border-top { border-top: 1px solid #000; }
+
+        /* Bank Details Styling */
+        .bank-details {
+            margin-top: 30px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .bank-details p { margin: 3px 0; }
     </style>
 </head>
 <body>
 
-    <div id="footer">
-        <span class="page-number"></span>
-    </div>
-
-    <div class="header-container">
-        <?php 
-        $logoPath = __DIR__ . '/../images/other_images/AMGLOGO.png';
-        $logoBase64 = '';
-        if (file_exists($logoPath)) {
-            $logoType = pathinfo($logoPath, PATHINFO_EXTENSION);
-            $logoData = file_get_contents($logoPath);
-            $logoBase64 = 'data:image/' . $logoType . ';base64,' . base64_encode($logoData);
-        }
-        ?>
-        <?php if ($logoBase64): ?>
-            <img src="<?= $logoBase64 ?>" style="height: 35px; width: auto; vertical-align: middle; margin-right: 15px;">
-        <?php endif; ?>
-        
-        <div class="company-name">AM Group Kitchen Equipment and supplies, Inc.</div>
-        <div class="company-details">
-            5/F Builders Center Bldg., 170 Salcedo St., Legaspi Village Makati City 1229 Philippines<br>
-            *Telephone +632 7752 3091 &nbsp;&nbsp;&nbsp; *Mobile +63917 174 1082 &nbsp;&nbsp;&nbsp; *Email: info@amgroup.asia &nbsp;&nbsp;&nbsp; *Website: www.amgroup.asia
-        </div>
-    </div>
-
-    <table class="meta-table">
+    <!-- PERFECTLY GROUPED AND CENTERED HEADER -->
+    <table style="margin: 0 auto; border-collapse: collapse; margin-bottom: 30px;">
         <tr>
-            <td class="client-info">
-                <div class="meta-label" style="margin-bottom: 8px;">CUSTOMER INFORMATION:</div>
-                <table style="width: 100%;">
-                    <tr><td style="width: 35%;"><strong>Client Name:</strong></td><td><?= htmlspecialchars($trans['client_name']) ?></td></tr>
-                    <tr><td style="vertical-align: top;"><strong>Client Address:</strong></td><td><?= nl2br(htmlspecialchars($trans['client_address'])) ?></td></tr>
-                    <tr><td colspan="2">&nbsp;</td></tr>
-                    <tr><td><strong>Attention To:</strong></td><td><?= htmlspecialchars($trans['attention_to']) ?></td></tr>
-                    <tr><td><strong>Client Email Address:</strong></td><td><?= htmlspecialchars($trans['client_email']) ?></td></tr>
-                    <tr><td><strong>Client Contact Number 1 / 2:</strong></td><td><?= htmlspecialchars($trans['client_contact']) ?></td></tr>
+            <!-- Left Side: Logo -->
+            <td style="vertical-align: middle; padding-right: 20px; text-align: right;">
+                <?php if ($logoBase64): ?>
+                    <img src="<?= $logoBase64 ?>" alt="AM GROUP Logo" style="width: 90px; height: auto;">
+                <?php else: ?>
+                    <span style="font-weight:bold;">AM GROUP Logo</span>
+                <?php endif; ?>
+            </td>
+            
+            <!-- Right Side: Text Group -->
+            <td style="vertical-align: middle; text-align: left;">
+                <h1 class="header-title">AM GROUP Kitchen Equipment and Supplies, Inc.</h1>
+                <p class="header-address">
+                    5/F Builders Center Bldg., 170 Salcedo St., Legaspi Village Makati City 1229 Philippines
+                </p>
+                <p class="header-contacts">
+                    *Telephone +632 7752 3091 &nbsp;&nbsp;&nbsp;&nbsp; *Mobile +63917 174 1082<br>
+                    *Email: <a href="mailto:info@amgroup.asia" class="header-link">info@amgroup.asia</a> &nbsp;&nbsp;&nbsp;&nbsp; *Website: www.amgroup.asia
+                </p>
+            </td>
+        </tr>
+    </table>
+    
+    <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 25px;">
+
+    <!-- TWO COLUMN INFO SECTION -->
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <!-- CUSTOMER INFORMATION -->
+            <td style="width: 50%; vertical-align: top; padding-right: 20px;">
+                <div class="section-title">CUSTOMER INFORMATION:</div>
+                <table class="info-table">
+                    <tr>
+                        <td class="info-label">Client Name:</td>
+                        <td><?= htmlspecialchars($trans['client_name'] ?? '') ?></td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Client Address:</td>
+                        <td><?= htmlspecialchars($trans['client_address'] ?? '') ?></td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Attention To:</td>
+                        <td><?= htmlspecialchars($trans['attention_to'] ?? '') ?></td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Client Email Address:</td>
+                        <td><?= htmlspecialchars($trans['client_email'] ?? '') ?></td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Client Contact Number 1 / 2:</td>
+                        <td><?= htmlspecialchars($trans['client_contact'] ?? '') ?></td>
+                    </tr>
                 </table>
             </td>
-            <td class="doc-info">
-                <div class="meta-label" style="margin-bottom: 8px;">TRANSACTION DETAILS:</div>
-                <table style="width: 100%;">
-                    <tr><td style="width: 35%;"><strong>Date:</strong></td><td><?= date('d/m/y', strtotime($trans['quote_date'])) ?></td></tr>
-                    <tr><td><strong>Quotation No.:</strong></td><td><strong><?= htmlspecialchars($trans['quotation_no']) ?></strong></td></tr>
-                    <tr><td style="vertical-align: top;"><strong>Payment Terms:</strong></td><td><?= nl2br(htmlspecialchars($trans['payment_terms'])) ?></td></tr>
-                    <tr><td><strong>Validity Offer:</strong></td><td><?= date('d/m/y', strtotime($trans['validity_date'])) ?></td></tr>
-                    <tr><td><strong>ETA:</strong></td><td><?= htmlspecialchars($trans['eta']) ?></td></tr>
+            
+            <!-- TRANSACTION DETAILS -->
+            <td style="width: 50%; vertical-align: top; padding-left: 20px;">
+                <div class="section-title">TRANSACTION DETAILS:</div>
+                <table class="info-table">
+                    <tr>
+                        <td class="info-label">Date:</td>
+                        <td><?= htmlspecialchars($trans['quote_date'] ?? '') ?></td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Quotation No.:</td>
+                        <td style="font-weight: bold;"><?= htmlspecialchars($trans['quotation_no'] ?? '') ?></td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Payment Terms:</td>
+                        <td style="white-space: pre-line;"><?= htmlspecialchars($trans['payment_terms'] ?? '') ?></td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Validity Offer:</td>
+                        <td><?= htmlspecialchars($trans['validity_date'] ?? '') ?></td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">ETA:</td>
+                        <td><?= htmlspecialchars($trans['eta'] ?? '') ?></td>
+                    </tr>
                 </table>
             </td>
         </tr>
     </table>
 
-    <div style="text-align: center; font-weight: bold; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;">
-        PROPOSAL FOR <?= htmlspecialchars($trans['proposal_purpose']) ?>
-    </div>
+    <div class="proposal-title">PROPOSAL FOR <?= htmlspecialchars($trans['proposal_purpose'] ?? '') ?></div>
 
+    <!-- ITEMS TABLE -->
     <table class="items-table">
         <thead>
             <tr>
-                <th style="width: 5%;">No.</th>
-                <th style="width: 20%;">Image</th>   
-                <th style="width: 15%;">Model</th>
-                <th style="width: 15%;">Brand</th>
-                <th style="width: 25%;">Description</th>
-                <th style="width: 5%;">Qty</th>      
-                <th style="width: 15%;">Total (PHP)</th>
+                <th style="width: 4%;">NO.</th>
+                <th style="width: 25%;">IMAGE</th>       <!-- BIG Image Column -->
+                <th style="width: 14%;">MODEL</th>
+                <th style="width: 10%;">BRAND</th>
+                <th style="width: 32%;">DESCRIPTION</th> <!-- Center Aligned Header -->
+                <th style="width: 4%;">QTY</th>
+                <th style="width: 11%; text-align: right; padding-right: 10px;">TOTAL (PHP)</th> <!-- Total Reduced & Right Aligned Header -->
             </tr>
         </thead>
         <tbody>
             <?php 
-            $gross_total = 0;
-            $counter = 1;
-            foreach ($payload_items as $item): 
-                $amount = $item['qty'] * $item['unit_price'];
-                $gross_total += $amount;
-                
-                $imagePath = __DIR__ . '/../images/machine_images/' . $item['picture'];
-                $base64_img = '';
-                if ($item['picture'] && file_exists($imagePath)) {
-                    $type = pathinfo($imagePath, PATHINFO_EXTENSION);
-                    $data = file_get_contents($imagePath);
-                    $base64_img = 'data:image/' . $type . ';base64,' . base64_encode($data);
-                }
+            $subtotal = 0;
+            if (!empty($payload_items)) :
+                foreach ($payload_items as $index => $item) : 
+                    
+                    // Base64 Encode the Item Image
+                    $itemImgBase64 = '';
+                    $hasItemImage = false;
+                    
+                    if (!empty($item['picture'])) {
+                        $itemImgPath = __DIR__ . '/../images/machine_images/' . $item['picture'];
+                        if (file_exists($itemImgPath)) {
+                            $itemImgData = file_get_contents($itemImgPath);
+                            $itemImgType = pathinfo($itemImgPath, PATHINFO_EXTENSION);
+                            $itemImgBase64 = 'data:image/' . $itemImgType . ';base64,' . base64_encode($itemImgData);
+                            $hasItemImage = true;
+                        }
+                    }
+                    
+                    $qty = (int)($item['qty'] ?? 1);
+                    $price = (float)($item['unit_price'] ?? 0);
+                    $lineTotal = $qty * $price;
+                    $subtotal += $lineTotal;
             ?>
-            <tr>
-                <td style="font-weight: bold;"><?= $counter++ ?></td>
-                <td>
-                    <?php if ($base64_img): ?>
-                        <img src="<?= $base64_img ?>" style="max-width: 120px; max-height: 120px; object-fit: contain;">
-                    <?php else: ?>
-                        <span style="color: #999; font-size: 9px; font-weight: bold;">NO IMAGE</span>
-                    <?php endif; ?>
-                </td>
-                <td><strong style="font-size: 11px;"><?= htmlspecialchars($item['model']) ?></strong></td>
-                <td style="font-weight: bold; text-transform: uppercase; font-size: 10px;"><?= htmlspecialchars($item['brand']) ?></td>
-                <td class="desc-col"><?= nl2br(htmlspecialchars($item['description'])) ?></td>
-                <td style="font-weight: bold;"><?= $item['qty'] ?></td>
-                <td style="font-size: 11px;"><strong><?= number_format($amount, 2) ?></strong></td>
-            </tr>
-            <?php endforeach; ?>
+                <tr>
+                    <td style="font-weight: bold;"><?= $index + 1 ?></td>
+                    <td style="padding: 10px 5px;">
+                        <?php if ($hasItemImage): ?>
+                            <img src="<?= $itemImgBase64 ?>" class="item-image" alt="IMG">
+                        <?php else: ?>
+                            <span style="font-weight: bold; color: #666;">NO IMG</span>
+                        <?php endif; ?>
+                    </td>
+                    <td style="font-weight: bold;"><?= htmlspecialchars($item['model'] ?? '') ?></td>
+                    <td style="font-weight: bold;"><?= htmlspecialchars($item['brand'] ?? '') ?></td>
+                    
+                    <!-- BULLETPROOF LEFT ALIGNMENT FOR DESCRIPTION -->
+                    <td style="text-align: left; padding: 10px 12px; white-space: pre-line; line-height: 1.4;">
+                        <?= htmlspecialchars($item['description'] ?? '') ?>
+                    </td>
+                    
+                    <td style="font-weight: bold;"><?= $qty ?></td>
+                    
+                    <!-- BULLETPROOF RIGHT ALIGNMENT FOR TOTAL -->
+                    <td style="font-weight: bold; text-align: right; padding-right: 10px;">
+                        <?= number_format($lineTotal, 2) ?>
+                    </td>
+                </tr>
+            <?php 
+                endforeach; 
+            endif; 
+            ?>
         </tbody>
     </table>
 
+    <!-- FINANCIAL SUMMARY -->
     <?php
-        $net_total = $gross_total - $trans['corporate_discount']; 
+        $discount = (float)($trans['corporate_discount'] ?? 0);
+        $netTotal = max(0, $subtotal - $discount);
     ?>
     <table class="summary-table">
         <tr>
-            <td class="label-col">TOTAL AMOUNT PRICE :</td>
-            <td class="amount-col"><?= number_format($gross_total, 2) ?></td>
+            <td style="width: 75%; text-align: right; padding-right: 15px;">TOTAL AMOUNT PRICE :</td>
+            <td style="width: 25%; text-align: right; padding-right: 10px;"><?= number_format($subtotal, 2) ?></td>
         </tr>
         <tr>
-            <td class="label-col" style="color: #8B1538;">LESS: SPECIAL CORPORATE DISCOUNT :</td>
-            <td class="amount-col" style="color: #8B1538;">- <?= number_format($trans['corporate_discount'], 2) ?></td>
+            <td class="text-red" style="width: 75%; text-align: right; padding-right: 15px;">LESS: SPECIAL CORPORATE DISCOUNT :</td>
+            <td class="text-red" style="width: 25%; text-align: right; padding-right: 10px;">- <?= number_format($discount, 2) ?></td>
         </tr>
-        <tr style="border-top: 2px solid #000;">
-            <td class="label-col" style="font-size: 13px;">TOTAL NET PRICE (VAT INCLUDED) :</td>
-            <td class="amount-col" style="font-size: 14px;"><?= number_format($net_total, 2) ?></td>
+        <tr>
+            <td class="border-top" style="width: 75%; text-align: right; padding-right: 15px;">TOTAL NET PRICE (VAT INCLUDED) :</td>
+            <td class="border-top" style="width: 25%; text-align: right; padding-right: 10px;"><?= number_format($netTotal, 2) ?></td>
         </tr>
     </table>
 
-    <div class="footer-heading" style="margin-top: 40px;">OUR BANK DETAILS:</div>
-    <table style="width: 100%; font-size: 11px; margin-bottom: 60px;">
-        <tr>
-            <td colspan="2">Bank of the Philippine Islands, Ayala Avenue II Branch</td>
-        </tr>
-        <tr>
-            <td style="width: 12%;">Account No.:</td>
-            <td><strong>1511-0078-24 / Swift Code : BOPIPHMM</strong></td>
-        </tr>
-        <tr>
-            <td>Account Name:</td>
-            <td><strong>AM Group Kitchen Equipment and supplies, Inc.</strong></td>
-        </tr>
-    </table>
-
-    <table style="width: 100%; font-size: 11px; page-break-inside: avoid;">
-        <tr>
-            <td style="width: 40%; vertical-align: top;">
-                Prepared By:<br><br><br><br>
-                ________________________________________________<br>
-                <strong style="text-transform: uppercase; font-size: 12px;"><?= htmlspecialchars($trans['prepared_by']) ?></strong>
-            </td>
-            <td></td>
-        </tr>
-    </table>
+    <!-- BANK DETAILS SECTION -->
+    <div class="section-title" style="margin-top: 35px;">OUR BANK DETAILS:</div>
+    <div class="bank-details">
+        <p>Bank of the Philippine Islands, Ayala Avenue II Branch</p>
+        <p>Account No.: <span style="font-weight: bold; text-decoration: underline;">1511-0078-24</span> / Swift Code : <span style="font-weight: bold;">BOPIPHMM</span></p>
+        <p>Account Name : <span style="font-weight: bold;">AM GROUP KITCHEN EQUIPMENT AND SUPPLIES, INC.</span></p>
+        <p>USD Account No. : <span style="font-weight: bold; text-decoration: underline;">1514-0130-94</span> / Swift Code : <span style="font-weight: bold;">BOPIPHMM</span></p>
+        <p>Account Name : <span style="font-weight: bold;">AM GROUP KITCHEN EQUIPMENT AND SUPPLIES, INC.</span></p>
+    </div>
 
 </body>
 </html>
