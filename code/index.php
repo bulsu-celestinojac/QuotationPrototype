@@ -47,36 +47,104 @@ $items = $stmt->fetchAll();
 <head>
     <title>Machine Inventory - AM Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/inventory.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    
     <style>
-        /* Modern Search Overrides & Bug Fixes */
+        /* =======================================================
+           GLOBAL & BASE STYLES
+           ======================================================= */
+        :root {
+            --bg: #F8F6F5;
+            --surface: #FFFFFF;
+            --text-main: #2A0808;
+            --text-muted: #8C7373;
+            --border: #E8D8D7;
+            --maroon: #8B1538;
+            --maroon-light: #FFF5F7;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            padding: 40px 30px;
+        }
+
+        .container { max-width: 1600px; margin: 0 auto; }
+
+        /* =======================================================
+           HEADER & CONTROLS
+           ======================================================= */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        .page-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            text-transform: uppercase;
+            line-height: 1;
+        }
+
+        .page-title .accent { color: var(--maroon); }
+
+        .controls { display: flex; gap: 16px; align-items: center; }
+
+        /* Modern Search Overrides */
         .search-wrapper { 
             position: relative; 
             overflow: visible !important; 
             background: var(--surface);
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            width: 350px;
+            height: 48px;
+            transition: border-color 0.3s ease;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
         }
         
+        .search-wrapper:focus-within { border-color: var(--maroon); box-shadow: 0 4px 16px rgba(139, 21, 56, 0.08); }
+        
         .search-input {
-            border-top-left-radius: 50px;
-            border-bottom-left-radius: 50px;
+            flex: 1;
+            border: none;
             background: transparent;
+            padding: 0 20px;
+            font-size: 0.9rem;
+            outline: none;
+            color: var(--text-main);
+            min-width: 0;
         }
+        
         .search-btn {
             background: var(--maroon);
             color: white;
             border: none;
-            border-top-right-radius: 50px;
-            border-bottom-right-radius: 50px;
+            border-radius: 0 50px 50px 0;
+            height: 100%;
             padding: 0 24px;
-            font-weight: 700;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
             cursor: pointer;
             transition: all 0.2s ease;
         }
+        .search-btn:hover { background: #5A0000; }
         
-        .search-btn:hover {
-            background: #5A0000; 
-        }
         .clear-btn {
             background: transparent; 
             border: none; 
@@ -91,12 +159,9 @@ $items = $stmt->fetchAll();
             height: 100%;
             transition: all 0.2s ease;
         }
-        .clear-btn:hover { 
-            color: #5A0000; 
-            transform: scale(1.15); 
-        }
+        .clear-btn:hover { color: #5A0000; transform: scale(1.15); }
 
-        /* Auto-suggestion Dropdown Styles */
+        /* Auto-suggestion Dropdown */
         .custom-dropdown {
             position: absolute;
             top: calc(100% + 8px);
@@ -111,21 +176,230 @@ $items = $stmt->fetchAll();
             display: none;
             box-shadow: 0 10px 30px rgba(42, 8, 8, 0.08);
         }
-        .custom-dropdown-item {
-            padding: 12px 20px;
-            font-size: 0.9rem;
-            color: var(--text-main);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
+        .custom-dropdown-item { padding: 12px 20px; font-size: 0.9rem; color: var(--text-main); cursor: pointer; transition: all 0.2s ease; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
         .custom-dropdown-item:last-child { border-bottom: none; }
-        .custom-dropdown-item:hover { background: var(--maroon-light); }
+        .custom-dropdown-item:hover { background: var(--maroon-light); padding-left: 26px; }
         .sugg-model { font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); font-size: 1rem; }
         .sugg-brand { font-size: 0.7rem; color: var(--maroon); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* --- PREMIUM APP-LIKE BUTTONS --- */
+        .btn {
+            font-family: 'Outfit', sans-serif;
+            height: 48px;
+            padding: 0 24px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            background: var(--maroon-light);
+            color: var(--maroon);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            white-space: nowrap;
+        }
+        .btn:hover { 
+            background: var(--maroon); 
+            color: white; 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(139, 21, 56, 0.15);
+        }
+
+        .cart-trigger { 
+            background: var(--surface); 
+            border: 2px solid var(--border); 
+            color: var(--text-main); 
+        }
+        .cart-trigger:hover {
+            border-color: var(--text-main);
+            background: var(--surface);
+            color: var(--text-main);
+        }
+        .cart-trigger.has-items { 
+            background: var(--maroon); 
+            color: white; 
+            border: none;
+            box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); 
+        }
+        .cart-trigger.has-items:hover {
+            background: #5A0000;
+        }
+
+        /* =======================================================
+           GRID & CARDS
+           ======================================================= */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        .card:hover { border-color: var(--maroon); transform: translateY(-4px); box-shadow: 0 10px 30px rgba(139, 21, 56, 0.05); }
+        .card.is-selected { border: 2px solid var(--maroon); transform: translateY(0); }
+
+        .card-image {
+            width: 100%;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+            background: #FFFFFF;
+        }
+        .card-image img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.5s ease; }
+        .card:hover .card-image img { transform: scale(1.05); }
+        .card-image .no-img { color: #CCCCCC; font-weight: 700; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; }
+
+        .card-content { padding: 24px; flex: 1; display: flex; flex-direction: column; }
+        .card-brand { font-size: 0.65rem; text-transform: uppercase; font-weight: 800; color: var(--maroon); letter-spacing: 0.15em; margin-bottom: 6px; }
+        .card-model { font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 900; color: var(--text-main); margin-bottom: 6px; line-height: 1.2; word-wrap: break-word; }
+        .card-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-price { font-size: 1.15rem; font-weight: 900; color: var(--maroon); margin-bottom: 24px; }
+
+        .btn-select {
+            margin-top: auto;
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-select:hover { border-color: var(--maroon); color: var(--maroon); background: var(--maroon-light); }
+        .card.is-selected .btn-select { background: var(--maroon); color: white; border-color: var(--maroon); font-size: 0; }
+        .card.is-selected .btn-select::after { content: "SELECTED"; font-size: 0.8rem; }
+
+        /* =======================================================
+           PAGINATION
+           ======================================================= */
+        .pagination { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 50px; }
+        .page-link { padding: 10px 18px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 0.85rem; background: var(--surface); transition: all 0.2s ease; }
+        .page-link:hover { border-color: var(--maroon); color: var(--maroon); background: var(--maroon-light); }
+        .page-link.active { background: var(--maroon); color: white; border-color: var(--maroon); }
+
+        /* =======================================================
+           CART DRAWER (Slide-in)
+           ======================================================= */
+        .cart-overlay {
+            position: fixed; inset: 0; background: rgba(248, 246, 245, 0.85); backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px); z-index: 998; display: none; opacity: 0; transition: opacity 0.3s ease;
+        }
+        .cart-overlay.active { display: block; opacity: 1; }
+
+        .cart-drawer {
+            position: fixed; top: 0; right: 0; width: 400px; height: 100vh;
+            background: var(--surface); border-left: 1px solid var(--border); z-index: 999;
+            display: flex; flex-direction: column;
+            transform: translateX(100%); /* Hidden state */
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .cart-drawer.active { transform: translateX(0); } /* Visible state */
+
+        .cart-header { padding: 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .cart-header h2 { font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 900; text-transform: uppercase; }
+        .btn-close { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
+        .btn-close:hover { color: var(--maroon); }
+
+        .cart-items { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
+        .cart-item-row { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .cart-item-info .c-brand { font-size: 0.65rem; text-transform: uppercase; color: var(--maroon); font-weight: 800; letter-spacing: 0.1em; }
+        .cart-item-info .c-model { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 1.15rem; color: var(--text-main); margin-top: 2px; }
+        .btn-remove { background: #FFF5F7; border: 1px solid rgba(139, 21, 56, 0.15); color: var(--maroon); font-size: 0.7rem; text-transform: uppercase; font-weight: 800; cursor: pointer; padding: 8px 14px; border-radius: 50px; transition: all 0.2s ease; letter-spacing: 0.05em; }
+        .btn-remove:hover { background: var(--maroon); color: white; box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2); transform: translateY(-1px); }
+
+        .cart-footer { padding: 30px; border-top: 1px solid var(--border); background: var(--surface); }
+        .btn-checkout { width: 100%; height: 56px; font-size: 1rem; background: var(--maroon); color: white; border: none; border-radius: 50px; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: background 0.3s; }
+        .btn-checkout:hover { background: #5A0000; }
+        .btn-checkout:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+
+        /* =======================================================
+           MODAL (View Details)
+           ======================================================= */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(248, 246, 245, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .modal-overlay.active { display: flex; }
+        
+        .modal-card { 
+            background: var(--surface); border: 1px solid var(--maroon); 
+            box-shadow: 0 24px 60px rgba(139, 21, 56, 0.12); border-radius: 24px; 
+            max-width: 900px; width: 100%; display: flex; max-height: 90vh; overflow: hidden; position: relative;
+        }
+
+        .modal-img { flex: 1; padding: 40px; border-right: 1px dashed rgba(139, 21, 56, 0.3); display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #FFFFFF 0%, #FFF5F7 100%); }
+        .modal-img img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.05)); }
+
+        .modal-details { flex: 1; padding: 50px; display: flex; flex-direction: column; overflow-y: auto; position: relative; }
+        .modal-close-btn { position: absolute; top: 24px; right: 24px; background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); transition: all 0.2s ease; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .modal-close-btn:hover { color: var(--maroon); background: #FFF5F7; border-radius: 50%; }
+
+        .modal-title { font-family: 'Outfit', sans-serif; font-size: 2.2rem; font-weight: 900; line-height: 1.1; margin-bottom: 24px; text-transform: uppercase; color: var(--maroon); }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px; padding-bottom: 30px; border-bottom: 1px solid var(--border); }
+        .info-item label { font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.1em; display: block; margin-bottom: 4px; }
+        .info-item .value { font-size: 1.1rem; font-weight: 700; color: var(--text-main); word-wrap: break-word; }
+
+        /* =======================================================
+           RESPONSIVE DESIGN (Tablets & Mobile Optimization)
+           ======================================================= */
+        
+        /* Tablet & Small Desktop */
+        @media (max-width: 1024px) {
+            .top-bar { flex-direction: column; align-items: stretch; gap: 24px; margin-bottom: 30px; }
+            .controls { flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+            .search-wrapper { width: 100%; order: -1; } 
+            .btn { flex: 1 1 calc(33.333% - 12px); justify-content: center; padding: 0 12px; font-size: 0.75rem; }
+            
+            .modal-card { flex-direction: column; max-height: 85vh; overflow-y: auto; }
+            .modal-img { border-right: none; border-bottom: 1px dashed rgba(139, 21, 56, 0.3); padding: 24px; min-height: 250px; }
+            .modal-details { padding: 30px; }
+            .info-grid { grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px; padding-bottom: 20px; }
+        }
+
+        /* Mobile Phones */
+        @media (max-width: 600px) {
+            body { padding: 20px 16px; }
+            .page-title { font-size: 2.2rem; text-align: center; }
+            
+            .controls { flex-direction: column; align-items: stretch; gap: 14px; }
+            .search-wrapper { height: 54px; }
+            .btn { flex: 1 1 100%; width: 100%; height: 54px; font-size: 0.95rem; } 
+            
+            .grid { grid-template-columns: 1fr; gap: 16px; margin-bottom: 40px; }
+            
+            /* FIXED: Set width 100% and removed conflicting right attribute */
+            .cart-drawer { width: 100%; }
+            
+            .cart-header, .cart-items, .cart-footer { padding: 20px; }
+            .cart-item-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .btn-remove { align-self: flex-start; }
+
+            .modal-title { font-size: 1.8rem; margin-bottom: 16px; }
+            .modal-details { padding: 20px; }
+            .modal-close-btn { top: 10px; right: 10px; }
+        }
     </style>
 </head>
 <body>
@@ -226,7 +500,6 @@ $items = $stmt->fetchAll();
         </div>
     </div>
 
-    <!-- UPDATED PREMIUM MODAL -->
     <div class="modal-overlay" id="detailModal">
         <div class="modal-card">
             <div class="modal-img" id="modalImg">
@@ -454,13 +727,12 @@ $items = $stmt->fetchAll();
                     </a>
                 `;
             } else {
-                // UPDATED UI FOR FILE UPLOAD
                 pdfSection.innerHTML = `
                     <label style="font-size: 0.65rem; text-transform: uppercase; font-weight: 800; color: var(--maroon); letter-spacing: 0.1em; display: block; margin-bottom: 8px;">Upload PDF Documentation</label>
-                    <form action="upload_pdf.php" method="POST" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
+                    <form action="upload_pdf.php" method="POST" enctype="multipart/form-data" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
                         <input type="hidden" name="item_id" value="${data.id}">
                         <input type="hidden" name="token" value="${csrfToken}">
-                        <input type="file" name="pdf_file" accept="application/pdf" required style="font-size: 0.85rem; border: 1px dashed var(--maroon); background: #FFF5F7; border-radius: 8px; padding: 8px; flex: 1; color: var(--maroon); font-weight: 500;">
+                        <input type="file" name="pdf_file" accept="application/pdf" required style="font-size: 0.85rem; border: 1px dashed var(--maroon); background: #FFF5F7; border-radius: 8px; padding: 8px; flex: 1; min-width: 200px; color: var(--maroon); font-weight: 500;">
                         <button type="submit" style="background: var(--maroon); border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: background 0.3s; box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2);">Upload</button>
                     </form>
                 `;

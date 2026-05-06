@@ -22,7 +22,6 @@ if (empty($incoming_items)) {
 foreach ($incoming_items as &$item) {
     $clean_incoming_model = preg_replace('/[\s\-]/', '', $item['model']);
     
-    // Check database by ignoring spaces and hyphens on both sides
     $stmt = $pdo->prepare("
         SELECT id, selling_price, description, picture 
         FROM items 
@@ -49,9 +48,6 @@ $stmtId = $pdo->query("SELECT MAX(id) FROM project_quotations");
 $nextId = (int)$stmtId->fetchColumn() + 1;
 $default_quote_num = date('ydm') . '_PRJ_' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
 
-// ==========================================
-// GLOBAL "ADD" MARK COUNTER LOGIC
-// ==========================================
 $maxAdd = 0;
 try {
     $stmtAdd = $pdo->query("SELECT mark FROM project_quotation_items WHERE mark LIKE 'ADD%'");
@@ -77,9 +73,6 @@ foreach ($incoming_items as $item) {
 }
 $nextAddCounter = $maxAdd + 1;
 
-// ==========================================
-// BULLETPROOF AUTO-SUGGEST DATA LOADING
-// ==========================================
 $clients = [];
 $clean_inventory = [];
 
@@ -174,8 +167,24 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         }
         input:focus, textarea:focus, select:focus { background: var(--surface); border-color: var(--maroon); box-shadow: 0 0 0 4px var(--maroon-light); }
         input::placeholder, textarea::placeholder { color: var(--text-light); font-weight: 400; }
-        .readonly-input { background: transparent; border: 1px solid var(--border); color: var(--text-muted); pointer-events: none; }
+        .readonly-input { background: transparent !important; border: 1px solid var(--border) !important; color: var(--text-muted) !important; pointer-events: none; }
         hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+        /* --- FORM VALIDATION STYLES --- */
+        label.required::after {
+            content: ' *';
+            color: var(--maroon);
+            font-weight: 900;
+            font-size: 0.8rem;
+        }
+
+        input:invalid:not(:placeholder-shown):not(:focus),
+        textarea:invalid:not(:placeholder-shown):not(:focus),
+        select:invalid.touched {
+            border-color: #EF4444 !important;
+            background-color: #FEF2F2 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
 
         .financial-summary-block { background: #FAFAF9; padding: 32px; border-radius: 16px; border: 1px dashed var(--border); margin-top: 32px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.01); }
         .summary-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
@@ -194,71 +203,19 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         /* ==========================================
            PREMIUM WIDESCREEN TABLE DESIGN (STEP 1)
            ========================================== */
-        .items-list-container {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 24px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.02);
-            margin-bottom: 24px;
-        }
-
-        /* The Sticky Header explaining columns */
-        .list-header {
-            display: grid;
-            /* Widened Mark column to 100px so text never wraps */
-            grid-template-columns: 100px 70px 1fr 280px 40px; 
-            gap: 32px;
-            padding: 0 32px 16px 32px;
-            border-bottom: 2px solid var(--border);
-            margin-bottom: 12px;
-            color: var(--text-light);
-            font-size: 0.7rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            align-items: center;
-        }
-        
-        .header-metrics {
-            display: grid;
-            grid-template-columns: 80px 1fr;
-            gap: 24px;
-            padding-left: 32px;
-        }
-
+        .items-list-container { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.02); margin-bottom: 24px; }
+        .list-header { display: grid; grid-template-columns: 100px 70px 1fr 280px 40px; gap: 32px; padding: 0 32px 16px 32px; border-bottom: 2px solid var(--border); margin-bottom: 12px; color: var(--text-light); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; align-items: center; }
+        .header-metrics { display: grid; grid-template-columns: 80px 1fr; gap: 24px; padding-left: 32px; }
         .items-list { display: flex; flex-direction: column; width: 100%; }
         
-        .item-row { 
-            display: grid; 
-            /* Widened Mark column to 100px so text never wraps */
-            grid-template-columns: 100px 70px 1fr 280px 40px; 
-            gap: 32px; 
-            padding: 20px 32px; 
-            align-items: center; 
-            position: relative; 
-            transition: all 0.2s ease; 
-            border-bottom: 1px solid var(--border);
-        }
-        
+        .item-row { display: grid; grid-template-columns: 100px 70px 1fr 280px 40px; gap: 32px; padding: 20px 32px; align-items: center; position: relative; transition: all 0.2s ease; border-bottom: 1px solid var(--border); }
         .item-row:last-child { border-bottom: none; }
         .item-row:hover { background: #FAFAF9; }
 
         .item-mark { display: flex; align-items: center; justify-content: center; width: 100%; }
+        .mark-badge { background: var(--maroon-light); color: var(--maroon); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.95rem; padding: 8px 10px; border-radius: 8px; text-align: center; width: 100%; white-space: nowrap; }
         
-        .mark-badge { 
-            background: var(--maroon-light); color: var(--maroon); 
-            font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.95rem; 
-            padding: 8px 10px; border-radius: 8px; text-align: center; width: 100%;
-            white-space: nowrap; /* FORCES 1 LINE ONLY */
-        }
-        
-        .item-image { 
-            width: 70px; height: 70px; 
-            border-radius: 10px; border: 1px solid var(--border); background: #FFF; 
-            display: flex; align-items: center; justify-content: center; padding: 4px; 
-            cursor: pointer; transition: all 0.3s ease; 
-        }
+        .item-image { width: 70px; height: 70px; border-radius: 10px; border: 1px solid var(--border); background: #FFF; display: flex; align-items: center; justify-content: center; padding: 4px; cursor: pointer; transition: all 0.3s ease; }
         .item-image:hover { border-color: var(--maroon); box-shadow: 0 4px 12px var(--maroon-light); }
         .item-image img { width: 100%; height: 100%; object-fit: contain; }
         .item-image span { font-size: 0.5rem; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
@@ -269,8 +226,8 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         
         .item-desc-text { 
             font-size: 0.85rem; color: var(--text-muted); 
-            display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; 
-            overflow: hidden; 
+            display: -webkit-box; -webkit-line-clamp: 1; line-clamp: 1;
+            -webkit-box-orient: vertical; overflow: hidden; 
         }
 
         .item-details input[type="text"].input-model-search { font-family: 'Outfit', sans-serif !important; font-size: 1.35rem !important; font-weight: 900 !important; color: var(--text-main) !important; background: transparent !important; border: none !important; border-radius: 0 !important; padding: 0 !important; margin-bottom: 4px !important; outline: none !important; width: 100% !important; box-shadow: none !important; line-height: 1.2 !important; }
@@ -280,45 +237,25 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         .badge-warning { background: #FEF2F2; color: #EF4444; font-size: 0.6rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 6px; align-self: flex-start; }
 
         /* SEPARATED METRICS SECTION */
-        .item-metrics { 
-            display: grid; 
-            grid-template-columns: 80px 1fr; 
-            gap: 24px; 
-            align-items: center; 
-            border-left: 1px dashed var(--border); 
-            padding-left: 32px;
-        }
-        
-        .metric-value-text { font-family: 'DM Sans', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--maroon); white-space: nowrap; }
+        .item-metrics { display: grid; grid-template-columns: 80px 1fr; gap: 24px; align-items: center; border-left: 1px dashed var(--border); padding-left: 32px; }
         
         .input-qty-edit { 
-            width: 100%; 
-            text-align: center; 
-            padding: 10px 4px; 
-            background: #FAFAF9 !important; 
-            border: 1px solid var(--border) !important; 
-            border-radius: 8px !important; 
-            font-size: 1.05rem; 
-            font-weight: 700; 
-            color: var(--text-main); 
-            margin: 0; 
-            transition: all 0.2s ease;
+            width: 100%; text-align: center; padding: 10px 4px; background: #FAFAF9 !important; border: 1px solid var(--border) !important; border-radius: 8px !important; font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin: 0; transition: all 0.2s ease;
         }
-        .input-qty-edit:focus { 
-            border-color: var(--maroon) !important; 
-            background: var(--surface) !important; 
-            box-shadow: 0 0 0 3px var(--maroon-light) !important; 
-        }
+        .input-qty-edit:focus { border-color: var(--maroon) !important; background: var(--surface) !important; box-shadow: 0 0 0 3px var(--maroon-light) !important; }
 
-        .input-qty-edit::-webkit-outer-spin-button, .input-qty-edit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        .input-qty-edit[type=number] { -moz-appearance: textfield; }
+        .input-qty-edit::-webkit-outer-spin-button, .input-qty-edit::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+        .input-qty-edit[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
-        .btn-delete { 
-            background: transparent; border: none; color: var(--text-light); 
-            font-size: 1.4rem; cursor: pointer; width: 40px; height: 40px; 
-            display: flex; align-items: center; justify-content: center; 
-            border-radius: 10px; transition: all 0.2s ease; 
-        }
+        /* --- PREMIUM EDITABLE PRICE FIELD --- */
+        .price-edit-wrapper { display: flex; align-items: center; background: #FFF5F7; border: 1px solid rgba(139, 21, 56, 0.15); border-radius: 8px; padding: 0 12px; transition: all 0.2s ease; width: 140px; }
+        .price-edit-wrapper:focus-within { border-color: var(--maroon); box-shadow: 0 0 0 3px var(--maroon-light); background: var(--surface); }
+        .price-currency { font-weight: 800; color: var(--maroon); font-size: 1.05rem; }
+        
+        /* Changed to type="text" for formatting, css selectors remain class based */
+        .input-price-edit { width: 100%; text-align: right; padding: 10px 0 10px 8px; background: transparent !important; border: none !important; font-size: 1.05rem; font-weight: 800; color: var(--maroon) !important; outline: none !important; box-shadow: none !important; font-family: 'DM Sans', sans-serif; margin: 0; }
+        
+        .btn-delete { background: transparent; border: none; color: var(--text-light); font-size: 1.4rem; cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; transition: all 0.2s ease; }
         .btn-delete:hover { background: #FFF5F7; color: var(--maroon); }
 
         .autocomplete-wrapper { position: relative; width: 100%; z-index: 10; }
@@ -334,28 +271,13 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         .modal-close { position: absolute; top: 30px; right: 40px; color: rgba(255,255,255,0.6); font-size: 40px; font-weight: 300; cursor: pointer; }
         .modal-close:hover { color: #FFF; }
 
-        /* Step 2 Width Restriction */
         #step-2 .card { max-width: 1000px; margin: 0 auto; }
 
         @media (max-width: 1024px) {
             .list-header { display: none; } 
-            .item-row { 
-                grid-template-columns: 1fr; 
-                padding: 24px; 
-                gap: 16px;
-                border: 1px solid var(--border);
-                margin-bottom: 16px;
-                border-radius: 16px;
-            }
+            .item-row { grid-template-columns: 1fr; padding: 24px; gap: 16px; border: 1px solid var(--border); margin-bottom: 16px; border-radius: 16px; }
             .item-mark, .item-image { justify-content: flex-start; width: auto; }
-            .item-metrics { 
-                grid-template-columns: 1fr 1fr; 
-                border-left: none;
-                border-top: 1px dashed var(--border); 
-                padding-left: 0;
-                padding-top: 16px; 
-                margin-top: 8px; 
-            }
+            .item-metrics { grid-template-columns: 1fr 1fr; border-left: none; border-top: 1px dashed var(--border); padding-left: 0; padding-top: 16px; margin-top: 8px; }
             .btn-delete { position: absolute; top: 16px; right: 16px; }
             .form-grid { grid-template-columns: 1fr; } 
         }
@@ -394,10 +316,8 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
             
             <!-- STEP 1: EQUIPMENT LIST -->
             <div id="step-1" class="step-section">
-                
                 <div class="items-list-container">
                     
-                    <!-- GLOBAL TABLE HEADER -->
                     <div class="list-header">
                         <div style="text-align: center;">Mark</div>
                         <div>Image</div>
@@ -412,6 +332,8 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                     <div class="items-list" id="items-container">
                         <?php foreach ($incoming_items as $index => $item): 
                             $first_line_desc = explode("\n", str_replace("\r", "", $item['full_desc']))[0];
+                            // Format price for initial load
+                            $formatted_price = number_format((float)($item['price'] ?? 0), 2, '.', ',');
                         ?>
                             <div class="item-row">
                                 <div class="item-mark">
@@ -447,8 +369,11 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
 
                                 <div class="item-metrics">
                                     <input type="number" class="input-qty-edit i-qty" value="<?= $item['qty'] ?? 1 ?>" min="1" max="999">
-                                    <span class="metric-value-text"><?= number_format((float)$item['price'], 2) ?></span>
-                                    <input type="hidden" class="i-price" value="<?= $item['price'] ?>">
+                                    <div class="price-edit-wrapper">
+                                        <span class="price-currency">₱</span>
+                                        <!-- Changed to type="text" to support comma formatting -->
+                                        <input type="text" class="input-price-edit i-price update-db-price" value="<?= $formatted_price ?>" data-model="<?= htmlspecialchars($item['model']) ?>">
+                                    </div>
                                 </div>
 
                                 <button type="button" class="btn-delete" title="Remove Item">
@@ -469,51 +394,50 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
             <!-- STEP 2: PROJECT DETAILS -->
             <div id="step-2" class="step-section" style="display: none;">
                 <div class="card project-details-card">
-                    
                     <div class="form-grid">
                         <div class="full">
-                            <label>Company Name (Auto Caps)</label>
-                            <input type="text" name="company_name" id="company_name" list="company_list" style="text-transform: uppercase;" autocomplete="off" required>
+                            <label class="required">Company Name (Auto Caps)</label>
+                            <input type="text" name="company_name" id="company_name" list="company_list" style="text-transform: uppercase;" autocomplete="off" placeholder="Enter company name" required>
                             <datalist id="company_list"></datalist>
                         </div>
                         <div class="full">
-                            <label>Project Name (Auto Caps)</label>
-                            <input type="text" name="project_name" value="" style="text-transform: uppercase;" required>
+                            <label class="required">Project Name (Auto Caps)</label>
+                            <input type="text" name="project_name" value="" style="text-transform: uppercase;" placeholder="Enter project name" required>
                         </div>
                         <div>
-                            <label>Contact Person</label>
-                            <input type="text" name="contact_name" id="contact_name">
+                            <label class="required">Contact Person</label>
+                            <input type="text" name="contact_name" id="contact_name" placeholder="Full Name" required>
                         </div>
                         <div>
-                            <label>Contact No.</label>
-                            <input type="tel" name="contact_no" id="contact_no" pattern="^(09|\+639)\d{9}$|^[0-9]{2,3}[-\s]?[0-9]{7}$" placeholder="e.g. 09171234567">
+                            <label class="required">Contact No.</label>
+                            <input type="tel" name="contact_no" id="contact_no" pattern="^(09|\+639)\d{9}$|^[0-9]{2,3}[-\s]?[0-9]{7}$" title="Please enter a valid PH mobile number (e.g. 09171234567) or landline." placeholder="e.g. 09171234567" required>
                         </div>
                         <div class="full">
-                            <label>Email Address</label>
-                            <input type="email" name="email" id="email" placeholder="example@domain.com">
+                            <label class="required">Email Address</label>
+                            <input type="email" name="email" id="email" placeholder="example@domain.com" required>
                         </div>
                         <div class="full">
-                            <label>Complete Address</label>
-                            <textarea name="client_address" id="client_address" rows="2" required></textarea>
+                            <label class="required">Complete Address</label>
+                            <textarea name="client_address" id="client_address" rows="2" placeholder="Enter full delivery/billing address" required></textarea>
                         </div>
                         
                         <div class="full"><hr></div>
                         
                         <div>
-                            <label>Offer No.</label>
-                            <input type="text" name="quotation_no" class="readonly-input" value="<?= $default_quote_num ?>" readonly tabindex="-1">
+                            <label class="required">Offer No.</label>
+                            <input type="text" name="quotation_no" class="readonly-input" value="<?= $default_quote_num ?>" readonly tabindex="-1" required>
                         </div>
                         <div>
-                            <label>Date</label>
-                            <input type="date" name="quote_date" value="<?= date('Y-m-d') ?>">
+                            <label class="required">Date</label>
+                            <input type="date" name="quote_date" value="<?= date('Y-m-d') ?>" required>
                         </div>
                         <div>
-                            <label>Offer Validity</label>
-                            <input type="text" name="offer_validity" value="">
+                            <label class="required">Offer Validity</label>
+                            <input type="text" name="offer_validity" value="" placeholder="e.g. 30 Days" required>
                         </div>
                         <div>
-                            <label>Mode of Dispatch</label>
-                            <select name="mode_of_dispatch">
+                            <label class="required">Mode of Dispatch</label>
+                            <select name="mode_of_dispatch" required onchange="this.classList.add('touched')">
                                 <option value="" disabled selected>Select mode</option>
                                 <option value="Air">Air</option>
                                 <option value="Land">Land</option>
@@ -522,32 +446,32 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                             </select>
                         </div>
                         <div class="full">
-                            <label>Package</label>
-                            <input type="text" name="package_type" value="">
+                            <label class="required">Package</label>
+                            <input type="text" name="package_type" value="" placeholder="e.g. Standard Crating / To Agree" required>
                         </div>
                         <div class="full">
-                            <label>Delivery Arrangements</label>
-                            <input type="text" name="delivery_arrangements" value="">
+                            <label class="required">Delivery Arrangements</label>
+                            <input type="text" name="delivery_arrangements" value="" placeholder="e.g. Delivered to site / Ex-works" required>
                         </div>
                         <div class="full">
-                            <label>Payment Terms</label>
-                            <textarea name="payment_terms" rows="3"></textarea>
+                            <label class="required">Payment Terms</label>
+                            <textarea name="payment_terms" rows="3" placeholder="e.g. 50% Downpayment upon confirmation, 50% Before dispatch." required></textarea>
                         </div>
                         <div class="full">
                             <label>Inclusions</label>
-                            <textarea name="inclusions" rows="2"></textarea>
+                            <textarea name="inclusions" rows="2" placeholder="Optional details (e.g. Installation, 1 Year Warranty...)"></textarea>
                         </div>
                         
                         <div>
-                            <label>Paper Size</label>
-                            <select name="paper_size">
-                                <option value="A4">A4 (Standard)</option>
+                            <label class="required">Paper Size</label>
+                            <select name="paper_size" required>
+                                <option value="A4" selected>A4 (Standard)</option>
                                 <option value="A3">A3 (Large Format)</option>
                             </select>
                         </div>
                         <div class="full">
-                            <label>Prepared By</label>
-                            <input type="text" name="prepared_by" required>
+                            <label class="required">Prepared By</label>
+                            <input type="text" name="prepared_by" placeholder="Your Full Name" required>
                         </div>
                     </div>
 
@@ -565,7 +489,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                             <span id="display-total" style="font-size: 2.2rem; color: var(--maroon); font-weight: 900; font-family: 'Outfit', sans-serif;">₱0.00</span>
                         </div>
                     </div>
-
                 </div>
 
                 <div class="step-actions">
@@ -607,22 +530,46 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
             }
         }
 
-        // FINANCIAL CALCULATIONS
+        // HIGH PERFORMANCE FINANCIAL CALCULATIONS (Strips Commas Safely)
         function calculateTotals() {
             let subtotal = 0;
+            
+            // 1. Batch DOM Reads
+            const rowData = [];
             document.querySelectorAll('.item-row').forEach(row => {
-                const qty = parseFloat(row.querySelector('.i-qty').value) || 0;
-                const price = parseFloat(row.querySelector('.i-price').value) || 0;
-                subtotal += (qty * price);
+                const priceStr = row.querySelector('.i-price').value;
+                const cleanPrice = parseFloat(String(priceStr).replace(/,/g, '')) || 0;
+                
+                rowData.push({
+                    qty: parseFloat(row.querySelector('.i-qty').value) || 0,
+                    price: cleanPrice
+                });
             });
 
-            const discountInput = document.getElementById('discount_amount');
-            const discount = parseFloat(discountInput.value) || 0;
-            
+            const discount = parseFloat(document.getElementById('discount_amount').value) || 0;
+
+            // 2. Perform Math
+            rowData.forEach(data => {
+                subtotal += (data.qty * data.price);
+            });
             const total = Math.max(0, subtotal - discount);
 
+            // 3. Batch DOM Writes
             document.getElementById('display-subtotal').textContent = '₱' + subtotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             document.getElementById('display-total').textContent = '₱' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        // UTILITY: Debounce Function for lag-free typing
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -668,7 +615,11 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                 row.querySelector('.i-model').value = match.model_no;
                 row.querySelector('.i-brand').value = match.brand || '';
                 row.querySelector('.i-full-desc').value = match.description || '';
-                row.querySelector('.i-price').value = match.selling_price || 0;
+                
+                const priceInput = row.querySelector('.i-price');
+                const matchedPrice = parseFloat(match.selling_price) || 0;
+                priceInput.value = matchedPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                priceInput.setAttribute('data-model', match.model_no || '');
                 
                 row.querySelector('.item-brand-text').textContent = match.brand || 'NO BRAND';
                 
@@ -677,9 +628,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
 
                 let firstLine = (match.description || '').split(/\r?\n/)[0];
                 row.querySelector('.item-desc-text').textContent = firstLine || 'No description available.';
-                
-                const priceFormatted = parseFloat(match.selling_price || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                row.querySelector('.metric-value-text').textContent = priceFormatted;
                 
                 const imgBox = row.querySelector('.item-image');
                 if (match.picture) {
@@ -696,11 +644,13 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                 row.querySelector('.i-model').value = typedValue;
                 row.querySelector('.i-brand').value = '';
                 row.querySelector('.i-full-desc').value = '';
-                row.querySelector('.i-price').value = 0;
+                
+                const priceInput = row.querySelector('.i-price');
+                priceInput.value = '0.00';
+                priceInput.setAttribute('data-model', typedValue);
                 
                 row.querySelector('.item-brand-text').textContent = 'PENDING...';
                 row.querySelector('.item-desc-text').textContent = 'Search a model to populate description.';
-                row.querySelector('.metric-value-text').textContent = '0.00';
                 
                 const imgBox = row.querySelector('.item-image');
                 imgBox.innerHTML = `<span>NO IMG</span><input type="hidden" class="i-pic" value="">`;
@@ -713,6 +663,128 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
             }
 
             if (itemsContainer) {
+                
+                // ASYNCHRONOUS AUTO-SAVE PRICE TO DATABASE
+                itemsContainer.addEventListener('change', function(e) {
+                    if (e.target.classList.contains('update-db-price')) {
+                        const input = e.target;
+                        const cleanPrice = parseFloat(String(input.value).replace(/,/g, '')) || 0;
+                        const row = input.closest('.item-row');
+                        const modelNo = row.querySelector('.i-model').value;
+                        
+                        if (modelNo && modelNo.trim() !== '') {
+                            const wrapper = input.closest('.price-edit-wrapper');
+                            wrapper.style.opacity = '0.5';
+                            
+                            fetch('update_item_price.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: `model_no=${encodeURIComponent(modelNo)}&selling_price=${encodeURIComponent(cleanPrice)}`
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                wrapper.style.opacity = '1';
+                                if (data.success) {
+                                    wrapper.style.backgroundColor = '#ecfdf5';
+                                    wrapper.style.borderColor = '#10b981';
+                                    setTimeout(() => { 
+                                        wrapper.style.backgroundColor = ''; 
+                                        wrapper.style.borderColor = ''; 
+                                    }, 1000);
+                                }
+                            })
+                            .catch(err => {
+                                wrapper.style.opacity = '1';
+                                console.error('Fetch error:', err);
+                            });
+                        }
+                    }
+                });
+                
+                // Update totals instantly while typing
+                itemsContainer.addEventListener('input', function(e) {
+                    if (e.target.classList.contains('i-qty') || e.target.classList.contains('i-price')) {
+                        calculateTotals();
+                    }
+                });
+
+                // HIGH PERFORMANCE DEBOUNCED SEARCH
+                const performSearch = debounce(function(input) {
+                    const val = input.value.trim().toUpperCase();
+                    const row = input.closest('.item-row');
+                    const list = row.querySelector('.autocomplete-list');
+                    
+                    if (!list) return;
+
+                    if (val.length < 1) {
+                        list.style.display = 'none';
+                        clearInventoryMatch(row, val);
+                        input.classList.remove('is-searching');
+                        return;
+                    }
+                    
+                    const cleanVal = val.replace(/[\s\-]/g, '');
+
+                    // Fast exact match first
+                    const exactMatch = inventoryData.find(i => {
+                        const safeModel = String(i.model_no || '').toUpperCase();
+                        return safeModel === val || safeModel.replace(/[\s\-]/g, '') === cleanVal;
+                    });
+
+                    if (exactMatch) {
+                        applyInventoryMatch(row, exactMatch, input, false); 
+                        list.style.display = 'none';
+                        input.classList.remove('is-searching');
+                        return;
+                    } else {
+                        clearInventoryMatch(row, val); 
+                    }
+
+                    // Slower fuzzy match
+                    const matches = inventoryData.filter(i => {
+                        const safeModel = String(i.model_no || '').toUpperCase();
+                        const safeBrand = String(i.brand || '').toUpperCase();
+                        const cleanModel = safeModel.replace(/[\s\-]/g, '');
+                        return cleanModel.includes(cleanVal) || cleanVal.includes(cleanModel) || safeBrand.includes(val) || val.includes(safeBrand) || safeModel.includes(val) || val.includes(safeModel);
+                    });
+                    
+                    list.innerHTML = '';
+                    
+                    // Use Document Fragment to prevent Layout Thrashing
+                    if (matches.length > 0) {
+                        const frag = document.createDocumentFragment();
+                        matches.slice(0, 15).forEach(match => { 
+                            const div = document.createElement('div');
+                            div.className = 'autocomplete-item';
+                            div.innerHTML = `
+                                <div style="display:flex; flex-direction:column; pointer-events:none;">
+                                    <span class="autocomplete-model">${match.model_no}</span>
+                                    <span class="autocomplete-brand">${match.brand || 'NO BRAND'}</span>
+                                </div>
+                            `;
+                            div.addEventListener('mousedown', function(evt) {
+                                evt.preventDefault();
+                                applyInventoryMatch(row, match, input, true); 
+                                list.style.display = 'none';
+                            });
+                            frag.appendChild(div);
+                        });
+                        list.appendChild(frag);
+                    } else {
+                        list.innerHTML = `<div class="autocomplete-no-results">No match found in database</div>`;
+                    }
+                    
+                    list.style.display = 'block';
+                }, 150);
+
+                itemsContainer.addEventListener('input', function(e) {
+                    if (e.target.classList.contains('input-model-search')) {
+                        e.target.classList.add('is-searching');
+                        performSearch(e.target);
+                    }
+                });
+
+                // Keyboard Navigation for Autocomplete
                 itemsContainer.addEventListener('keydown', function(e) {
                     if (e.target.classList.contains('input-model-search')) {
                         const input = e.target;
@@ -752,10 +824,15 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                     }
                 });
 
+                // FORMATTING PRICE ON BLUR / UNFORMATTING ON FOCUS
                 itemsContainer.addEventListener('focusin', function(e) {
                     if (e.target.classList.contains('input-model-search')) {
                         const row = e.target.closest('.item-row');
                         if (row) row.style.zIndex = '50';
+                    }
+                    if (e.target.classList.contains('i-price')) {
+                        const cleanVal = String(e.target.value).replace(/,/g, '');
+                        e.target.value = cleanVal === '0.00' ? '' : cleanVal; 
                     }
                 });
                 
@@ -768,79 +845,9 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                         if(list) list.style.display = 'none';
                         e.target.classList.remove('is-searching');
                     }
-                });
-
-                itemsContainer.addEventListener('input', function(e) {
-                    if (e.target.classList.contains('i-qty')) {
-                        calculateTotals();
-                    }
-                });
-
-                itemsContainer.addEventListener('input', function(e) {
-                    if (e.target.classList.contains('input-model-search')) {
-                        const input = e.target;
-                        const val = input.value.trim().toUpperCase();
-                        const row = input.closest('.item-row');
-                        const list = row.querySelector('.autocomplete-list');
-                        
-                        if (!list) return;
-                        input.classList.add('is-searching');
-
-                        if (val.length < 1) {
-                            list.style.display = 'none';
-                            clearInventoryMatch(row, val);
-                            return;
-                        }
-                        
-                        const cleanVal = val.replace(/[\s\-]/g, '');
-
-                        const exactMatch = inventoryData.find(i => {
-                            const safeModel = String(i.model_no || '').toUpperCase();
-                            return safeModel === val || safeModel.replace(/[\s\-]/g, '') === cleanVal;
-                        });
-
-                        if (exactMatch) {
-                            applyInventoryMatch(row, exactMatch, input, false); 
-                            list.style.display = 'none';
-                            return;
-                        } else {
-                            clearInventoryMatch(row, val); 
-                        }
-
-                        const matches = inventoryData.filter(i => {
-                            const safeModel = String(i.model_no || '').toUpperCase();
-                            const safeBrand = String(i.brand || '').toUpperCase();
-                            const cleanModel = safeModel.replace(/[\s\-]/g, '');
-                            
-                            return cleanModel.includes(cleanVal) || cleanVal.includes(cleanModel) || safeBrand.includes(val) || val.includes(safeBrand) || safeModel.includes(val) || val.includes(safeModel);
-                        });
-                        
-                        list.innerHTML = '';
-                        
-                        if (matches.length > 0) {
-                            matches.slice(0, 15).forEach(match => { 
-                                const div = document.createElement('div');
-                                div.className = 'autocomplete-item';
-                                
-                                div.innerHTML = `
-                                    <div style="display:flex; flex-direction:column; pointer-events:none;">
-                                        <span class="autocomplete-model">${match.model_no}</span>
-                                        <span class="autocomplete-brand">${match.brand || 'NO BRAND'}</span>
-                                    </div>
-                                `;
-                                
-                                div.addEventListener('mousedown', function(evt) {
-                                    evt.preventDefault();
-                                    applyInventoryMatch(row, match, input, true); 
-                                    list.style.display = 'none';
-                                });
-                                list.appendChild(div);
-                            });
-                        } else {
-                            list.innerHTML = `<div class="autocomplete-no-results">No match found in database</div>`;
-                        }
-                        
-                        list.style.display = 'block';
+                    if (e.target.classList.contains('i-price')) {
+                        const parsed = parseFloat(String(e.target.value).replace(/,/g, '')) || 0;
+                        e.target.value = parsed.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     }
                 });
 
@@ -907,11 +914,15 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                             <span class="item-desc-text">Search a model to populate description.</span>
                             <input type="hidden" class="i-full-desc" value="">
                         </div>
+                        
                         <div class="item-metrics">
                             <input type="number" class="input-qty-edit i-qty" value="1" min="1" max="999">
-                            <span class="metric-value-text">0.00</span>
-                            <input type="hidden" class="i-price" value="0">
+                            <div class="price-edit-wrapper">
+                                <span class="price-currency">₱</span>
+                                <input type="text" class="input-price-edit i-price update-db-price" value="0.00" data-model="">
+                            </div>
                         </div>
+
                         <button type="button" class="btn-delete" title="Remove Item">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                         </button>
@@ -929,12 +940,23 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
             if (projectForm) {
                 projectForm.addEventListener('submit', function(e) {
                     e.preventDefault();
+                    
+                    // Trigger native HTML5 validation
+                    if (!this.checkValidity()) {
+                        this.reportValidity();
+                        return; // Stop submission if invalid
+                    }
+
                     const items = [];
                     document.querySelectorAll('.item-row').forEach(row => {
                         const markInput = row.querySelector('.i-mark');
                         const modelInput = row.querySelector('.i-model');
                         
                         if(markInput && modelInput.value.trim() !== '') {
+                            
+                            const priceStr = row.querySelector('.i-price').value;
+                            const cleanPrice = parseFloat(String(priceStr).replace(/,/g, '')) || 0;
+
                             items.push({
                                 mark: markInput.value,
                                 brand: row.querySelector('.i-brand').value,
@@ -942,7 +964,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                                 description: row.querySelector('.i-full-desc').value,
                                 picture: row.querySelector('.i-pic').value,
                                 qty: row.querySelector('.i-qty').value,
-                                unit_price: row.querySelector('.i-price').value
+                                unit_price: cleanPrice
                             });
                         }
                     });

@@ -5,9 +5,13 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $brand = trim($_POST['brand'] ?? '');
-    $model_no = trim($_POST['model_no'] ?? '');
+    // Force Brand and Model No to save as ALL CAPS in the database
+    $brand = strtoupper(trim($_POST['brand'] ?? ''));
+    $model_no = strtoupper(trim($_POST['model_no'] ?? ''));
+    
+    // Description remains normal casing
     $description = trim($_POST['description'] ?? '');
+    
     $buying_currency = $_POST['buying_currency'] ?? '';
     $buying_cost = $_POST['buying_cost'] ?? '';
     $factor = $_POST['factor'] ?? '';
@@ -224,6 +228,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             letter-spacing: 0.1em;
         }
 
+        /* --- REQUIRED STAR STYLING --- */
+        label.required::after {
+            content: ' *';
+            color: var(--maroon);
+            font-weight: 900;
+            font-size: 0.8rem;
+        }
+
         .helper-text { font-size: 0.75rem; color: var(--text-muted); margin-top: -4px; font-style: italic; }
 
         input[type="text"], input[type="number"], select, textarea {
@@ -239,7 +251,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             outline: none;
         }
 
+        /* --- FORM VALIDATION STYLING --- */
+        input:invalid:not(:placeholder-shown):not(:focus),
+        textarea:invalid:not(:placeholder-shown):not(:focus),
+        select:invalid.touched {
+            border-color: #EF4444 !important;
+            background-color: #FEF2F2 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+
         select {
+            -webkit-appearance: none;
             appearance: none;
             cursor: pointer;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%238B1538' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
@@ -407,81 +429,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         /* Custom Sleek Scrollbar */
         .custom-dropdown::-webkit-scrollbar { width: 6px; }
         .custom-dropdown::-webkit-scrollbar-track { background: transparent; }
-        .custom-dropdown::-webkit-scrollbar-thumb { 
-            background: rgba(139, 21, 56, 0.2); 
-            border-radius: 10px; 
-        }
+        .custom-dropdown::-webkit-scrollbar-thumb { background: rgba(139, 21, 56, 0.2); border-radius: 10px; }
         .custom-dropdown::-webkit-scrollbar-thumb:hover { background: rgba(139, 21, 56, 0.4); }
 
-        .custom-dropdown.active { 
-            display: block; 
-            animation: slideDown 0.2s ease-out;
-        }
+        .custom-dropdown.active { display: block; animation: slideDown 0.2s ease-out; }
 
         @keyframes slideDown {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .custom-dropdown-item { 
-            padding: 12px 20px; 
-            font-size: 0.9rem; 
-            color: var(--text-main); 
-            cursor: pointer; 
-            transition: all 0.2s ease; 
-            font-weight: 600;
-        }
-        
-        .custom-dropdown-item:hover { 
-            background: var(--maroon-light); 
-            color: var(--maroon); 
-            padding-left: 26px; /* Nice slight indent on hover */
-        }
+        .custom-dropdown-item { padding: 12px 20px; font-size: 0.9rem; color: var(--text-main); cursor: pointer; transition: all 0.2s ease; font-weight: 600; }
+        .custom-dropdown-item:hover { background: var(--maroon-light); color: var(--maroon); padding-left: 26px; }
 
         .zoom-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(248, 246, 245, 0.95);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            z-index: 99999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
+            position: fixed; inset: 0; background: rgba(248, 246, 245, 0.95); backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px); z-index: 99999; display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
         }
 
-        .zoom-overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .zoom-overlay img {
-            max-width: 90vw;
-            max-height: 90vh;
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(42, 8, 8, 0.15);
-            transform: scale(0.95);
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
+        .zoom-overlay.active { opacity: 1; pointer-events: all; }
+        .zoom-overlay img { max-width: 90vw; max-height: 90vh; border-radius: 16px; box-shadow: 0 20px 40px rgba(42, 8, 8, 0.15); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .zoom-overlay.active img { transform: scale(1); }
 
-        .zoom-close-btn {
-            position: absolute;
-            top: 40px;
-            right: 40px;
-            background: transparent;
-            border: none;
-            font-size: 2rem;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: color 0.2s ease;
-        }
+        .zoom-close-btn { position: absolute; top: 40px; right: 40px; background: transparent; border: none; font-size: 2rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s ease; }
         .zoom-close-btn:hover { color: var(--maroon); }
 
+        /* =======================================================
+           RESPONSIVE DESIGN (Tablets & Mobile)
+           ======================================================= */
+        @media (max-width: 768px) {
+            body { padding: 0; }
+            .modal-card { max-height: 100vh; border-radius: 0; border: none; }
+        }
+
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .modal-header { padding: 30px 24px 20px 24px; position: relative; }
+            .modal-form-wrapper { padding: 24px; }
+            .close-btn { top: 30px; right: 20px; }
+            .modal-title { font-size: 1.8rem; }
+        }
     </style>
 </head>
 <body>
@@ -498,28 +486,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php if ($success): ?><div class="alert alert-success"><?=htmlspecialchars($success)?></div><?php endif; ?>
 
         <div class="modal-form-wrapper">
-        <form method="post" enctype="multipart/form-data" id="machineForm" autocomplete="off">
+        <!-- autocomplete="off" enforced on the form -->
+        <form method="post" enctype="multipart/form-data" id="machineForm" autocomplete="off" novalidate>
             <div class="form-grid">
                 
                 <div class="form-group" style="position: relative;">
-                    <label for="brand">Brand</label>
-                    <input type="text" name="brand" id="brand" placeholder="Search or type a new brand..." autocomplete="off" required>
+                    <label class="required" for="brand">Brand</label>
+                    <!-- autocomplete="off" bypasses Chrome's aggressive history -->
+                    <input type="text" name="brand" id="brand" placeholder="Search or type a new brand..." style="text-transform: uppercase;" autocomplete="off" required>
                     <div id="custom-brand-list" class="custom-dropdown"></div>
                 </div>
 
                 <div class="form-group">
-                    <label for="model_no">Model Number</label>
-                    <input type="text" name="model_no" id="model_no" placeholder="e.g. M-1000" readonly onfocus="this.removeAttribute('readonly');" required>
+                    <label class="required" for="model_no">Model Number</label>
+                    <input type="text" name="model_no" id="model_no" placeholder="e.g. M-1000" style="text-transform: uppercase;" autocomplete="off" required>
                     <div class="helper-text">*Determines the file names.</div>
                 </div>
 
                 <div class="form-group full-width">
-                    <label for="description">Description</label>
+                    <label class="required" for="description">Description</label>
+                    <!-- Removed uppercase transform here so text types normally -->
                     <textarea name="description" id="description" placeholder="Technical specifications..." autocomplete="off" required></textarea>
                 </div>
 
                 <div class="form-group full-width">
-                    <label for="picture">Product Image</label>
+                    <label class="required" for="picture">Product Image</label>
                     <div class="file-drop-area" id="drop-area">
                         <span class="file-msg" id="file-msg">Browse, drop, or paste an image here (Ctrl+V)</span>
                         
@@ -528,7 +519,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <button type="button" class="remove-img-btn" id="remove-img-btn" title="Remove Image">✕</button>
                         </div>
 
-                        <input type="file" name="picture" id="picture" class="file-input" accept="image/*">
+                        <input type="file" name="picture" id="picture" class="file-input" accept="image/*" required>
                     </div>
                 </div>
 
@@ -541,8 +532,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="form-group">
-                    <label for="buying_currency">Currency</label>
-                    <select name="buying_currency" id="buying_currency" required>
+                    <label class="required" for="buying_currency">Currency</label>
+                    <select name="buying_currency" id="buying_currency" required onchange="this.classList.add('touched')">
                         <option value="" disabled selected>Select...</option>
                         <option value="USD">USD - US Dollar</option>
                         <option value="EUR">EUR - Euro</option>
@@ -550,17 +541,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="form-group">
-                    <label for="buying_cost">Buying Cost</label>
+                    <label class="required" for="buying_cost">Buying Cost</label>
                     <input type="number" step="0.01" min="0" name="buying_cost" id="buying_cost" placeholder="0.00" autocomplete="off" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="factor">Factor</label>
+                    <label class="required" for="factor">Factor</label>
                     <input type="number" step="any" min="0.0001" name="factor" id="factor" placeholder="0.00" autocomplete="off" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="selling_price">Selling Price</label>
+                    <label class="required" for="selling_price">Selling Price</label>
                     <div class="price-wrapper">
                         <input type="number" step="0.01" name="selling_price" id="selling_price" class="input-readonly" placeholder="0.00" readonly required autocomplete="off">
                     </div>
@@ -578,6 +569,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
    <script>
+        // --- 0. HTML5 VALIDATION HANDLING ---
+        document.getElementById('machineForm').addEventListener('submit', function(e) {
+            if (!this.checkValidity()) {
+                e.preventDefault(); // Stop submission
+                this.reportValidity(); // Show native browser tooltips
+                
+                // Add class to trigger red borders on empty fields
+                this.querySelectorAll('input:invalid, textarea:invalid, select:invalid').forEach(field => {
+                    if(field.tagName === 'SELECT') field.classList.add('touched');
+                });
+            }
+        });
+
         // --- 1. EXCEL TEXT PASTE CLEANER ---
         document.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(input => {
             input.addEventListener('paste', function(e) {
@@ -762,9 +766,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     div.innerHTML = highlightedBrand;
                     
-                    div.addEventListener('click', function(e) {
-                        e.stopPropagation(); 
-                        brandInput.value = brand; // Inject the raw brand text, not the HTML
+                    div.addEventListener('mousedown', function(e) {
+                        e.preventDefault(); // Prevent blur from firing before click
+                        brandInput.value = brand; // Inject the raw brand text
                         customDropdown.classList.remove('active');
                     });
                     
@@ -779,6 +783,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Trigger only on input typing
         brandInput.addEventListener('input', function() {
             showBrands(this.value);
+        });
+
+        // Close dropdown when input loses focus
+        brandInput.addEventListener('blur', function() {
+            // Short timeout to allow mousedown on dropdown item to fire first
+            setTimeout(() => {
+                customDropdown.classList.remove('active');
+            }, 100);
         });
 
         // Close dropdown when clicking anywhere else

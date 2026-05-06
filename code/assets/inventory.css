@@ -399,3 +399,232 @@ body {
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px; padding-bottom: 30px; border-bottom: 1px solid var(--border); }
 .info-item label { font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.1em; }
 .info-item .value { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-top: 4px; }
+
+/* =======================================================
+   RESPONSIVE DESIGN (Tablets & Mobile Optimization)
+   ======================================================= */
+
+/* Tablet & Small Desktop (1024px and below) */
+@media (max-width: 1024px) {
+    .top-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .controls {
+        width: 100%;
+        flex-wrap: wrap; /* Allows buttons to drop to the next line */
+    }
+
+    .search-wrapper {
+        width: 100%; /* Takes full width instead of fixed 350px */
+        flex: 1 1 100%; 
+    }
+
+    .btn {
+        flex: 1 1 calc(33.333% - 16px); /* Buttons share the row equally */
+        justify-content: center;
+        text-align: center;
+        padding: 0 12px;
+        font-size: 0.75rem;
+    }
+
+    /* Stack the Item Details Modal vertically */
+    .modal-card {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .modal-img {
+        border-right: none;
+        border-bottom: 1px dashed rgba(139, 21, 56, 0.3);
+        padding: 30px;
+        max-height: 300px;
+    }
+
+    .modal-details {
+        padding: 30px;
+    }
+}
+
+/* Smartphones (600px and below) */
+@media (max-width: 600px) {
+    body {
+        padding: 20px 16px; /* Less padding on small screens */
+    }
+
+    .page-title {
+        font-size: 2.2rem; /* Shrink giant title */
+    }
+
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .btn {
+        width: 100%; /* Buttons take full width on phones */
+    }
+
+    .grid {
+        /* Force single column on very small phones to prevent overflow */
+        grid-template-columns: 1fr; 
+    }
+
+    /* Make Cart Drawer full screen on mobile */
+    .cart-drawer {
+        width: 100%; 
+        right: -100%; 
+    }
+
+    .cart-item-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .btn-remove {
+        align-self: flex-end;
+    }
+
+    /* Stack Modal Information Grid */
+    .info-grid {
+        grid-template-columns: 1fr; 
+        gap: 16px;
+    }
+
+    .modal-title {
+        font-size: 2rem;
+    }
+}
+
+/* =======================================================
+   RESPONSIVE DESIGN (Tablets & Mobile Optimization)
+   ======================================================= */
+
+/* Tablet & Small Desktop (1024px and below) */
+@media (max-width: 1024px) {
+    /* Stack header and controls */
+    .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 24px;
+        margin-bottom: 30px;
+    }
+
+    /* Wrap buttons and make search bar full width */
+    .controls {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .search-wrapper {
+        width: 100%;
+        order: -1; /* Forces the search bar to the top of the controls */
+    }
+
+    .btn {
+        flex: 1 1 calc(33.333% - 12px);
+        justify-content: center;
+        text-align: center;
+        padding: 0 12px;
+        font-size: 0.75rem;
+    }
+
+    /* Stack the Item Details Modal vertically */
+    .modal-card {
+        flex-direction: column;
+        max-height: 85vh;
+        overflow-y: auto;
+    }
+
+    .modal-img {
+        border-right: none;
+        border-bottom: 1px dashed rgba(139, 21, 56, 0.3);
+        padding: 24px;
+        min-height: 250px;
+    }
+
+    .modal-details {
+        padding: 30px;
+    }
+}
+
+/* Smartphones (600px and below) */
+@media (max-width: 600px) {
+    /* Reduce body padding to save screen space */
+    body {
+        padding: 20px 16px;
+    }
+
+    .page-title {
+        font-size: 2.2rem;
+        text-align: center;
+    }
+
+    /* Stack all buttons vertically */
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn {
+        width: 100%;
+        flex: 1 1 100%;
+        font-size: 0.85rem;
+    }
+
+    /* Force cards into a single column */
+    .grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-bottom: 40px;
+    }
+
+    /* Make Cart Drawer full screen */
+    .cart-drawer {
+        width: 100%;
+        right: -100%; /* Hides it fully off-screen */
+    }
+
+    .cart-header, 
+    .cart-items, 
+    .cart-footer {
+        padding: 20px;
+    }
+
+    .cart-item-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .btn-remove {
+        align-self: flex-start;
+    }
+
+    /* Stack Information Grid inside the Modal */
+    .info-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+    }
+
+    .modal-title {
+        font-size: 1.8rem;
+        margin-bottom: 16px;
+    }
+
+    .modal-details {
+        padding: 20px;
+    }
+
+    .modal-close-btn {
+        top: 10px;
+        right: 10px;
+    }
+}

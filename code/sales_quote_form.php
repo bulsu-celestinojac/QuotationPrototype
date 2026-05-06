@@ -15,7 +15,6 @@ $stmt->execute($selected_ids);
 $machines = $stmt->fetchAll();
 
 // Generate Quotation Number (YY/DD/MM + AMG + Incrementing ID)
-// BULLETPROOF WAY: Ask the database for the exact next auto-increment value
 $stmtId = $pdo->query("
     SELECT AUTO_INCREMENT 
     FROM information_schema.TABLES 
@@ -75,7 +74,7 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
         
         .page-title { 
             font-family: 'Outfit', sans-serif; 
-            font-size: 3rem; 
+            font-size: clamp(2rem, 4vw, 3rem); 
             font-weight: 900; 
             text-transform: uppercase;
             letter-spacing: -0.02em;
@@ -83,11 +82,10 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
         }
         .page-title .accent { color: var(--maroon); }
         
-        .btn-back { color: var(--text-muted); text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: 0.2s ease; }
+        .btn-back { color: var(--text-muted); text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: 0.2s ease; display: inline-block; }
         .btn-back:hover { color: var(--maroon); }
 
         .layout-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: start; }
-        @media (max-width: 1024px) { .layout-grid { grid-template-columns: 1fr; } }
 
         .left-col { display: flex; flex-direction: column; gap: 32px; }
         .right-col { position: sticky; top: 40px; }
@@ -101,7 +99,7 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
         .form-group { display: flex; flex-direction: column; gap: 8px; }
         label { font-size: 0.65rem; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; }
         
-        input[type="text"], input[type="date"], input[type="number"], textarea {
+        input[type="text"], input[type="date"], input[type="email"], input[type="tel"], input[type="number"], textarea {
             width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid transparent; background: var(--input-bg); font-size: 0.95rem; font-family: 'DM Sans', sans-serif; font-weight: 500; color: var(--text-main); outline: none; transition: all 0.3s ease;
         }
         input:focus, textarea:focus { background: var(--surface); border-color: var(--maroon); box-shadow: 0 0 0 4px var(--maroon-light); }
@@ -109,6 +107,21 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
         input::placeholder, textarea::placeholder { color: var(--text-light); font-weight: 400; }
         
         .readonly-input { background: transparent !important; border: 1px solid var(--border) !important; color: var(--text-muted) !important; pointer-events: none; }
+
+        /* --- FORM VALIDATION STYLES --- */
+        label.required::after {
+            content: ' *';
+            color: var(--maroon);
+            font-weight: 900;
+            font-size: 0.8rem;
+        }
+
+        input:invalid:not(:placeholder-shown):not(:focus),
+        textarea:invalid:not(:placeholder-shown):not(:focus) {
+            border-color: #EF4444 !important;
+            background-color: #FEF2F2 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
 
         /* Premium Item Grid */
         .machine-items-container { display: flex; flex-direction: column; gap: 12px; max-height: 50vh; overflow-y: auto; padding-right: 8px; margin-bottom: 24px; }
@@ -141,6 +154,13 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
         }
         .input-qty-edit:focus { border-color: var(--maroon) !important; background: var(--surface) !important; box-shadow: 0 0 0 3px var(--maroon-light) !important; }
 
+        /* Remove default number arrows */
+        .input-qty-edit::-webkit-outer-spin-button, 
+        .input-qty-edit::-webkit-inner-spin-button { 
+            -webkit-appearance: none; appearance: none; margin: 0; 
+        }
+        .input-qty-edit[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
         /* Live Financial Summary */
         .financial-summary-block { background: #FAFAF9; padding: 24px; border-radius: 16px; border: 1px dashed var(--border); margin-bottom: 24px; }
         .summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -151,6 +171,43 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
 
         .btn-submit { background: var(--maroon); color: white; width: 100%; height: 60px; border: none; border-radius: 50px; font-size: 1rem; font-family: 'Outfit', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); }
         .btn-submit:hover { background: #6A0D28; transform: translateY(-2px); box-shadow: 0 12px 24px rgba(139, 21, 56, 0.3); }
+
+        /* =======================================================
+           RESPONSIVE DESIGN (Tablets & Mobile)
+           ======================================================= */
+        @media (max-width: 1024px) {
+            .layout-grid { grid-template-columns: 1fr; gap: 32px; }
+            .right-col { position: static; }
+            .machine-items-container { max-height: none; }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 20px 16px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; }
+            .page-title { font-size: 2.2rem; }
+            
+            .card { padding: 24px; border-radius: 16px; }
+            .form-grid { grid-template-columns: 1fr; gap: 16px; }
+            
+            .machine-item { 
+                grid-template-columns: 64px 1fr; 
+                gap: 16px; 
+            }
+            .control-group { 
+                grid-column: 1 / -1; 
+                flex-direction: row; 
+                align-items: center; 
+                justify-content: space-between; 
+                background: var(--bg);
+                padding: 12px;
+                border-radius: 10px;
+            }
+            .control-group label { margin: 0; }
+            .control-group .input-qty-edit { width: 100px; padding: 8px !important; }
+            
+            .financial-summary-block { padding: 20px; }
+            .summary-total { font-size: 1.5rem; }
+        }
     </style>
 </head>
 <body>
@@ -161,7 +218,7 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
             <a href="index.php" class="btn-back">← Back to Inventory</a>
         </div>
 
-        <form action="process_quote.php" method="POST" autocomplete="off">
+        <form action="process_quote.php" method="POST" autocomplete="off" id="salesQuoteForm">
             <input type="hidden" name="quote_type" value="sales">
             
             <div class="layout-grid">
@@ -171,24 +228,24 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
                         <div class="card-title">Customer Information</div>
                         <div class="form-grid">
                             <div class="form-group full-width">
-                                <label>Client Name</label>
-                                <input type="text" name="client_name" required>
+                                <label class="required">Client Name</label>
+                                <input type="text" name="client_name" placeholder="Enter client or company name" autocomplete="off" required>
                             </div>
                             <div class="form-group full-width">
-                                <label>Client Address</label>
-                                <textarea name="client_address" required></textarea>
+                                <label class="required">Client Address</label>
+                                <textarea name="client_address" placeholder="Enter complete billing/delivery address" autocomplete="off" required></textarea>
                             </div>
                             <div class="form-group full-width">
-                                <label>Attention To</label>
-                                <input type="text" name="attention_to" required>
+                                <label class="required">Attention To</label>
+                                <input type="text" name="attention_to" placeholder="Full name of contact person" autocomplete="off" required>
                             </div>
                             <div class="form-group">
-                                <label>Client Email Address</label>
-                                <input type="text" name="client_email" required>
+                                <label class="required">Client Email Address</label>
+                                <input type="email" name="client_email" placeholder="example@domain.com" autocomplete="off" required>
                             </div>
                             <div class="form-group">
-                                <label>Client Contact Number 1 / 2</label>
-                                <input type="text" name="client_contact" required>
+                                <label class="required">Contact Number</label>
+                                <input type="tel" name="client_contact" placeholder="e.g. 09171234567" pattern="^(09|\+639)\d{9}$|^[0-9]{2,3}[-\s]?[0-9]{7}$" title="Please enter a valid PH mobile number or landline." autocomplete="off" required>
                             </div>
                         </div>
                     </div>
@@ -197,38 +254,38 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
                         <div class="card-title">Transaction Details</div>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label>Date</label>
-                                <input type="date" name="quote_date" value="<?=date('Y-m-d')?>" required>
+                                <label class="required">Date</label>
+                                <input type="date" name="quote_date" value="<?=date('Y-m-d')?>" autocomplete="off" required>
                             </div>
                             <div class="form-group">
-                                <label>Quotation No.</label>
+                                <label class="required">Quotation No.</label>
                                 <input type="text" name="quotation_no" class="readonly-input" value="<?=$default_quote_num?>" readonly tabindex="-1" required>
                             </div>
                             <div class="form-group full-width">
-                                <label>Proposal Purpose</label>
-                                <input type="text" name="proposal_purpose" placeholder="e.g. MACHINE EQUIPMENT" required>
+                                <label class="required">Proposal Purpose</label>
+                                <input type="text" name="proposal_purpose" placeholder="e.g. MACHINE EQUIPMENT" autocomplete="off" required>
                             </div>
                             <div class="form-group full-width">
-                                <label>Payment Terms</label>
-                                <textarea name="payment_terms" placeholder="50% Down payment...&#10;50% Before shipment..." required></textarea>
+                                <label class="required">Payment Terms</label>
+                                <textarea name="payment_terms" placeholder="50% Down payment upon confirmation...&#10;50% Before shipment..." autocomplete="off" required></textarea>
                             </div>
                             <div class="form-group">
-                                <label>Validity Offer Date</label>
-                                <input type="date" name="validity_date" required>
+                                <label class="required">Validity Offer Date</label>
+                                <input type="text" name="validity_date" placeholder="e.g. 30 Days" autocomplete="off" required>
                             </div>
                             <div class="form-group">
-                                <label>ETA</label>
-                                <input type="text" name="eta" placeholder="e.g. 120 Days" required>
+                                <label class="required">ETA</label>
+                                <input type="text" name="eta" placeholder="e.g. 120 Days" autocomplete="off" required>
                             </div>
                             
                             <div class="form-group full-width" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border);">
                                 <label style="color: var(--maroon);">Special Corporate Discount (₱) - Applied to Grand Total</label>
-                                <input type="number" name="corporate_discount" id="corporate_discount" value="0" step="0.01" min="0" required style="font-size: 1.15rem; font-weight: 700; color: var(--maroon);">
+                                <input type="number" name="corporate_discount" id="corporate_discount" value="0" step="0.01" min="0" autocomplete="off" required style="font-size: 1.15rem; font-weight: 700; color: var(--maroon);">
                             </div>
                             
                             <div class="form-group full-width">
-                                <label>Prepared By</label>
-                                <input type="text" name="prepared_by" placeholder="Your Name" required>
+                                <label class="required">Prepared By</label>
+                                <input type="text" name="prepared_by" placeholder="Your Full Name" autocomplete="off" required>
                             </div>
                         </div>
                     </div>
@@ -254,7 +311,7 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
                                     </div>
                                     <div class="control-group">
                                         <label>QTY</label>
-                                        <input type="number" name="items[<?=$index?>][qty]" class="input-qty-edit calc-qty" value="1" min="1" required>
+                                        <input type="number" name="items[<?=$index?>][qty]" class="input-qty-edit calc-qty" value="1" min="1" autocomplete="off" required>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -324,6 +381,15 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
 
             // Initial calculation on page load
             calculateLiveTotals();
+            
+            // Add HTML5 Native Validation execution on submit
+            const form = document.getElementById('salesQuoteForm');
+            form.addEventListener('submit', function(e) {
+                if (!this.checkValidity()) {
+                    e.preventDefault();
+                    this.reportValidity();
+                }
+            });
         });
     </script>
 </body>

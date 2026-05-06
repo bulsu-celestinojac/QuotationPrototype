@@ -97,7 +97,7 @@
             </td>
         </tr>
         <tr>
-            <td style="width: 25%;"><em>Date:</em> <?= date('F d, Y', strtotime($trans['quote_date'])) ?></td>
+            <td style="width: 25%;"><em>Date:</em> <?= (isset($trans['quote_date']) && $trans['quote_date']) ? date('F d, Y', strtotime($trans['quote_date'])) : '' ?></td>
             <td style="width: 25%;"><em>Offer Validity</em></td>
             <td colspan="2" style="width: 50%;"><em>Delivery Arrangements</em></td>
         </tr>

@@ -216,7 +216,7 @@ function processPdf(string $filePath) {
             }
             
             $currentMark = strtoupper(trim($matches[1]));
-            $currentDesc = trim(preg_replace('/^' . preg_quote($matches[1], '/') . '/i', '', $line, 1)); 
+            $currentDesc = trim(preg_replace('/^' . preg_quote($matches[1], '/.') . '/i', '', $line, 1)); 
         } 
         elseif (!empty($currentMark)) {
             $currentDesc .= " " . $line; 
@@ -242,7 +242,7 @@ function processPdf(string $filePath) {
 }
 
 // ==============================================================
-// 4. BEAST MODE EXTRACTION ALGORITHM (FIXED)
+// 4. BEAST MODE EXTRACTION ALGORITHM
 // ==============================================================
 function extractInfo(string $text) {
     $cleanText = trim(preg_replace('/\s+/', ' ', $text)); 
@@ -258,10 +258,7 @@ function extractInfo(string $text) {
     $foundModel = false;
     $foundBrand = false;
 
-    // List of words that signal the end of a Model or Brand string
     $stopWords = 'Brand|Make|Mfg|Manufacturer|Model|Mdl|Mod|Item No|Dim|Dimensions|Cap|Capacity|Desc|Description|Weight|Volts|Voltage|Power|Temp|Cooling|Net|Gross|Fuel|Container|Dolly|Open stand|Vanishing|Volume|Max|Average|Electric|Supply|Distance|Defrosting|Ambient|Refrigerant|Materials|Controller|Yield|Climate|Valve|Bowl|Kneading|Flour|Motor|Speed|Gas|Phase|Cycle|Rate|Absorbed|Current|Internal|External|Productivity|Fire up|Charcoal|Performance|Broiling|Exhaust|Heat|Extraction|Installation|Cord';
-    
-    // THE FIX: Removed the aggressive colon-catcher that was truncating to 1 letter.
     $stopPattern = '(?=\s*(?:' . $stopWords . ')\b|$)';
 
     // Extract Model
@@ -294,9 +291,7 @@ function extractInfo(string $text) {
     if (!$foundBrand && !empty($analysisText)) {
         $words = explode(' ', trim($analysisText));
         if (isset($words[0]) && preg_match('/^[A-Za-z]+$/', $words[0]) && strlen($words[0]) > 2) {
-            
             $ignoreList = ['gas', 'electric', 'stainless', 'steel', 'heavy', 'duty', 'commercial', 'supply', 'custom', 'fabricated', 'table', 'sink', 'rack', 'shelf', 'wall', 'mounted', 'freestanding', 'undercounter', 'upright', 'single', 'double', 'triple', 'bowl', 'neutral', 'element', 'cabinet', 'doors', 'door', 'open', 'stand', 'tray', 'holder', 'trash', 'bin', 'water', 'ice', 'drop', 'down', 'exhaust', 'hood'];
-            
             if (!in_array(strtolower($words[0]), $ignoreList)) {
                 $brand = strtoupper($words[0]);
                 if (isset($words[1]) && preg_match('/^[A-Za-z]+$/', $words[1]) && strlen($words[1]) > 2 && !in_array(strtolower($words[1]), $ignoreList)) {
@@ -306,7 +301,6 @@ function extractInfo(string $text) {
         }
     }
 
-    // Clean up trailing punctuation just in case
     $model = rtrim($model, '.-_+|:');
     $brand = rtrim($brand, '.-_+|:');
 
@@ -329,10 +323,11 @@ function extractInfo(string $text) {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #F8F6F5 0%, #FAFAF9 100%); color: var(--text-main); padding: 40px 30px; min-height: 100vh; }
         .container { max-width: 1400px; margin: 0 auto; }
+        
         .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
         .page-title { font-family: 'Outfit', sans-serif; font-size: 3rem; font-weight: 900; letter-spacing: -0.04em; text-transform: uppercase; line-height: 1; }
         .page-title .accent { color: var(--maroon); }
-        .btn-back { color: var(--text-muted); text-decoration: none; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; transition: color 0.2s ease; }
+        .btn-back { color: var(--text-muted); text-decoration: none; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; transition: color 0.2s ease; display: inline-block;}
         .btn-back:hover { color: var(--maroon); }
         
         .card { background: var(--surface); border-radius: 24px; padding: 40px 48px; border: 1px solid var(--border); margin-bottom: 32px; box-shadow: 0 12px 40px rgba(42,8,8,0.04); transition: transform 0.3s ease; }
@@ -352,10 +347,13 @@ function extractInfo(string $text) {
         .alert-error { color: var(--maroon); background: var(--maroon-light); border: 1px solid #ebccd1; }
         
         /* PREMIUM TABLE STYLES - Centered & Streamlined */
-        .table-container { width: 100%; overflow-x: auto; max-height: 650px; overflow-y: auto; border-radius: 0 0 24px 24px; }
-        table { width: 100%; border-collapse: collapse; text-align: center; position: relative; } /* Added text-align: center */
+        .extracted-card { padding: 24px 0 0 0; overflow: hidden; background: var(--surface); border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 12px 40px rgba(42,8,8,0.04); }
+        .extracted-header { padding: 0 48px 24px 48px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .extracted-footer { padding: 32px 48px; border-top: 1px solid var(--border); text-align: right; background: var(--bg); }
         
-        /* Glassmorphism Header */
+        .table-container { width: 100%; overflow-x: auto; max-height: 650px; overflow-y: auto; border-radius: 0 0 24px 24px; }
+        table { width: 100%; border-collapse: collapse; text-align: center; position: relative; } 
+        
         th { 
             font-family: 'Outfit', sans-serif; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; 
             color: var(--text-muted); border-bottom: 1px solid var(--border); padding: 20px 24px; 
@@ -365,125 +363,68 @@ function extractInfo(string $text) {
             -webkit-backdrop-filter: blur(12px);
         }
         
-        /* Removed bottom borders, set vertical alignment to middle */
-        td { 
-            padding: 16px 24px; 
-            border-bottom: none; 
-            font-size: 0.95rem; 
-            color: var(--text-main); 
-            vertical-align: middle; 
-            transition: background 0.2s; 
-        }
+        td { padding: 16px 24px; border-bottom: none; font-size: 0.95rem; color: var(--text-main); vertical-align: middle; transition: background 0.2s; }
         
-        /* Subtle zebra striping instead of hard lines */
+        /* Utility spacing for table ends */
+        .pad-left { padding-left: 48px; }
+        .pad-right { padding-right: 48px; }
+        
         tbody tr:nth-child(even) td { background-color: #FAFAF9; }
         tbody tr:hover td { background-color: var(--maroon-light); }
         
-        /* Softer, pill-shaped QTY badge without 'x' */
-        .qty-badge { 
-            background: var(--surface); 
-            color: var(--maroon); 
-            padding: 6px 16px; 
-            border: 1px solid rgba(139,21,56,0.2);
-            border-radius: 50px; 
-            font-weight: 900; 
-            font-size: 0.95rem; 
-            text-align: center; 
-            display: inline-block; 
-            min-width: 44px; 
-            box-shadow: 0 2px 8px rgba(139,21,56,0.05); 
-        }
-        
-        /* Forced to one line with white-space: nowrap */
-        .badge-brand { 
-            background: var(--maroon-light); 
-            color: var(--maroon); 
-            padding: 6px 12px; 
-            border-radius: 6px; 
-            font-size: 0.75rem; 
-            font-weight: 800; 
-            text-transform: uppercase; 
-            letter-spacing: 0.05em; 
-            display: inline-block; 
-            white-space: nowrap; 
-        }
-        
-        /* Forced to one line */
-        .model-text { 
-            font-family: 'Outfit', sans-serif; 
-            font-weight: 900; 
-            font-size: 1.15rem; 
-            color: var(--text-main); 
-            white-space: nowrap; 
-        }
-        
-        /* Forced to one line */
-        .badge-error { 
-            background: #FEF2F2; 
-            color: #EF4444; 
-            border: 1px solid #FCA5A5; 
-            padding: 4px 8px; 
-            border-radius: 6px; 
-            font-size: 0.75rem; 
-            font-weight: 800; 
-            text-transform: uppercase; 
-            display: inline-block; 
-            letter-spacing: 0.05em; 
-            white-space: nowrap; 
-        }
+        .qty-badge { background: var(--surface); color: var(--maroon); padding: 6px 16px; border: 1px solid rgba(139,21,56,0.2); border-radius: 50px; font-weight: 900; font-size: 0.95rem; text-align: center; display: inline-block; min-width: 44px; box-shadow: 0 2px 8px rgba(139,21,56,0.05); }
+        .badge-brand { background: var(--maroon-light); color: var(--maroon); padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; white-space: nowrap; }
+        .model-text { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 1.15rem; color: var(--text-main); white-space: nowrap; }
+        .badge-error { background: #FEF2F2; color: #EF4444; border: 1px solid #FCA5A5; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; display: inline-block; letter-spacing: 0.05em; white-space: nowrap; }
 
-        /* View Details Button */
-        .btn-view {
-            background: transparent;
-            color: var(--maroon);
-            border: 1px solid var(--maroon);
-            padding: 8px 20px;
-            border-radius: 50px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            font-family: 'Outfit', sans-serif;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-
-        .btn-view:hover {
-            background: var(--maroon);
-            color: white;
-            box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2);
-        }
+        .btn-view { background: transparent; color: var(--maroon); border: 1px solid var(--maroon); padding: 8px 20px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; }
+        .btn-view:hover { background: var(--maroon); color: white; box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2); }
 
         /* Modal Styles */
-        .modal-overlay {
-            position: fixed; inset: 0; background: rgba(248, 246, 245, 0.9); backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 40px;
-        }
-        
+        .modal-overlay { position: fixed; inset: 0; background: rgba(248, 246, 245, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 40px; }
         .modal-overlay.active { display: flex; }
         
-        .modal-card-small { 
-            background: var(--surface); 
-            border: 1px solid var(--maroon); 
-            box-shadow: 0 24px 60px rgba(139, 21, 56, 0.12);
-            border-radius: 24px; 
-            max-width: 600px; 
-            width: 100%; 
-            padding: 40px;
-            position: relative;
-        }
-
-        .modal-close-btn { 
-            position: absolute; top: 24px; right: 24px; background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); transition: all 0.2s ease; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
-        }
-        
+        .modal-card-small { background: var(--surface); border: 1px solid var(--maroon); box-shadow: 0 24px 60px rgba(139, 21, 56, 0.12); border-radius: 24px; max-width: 600px; width: 100%; padding: 40px; position: relative; }
+        .modal-close-btn { position: absolute; top: 24px; right: 24px; background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); transition: all 0.2s ease; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
         .modal-close-btn:hover { color: var(--maroon); background: #FFF5F7; border-radius: 50%; }
 
         .detail-item { margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
         .detail-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
         .detail-label { font-size: 0.7rem; font-weight: 800; color: var(--maroon); text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 4px; }
         .detail-value { font-size: 1rem; color: var(--text-main); font-weight: 500; }
+        .detail-flex { display: flex; gap: 40px; }
+
+        /* =======================================================
+           RESPONSIVE DESIGN (Tablets & Mobile)
+           ======================================================= */
+        @media (max-width: 1024px) {
+            .detail-flex { flex-direction: column; gap: 16px !important; }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 20px 16px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 16px; padding-bottom: 16px; margin-bottom: 24px; }
+            .page-title { font-size: 2.2rem; }
+            
+            .card { padding: 24px 20px; border-radius: 16px; }
+            .file-drop-area { padding: 40px 16px; }
+            .file-msg { font-size: 1rem; }
+            .btn-submit { max-width: 100%; height: 50px; font-size: 0.95rem; }
+            
+            /* Table responsive adjustments */
+            th, td { padding: 12px 16px !important; font-size: 0.85rem; }
+            .pad-left, .pad-right { padding: 12px 16px !important; }
+            
+            /* Extracted Data Card Mobile Layout */
+            .extracted-header { flex-direction: column; align-items: flex-start !important; gap: 16px; padding: 0 20px 20px 20px !important; }
+            .extracted-footer { padding: 24px 20px !important; text-align: center !important; }
+            .extracted-footer .btn-submit { width: 100%; padding: 0; }
+
+            /* Modal responsive */
+            .modal-card-small { padding: 24px; border-radius: 16px; max-height: 90vh; overflow-y: auto; }
+            .modal-overlay { padding: 20px; }
+            .modal-close-btn { top: 16px; right: 16px; }
+        }
     </style>
 </head>
 <body>
@@ -515,8 +456,8 @@ function extractInfo(string $text) {
 
             <?php if (!empty($extractedData)): ?>
                 <form action="project_quote_form.php" method="POST">
-                    <div class="card" style="padding: 24px 0 0 0; overflow: hidden;">
-                        <div style="padding: 0 48px 24px 48px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <div class="extracted-card">
+                        <div class="extracted-header">
                             <div>
                                 <h2 class="card-title" style="margin: 0;">EXTRACT REVIT DATA</h2>
                                 <div class="card-subtitle" style="margin-top: 8px; margin-bottom: 0;">Review the parsed data before finalizing in the quote builder.</div>
@@ -530,18 +471,17 @@ function extractInfo(string $text) {
                             <table>
                                 <thead>
                                     <tr>
-                                        <!-- Header alignment updated to match data alignment -->
-                                        <th style="width: 10%; padding-left: 48px; text-align: center;">Qty</th>
+                                        <th class="pad-left" style="width: 10%; text-align: center;">Qty</th>
                                         <th style="width: 20%; text-align: center;">Mark</th>
                                         <th style="width: 25%; text-align: center;">Smart Brand</th>
                                         <th style="width: 30%; text-align: center;">Smart Model</th>
-                                        <th style="width: 15%; padding-right: 48px; text-align: right;">Action</th>
+                                        <th class="pad-right" style="width: 15%; text-align: right;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($extractedData as $index => $row): ?>
                                         <tr>
-                                            <td style="padding-left: 48px;">
+                                            <td class="pad-left">
                                                 <div class="qty-badge"><?= htmlspecialchars($row['qty']) ?></div>
                                             </td>
                                             
@@ -565,7 +505,7 @@ function extractInfo(string $text) {
                                                 <?php endif; ?>
                                             </td>
 
-                                            <td style="padding-right: 48px; text-align: right;">
+                                            <td class="pad-right" style="text-align: right;">
                                                 <button type="button" class="btn-view" onclick='viewDetails(<?= json_encode([
                                                     "mark" => $row["mark"],
                                                     "qty" => $row["qty"],
@@ -582,7 +522,7 @@ function extractInfo(string $text) {
                         
                         <input type="hidden" name="extracted_json" value="<?= htmlspecialchars(json_encode($extractedData), ENT_QUOTES, 'UTF-8') ?>">
                         
-                        <div style="padding: 32px 48px; border-top: 1px solid var(--border); text-align: right; background: var(--bg);">
+                        <div class="extracted-footer">
                             <button type="submit" class="btn-submit" style="margin: 0; display: inline-block; width: auto; padding: 0 40px;">Proceed to Quote Builder →</button>
                         </div>
                     </div>
@@ -603,7 +543,7 @@ function extractInfo(string $text) {
                 <div class="detail-value"><strong style="color: var(--maroon);" id="modalMarkVal"></strong></div>
             </div>
             
-            <div class="detail-item" style="display: flex; gap: 40px;">
+            <div class="detail-item detail-flex">
                 <div>
                     <span class="detail-label">Quantity</span>
                     <div class="detail-value" id="modalQtyVal"></div>
