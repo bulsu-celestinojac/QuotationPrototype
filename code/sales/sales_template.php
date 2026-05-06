@@ -4,8 +4,8 @@
  * @var array $payload_items
  */
 
-// 1. Base64 Encode the Header Logo (Ensures it loads flawlessly in PDF)
-$logoPath = __DIR__ . '/../images/other_images/AMGLOGO.png';
+// 1. Base64 Encode the Header Logo (UP TWO LEVELS to images folder)
+$logoPath = __DIR__ . '/../../images/other_images/AMGLOGO.png';
 $logoBase64 = '';
 if (file_exists($logoPath)) {
     $logoData = file_get_contents($logoPath);
@@ -21,17 +21,17 @@ if (file_exists($logoPath)) {
     <style>
         /* PDF-Safe CSS Reset & A4 Base Sizing */
         body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            /* Helvetica is the gold-standard for legal/corporate documents */
+            font-family: 'Helvetica', 'Arial', sans-serif;
             color: #000;
             margin: 0;
             padding: 0;
-            font-size: 12px; /* Perfect for A4 readability */
+            font-size: 15px; /* Base Size */
         }
 
         /* CENTERED GROUPED HEADER */
         .header-title {
-            font-family: 'Arial', sans-serif;
-            font-size: 20px; 
+            font-size: 26px; 
             font-weight: bold;
             margin: 0 0 6px 0;
             color: #000;
@@ -39,15 +39,13 @@ if (file_exists($logoPath)) {
         }
 
         .header-address {
-            font-family: 'Arial', sans-serif;
-            font-size: 12px;
+            font-size: 15px; 
             margin: 0 0 4px 0;
             color: #000;
         }
 
         .header-contacts {
-            font-family: 'Arial', sans-serif;
-            font-size: 12px;
+            font-size: 15px; 
             margin: 0;
             color: #000;
             line-height: 1.5;
@@ -60,7 +58,7 @@ if (file_exists($logoPath)) {
 
         /* PDF BODY STYLES */
         .section-title {
-            font-size: 13px;
+            font-size: 16px; 
             font-weight: bold;
             text-transform: uppercase;
             text-decoration: underline;
@@ -72,7 +70,7 @@ if (file_exists($logoPath)) {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            font-size: 12px;
+            font-size: 15px; 
         }
         
         .info-table td {
@@ -85,18 +83,20 @@ if (file_exists($logoPath)) {
             width: 35%;
         }
 
+        /* PROPOSAL TITLE - Auto-capitalized and scaled */
         .proposal-title {
             text-align: center;
-            font-size: 15px;
+            font-size: 28px;
             font-weight: bold;
             margin: 30px 0 15px 0;
+            text-transform: uppercase;
         }
 
         /* Items Table Styling */
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 11px;
+            font-size: 14px; 
             margin-bottom: 20px;
         }
 
@@ -104,7 +104,7 @@ if (file_exists($logoPath)) {
             background-color: #000;
             color: #fff;
             padding: 10px 6px;
-            text-align: center; /* Headers stay centered */
+            text-align: center;
             font-weight: bold;
             text-transform: uppercase;
             border: 1px solid #000;
@@ -113,13 +113,12 @@ if (file_exists($logoPath)) {
         .items-table td {
             border: 1px solid #000;
             padding: 8px 6px;
-            text-align: center; /* Default center, overridden inline for specific columns */
+            text-align: center;
             vertical-align: middle;
         }
 
-        /* BIGGER, EXACT PHOTO SIZING */
         .item-image {
-            max-width: 160px; /* Pushed even larger for exact photo fit */
+            max-width: 160px;
             max-height: 140px;
             width: auto;
             height: auto;
@@ -131,7 +130,7 @@ if (file_exists($logoPath)) {
         .summary-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 12px;
+            font-size: 15px; 
             margin-top: 10px;
         }
 
@@ -143,13 +142,27 @@ if (file_exists($logoPath)) {
         .text-red { color: #cc0000; }
         .border-top { border-top: 1px solid #000; }
 
-        /* Bank Details Styling */
-        .bank-details {
-            margin-top: 30px;
-            font-size: 12px;
-            line-height: 1.5;
+        /* Exact Bottom Section Layout */
+        .bottom-section {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 40px;
+            font-size: 15px;
         }
-        .bank-details p { margin: 3px 0; }
+        
+        .terms-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 15px;
+        }
+        .terms-table td {
+            padding: 4px 0;
+            vertical-align: top;
+        }
+        .terms-label {
+            font-weight: bold;
+            width: 130px;
+        }
     </style>
 </head>
 <body>
@@ -157,7 +170,6 @@ if (file_exists($logoPath)) {
     <!-- PERFECTLY GROUPED AND CENTERED HEADER -->
     <table style="margin: 0 auto; border-collapse: collapse; margin-bottom: 30px;">
         <tr>
-            <!-- Left Side: Logo -->
             <td style="vertical-align: middle; padding-right: 20px; text-align: right;">
                 <?php if ($logoBase64): ?>
                     <img src="<?= $logoBase64 ?>" alt="AM GROUP Logo" style="width: 90px; height: auto;">
@@ -165,8 +177,6 @@ if (file_exists($logoPath)) {
                     <span style="font-weight:bold;">AM GROUP Logo</span>
                 <?php endif; ?>
             </td>
-            
-            <!-- Right Side: Text Group -->
             <td style="vertical-align: middle; text-align: left;">
                 <h1 class="header-title">AM GROUP Kitchen Equipment and Supplies, Inc.</h1>
                 <p class="header-address">
@@ -185,75 +195,43 @@ if (file_exists($logoPath)) {
     <!-- TWO COLUMN INFO SECTION -->
     <table style="width: 100%; border-collapse: collapse;">
         <tr>
-            <!-- CUSTOMER INFORMATION -->
             <td style="width: 50%; vertical-align: top; padding-right: 20px;">
                 <div class="section-title">CUSTOMER INFORMATION:</div>
                 <table class="info-table">
-                    <tr>
-                        <td class="info-label">Client Name:</td>
-                        <td><?= htmlspecialchars($trans['client_name'] ?? '') ?></td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">Client Address:</td>
-                        <td><?= htmlspecialchars($trans['client_address'] ?? '') ?></td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">Attention To:</td>
-                        <td><?= htmlspecialchars($trans['attention_to'] ?? '') ?></td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">Client Email Address:</td>
-                        <td><?= htmlspecialchars($trans['client_email'] ?? '') ?></td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">Client Contact Number 1 / 2:</td>
-                        <td><?= htmlspecialchars($trans['client_contact'] ?? '') ?></td>
-                    </tr>
+                    <tr><td class="info-label">Client Name:</td><td><?= htmlspecialchars($trans['client_name'] ?? '') ?></td></tr>
+                    <tr><td class="info-label">Client Address:</td><td><?= htmlspecialchars($trans['client_address'] ?? '') ?></td></tr>
+                    <tr><td class="info-label">Attention To:</td><td><?= htmlspecialchars($trans['attention_to'] ?? '') ?></td></tr>
+                    <tr><td class="info-label">Client Email Address:</td><td><?= htmlspecialchars($trans['client_email'] ?? '') ?></td></tr>
+                    <tr><td class="info-label">Contact Number:</td><td><?= htmlspecialchars($trans['client_contact'] ?? '') ?></td></tr>
                 </table>
             </td>
             
-            <!-- TRANSACTION DETAILS -->
             <td style="width: 50%; vertical-align: top; padding-left: 20px;">
                 <div class="section-title">TRANSACTION DETAILS:</div>
                 <table class="info-table">
-                    <tr>
-                        <td class="info-label">Date:</td>
-                        <td><?= htmlspecialchars($trans['quote_date'] ?? '') ?></td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">Quotation No.:</td>
-                        <td style="font-weight: bold;"><?= htmlspecialchars($trans['quotation_no'] ?? '') ?></td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">Payment Terms:</td>
-                        <td style="white-space: pre-line;"><?= htmlspecialchars($trans['payment_terms'] ?? '') ?></td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">Validity Offer:</td>
-                        <td><?= htmlspecialchars($trans['validity_date'] ?? '') ?></td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">ETA:</td>
-                        <td><?= htmlspecialchars($trans['eta'] ?? '') ?></td>
-                    </tr>
+                    <tr><td class="info-label">Date:</td><td><?= htmlspecialchars($trans['quote_date'] ?? '') ?></td></tr>
+                    <tr><td class="info-label">Quotation No.:</td><td style="font-weight: bold;"><?= htmlspecialchars($trans['quotation_no'] ?? '') ?></td></tr>
+                    <tr><td class="info-label">Payment Terms:</td><td style="white-space: pre-line;"><?= htmlspecialchars($trans['payment_terms'] ?? '') ?></td></tr>
+                    <tr><td class="info-label">Validity Offer:</td><td><?= htmlspecialchars($trans['validity_date'] ?? '') ?></td></tr>
+                    <tr><td class="info-label">ETA:</td><td><?= htmlspecialchars($trans['eta'] ?? '') ?></td></tr>
                 </table>
             </td>
         </tr>
     </table>
 
-    <div class="proposal-title">PROPOSAL FOR <?= htmlspecialchars($trans['proposal_purpose'] ?? '') ?></div>
+    <div class="proposal-title">PROPOSAL FOR <?= htmlspecialchars(strtoupper($trans['proposal_purpose'] ?? '')) ?></div>
 
     <!-- ITEMS TABLE -->
     <table class="items-table">
         <thead>
             <tr>
                 <th style="width: 4%;">NO.</th>
-                <th style="width: 25%;">IMAGE</th>       <!-- BIG Image Column -->
+                <th style="width: 25%;">IMAGE</th>
                 <th style="width: 14%;">MODEL</th>
                 <th style="width: 10%;">BRAND</th>
-                <th style="width: 32%;">DESCRIPTION</th> <!-- Center Aligned Header -->
+                <th style="width: 32%;">DESCRIPTION</th>
                 <th style="width: 4%;">QTY</th>
-                <th style="width: 11%; text-align: right; padding-right: 10px;">TOTAL (PHP)</th> <!-- Total Reduced & Right Aligned Header -->
+                <th style="width: 11%; text-align: right; padding-right: 10px;">TOTAL (PHP)</th>
             </tr>
         </thead>
         <tbody>
@@ -262,12 +240,11 @@ if (file_exists($logoPath)) {
             if (!empty($payload_items)) :
                 foreach ($payload_items as $index => $item) : 
                     
-                    // Base64 Encode the Item Image
                     $itemImgBase64 = '';
                     $hasItemImage = false;
                     
                     if (!empty($item['picture'])) {
-                        $itemImgPath = __DIR__ . '/../images/machine_images/' . $item['picture'];
+                        $itemImgPath = __DIR__ . '/../../images/machine_images/' . $item['picture'];
                         if (file_exists($itemImgPath)) {
                             $itemImgData = file_get_contents($itemImgPath);
                             $itemImgType = pathinfo($itemImgPath, PATHINFO_EXTENSION);
@@ -292,15 +269,10 @@ if (file_exists($logoPath)) {
                     </td>
                     <td style="font-weight: bold;"><?= htmlspecialchars($item['model'] ?? '') ?></td>
                     <td style="font-weight: bold;"><?= htmlspecialchars($item['brand'] ?? '') ?></td>
-                    
-                    <!-- BULLETPROOF LEFT ALIGNMENT FOR DESCRIPTION -->
                     <td style="text-align: left; padding: 10px 12px; white-space: pre-line; line-height: 1.4;">
                         <?= htmlspecialchars($item['description'] ?? '') ?>
                     </td>
-                    
                     <td style="font-weight: bold;"><?= $qty ?></td>
-                    
-                    <!-- BULLETPROOF RIGHT ALIGNMENT FOR TOTAL -->
                     <td style="font-weight: bold; text-align: right; padding-right: 10px;">
                         <?= number_format($lineTotal, 2) ?>
                     </td>
@@ -332,15 +304,56 @@ if (file_exists($logoPath)) {
         </tr>
     </table>
 
-    <!-- BANK DETAILS SECTION -->
-    <div class="section-title" style="margin-top: 35px;">OUR BANK DETAILS:</div>
-    <div class="bank-details">
-        <p>Bank of the Philippine Islands, Ayala Avenue II Branch</p>
-        <p>Account No.: <span style="font-weight: bold; text-decoration: underline;">1511-0078-24</span> / Swift Code : <span style="font-weight: bold;">BOPIPHMM</span></p>
-        <p>Account Name : <span style="font-weight: bold;">AM GROUP KITCHEN EQUIPMENT AND SUPPLIES, INC.</span></p>
-        <p>USD Account No. : <span style="font-weight: bold; text-decoration: underline;">1514-0130-94</span> / Swift Code : <span style="font-weight: bold;">BOPIPHMM</span></p>
-        <p>Account Name : <span style="font-weight: bold;">AM GROUP KITCHEN EQUIPMENT AND SUPPLIES, INC.</span></p>
-    </div>
+    <!-- EXACT BOTTOM SECTION -->
+    <table class="bottom-section">
+        <tr>
+            <!-- Left Side: Terms and Details -->
+            <td style="width: 60%; vertical-align: top;">
+                
+                <table class="terms-table">
+                    <tr>
+                        <td class="terms-label">Payment terms:</td>
+                        <td style="white-space: pre-line;"><?= htmlspecialchars($trans['payment_terms'] ?? '') ?></td>
+                    </tr>
+                    <tr>
+                        <td class="terms-label">Delivery:</td>
+                        <td><?= htmlspecialchars($trans['eta'] ?? '') ?></td>
+                    </tr>
+                    <tr>
+                        <td class="terms-label">Inclusion:</td>
+                        <td style="white-space: pre-line;"><?= htmlspecialchars($trans['inclusions'] ?? '') ?></td>
+                    </tr>
+                </table>
+
+                <div style="font-weight: bold; text-transform: uppercase; margin-top: 20px; margin-bottom: 5px;">OUR BANK DETAILS:</div>
+                <div style="margin-left: 20px; line-height: 1.4;">
+                    ACCOUNT NAME: AM GROUP Kitchen Equipment and Supplies, Inc.<br>
+                    ACCOUNT NO.: 1511-0078-24<br>
+                    BANK DETAILS: Bank of the Philippine Islands<br>
+                    BANK ADDRESS: 6781 Insular Life Makati Bldg., Ayala Ave., cor. Paseo de Roxas,<br>
+                    Makati, 1000 Metro Manila, Philippines<br>
+                    SWIFT CODE: BOPIPHMM
+                </div>
+
+                <div style="margin-top: 60px;">
+                    <div style="border-top: 1px solid #000; display: inline-block; padding-top: 4px; min-width: 220px;">
+                        Prepared by: <?= htmlspecialchars($trans['prepared_by'] ?? '') ?>
+                    </div>
+                </div>
+
+            </td>
+
+            <!-- Right Side: Signature Block -->
+            <td style="width: 40%; vertical-align: bottom; text-align: center; padding-left: 20px;">
+                <div style="font-style: italic; font-weight: bold; margin-bottom: 80px;">
+                    Please confirm your order of this quote by signing this document.
+                </div>
+                <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 5px;">
+                    Signature over printed name
+                </div>
+            </td>
+        </tr>
+    </table>
 
 </body>
 </html>

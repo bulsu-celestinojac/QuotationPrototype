@@ -417,7 +417,10 @@ $items = $stmt->fetchAll();
                 </form>
 
                 <a href="add.php" class="btn">+ Add Item</a>
-                <a href="schedule_parser.php" class="btn" id="projectQuotationBtn">Project Quotation</a>
+                
+                <!-- THIS IS NOW POINTING TO PROJECT FOLDER -->
+                <a href="project/parser.php" class="btn" id="projectQuotationBtn">Project Quotation</a>
+                
                 <button class="btn cart-trigger" id="cartTrigger" onclick="openCart()">
                     Quote Cart (<span id="cartBadge">0</span>)
                 </button>
@@ -493,10 +496,13 @@ $items = $stmt->fetchAll();
         </div>
         <div class="cart-items" id="cartItemsList"></div>
         <div class="cart-footer">
-            <form action="sales_quote_form.php" method="POST" id="quoteForm">
+            
+            <!-- THIS IS NOW POINTING TO SALES FOLDER -->
+            <form action="sales/sales_form.php" method="POST" id="quoteForm">
                 <input type="hidden" name="selected_items" id="selectedItemsInput">
                 <button type="submit" class="btn-checkout" id="btnProceed" disabled>Proceed to Quotation</button>
             </form>
+            
         </div>
     </div>
 

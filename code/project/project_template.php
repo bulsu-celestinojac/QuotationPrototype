@@ -22,33 +22,27 @@
             .summary-table { font-size: 14px !important; }
             .footer-terms { font-size: 12px !important; }
         <?php endif; ?>
-        /* ========================================== */
         
-        /* Main Header Layout matching your image */
         .top-header { width: 100%; margin-bottom: 20px; }
         .top-header td { vertical-align: middle; }
         .company-name { font-size: 16px; font-weight: bold; }
         .company-details { font-size: 10px; line-height: 1.4; }
 
-        /* The Grid Header matching your image */
         .info-grid { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 20px; }
         .info-grid td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; line-height: 1.3; }
         .info-grid .dark-cell { background-color: #f0f0f0; }
 
-        /* The Equipment Table */
         .items-table { width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 10px; }
         .items-table th { background-color: #000; color: #FFF; font-size: 10px; text-transform: uppercase; padding: 10px 4px; border: 1px solid #000; }
         .items-table td { padding: 12px 4px; text-align: center; border: 1px solid #000; vertical-align: middle; }
         .desc-col { text-align: left !important; font-size: 9px; line-height: 1.4; }
         .mark-badge { font-weight: bold; font-size: 13px; color: #8B1538; }
 
-        /* Subtotal / Footer Layout */
         .summary-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 30px; }
         .summary-table td { padding: 6px 8px; border: 1px solid #000; }
         .summary-table .label-col { text-align: right; font-weight: bold; }
         .summary-table .amount-col { text-align: right; font-weight: bold; }
 
-        /* Footer Details matching image 2 */
         .footer-terms { width: 100%; font-size: 10px; border-collapse: collapse; }
         .footer-terms td { vertical-align: top; padding: 5px 0; }
         .term-label { font-weight: bold; width: 15%; }
@@ -60,6 +54,7 @@
         <tr>
             <td style="width: 15%;">
                 <?php 
+                // Look UP to root images folder
                 $logoPath = __DIR__ . '/../images/other_images/AMGLOGO.png';
                 $logoBase64 = '';
                 if (file_exists($logoPath)) {
@@ -140,6 +135,7 @@
                     
                     $base64_img = '';
                     if (!empty($item['picture'])) {
+                        // Look UP to root images folder
                         $imagePath = __DIR__ . '/../images/machine_images/' . $item['picture'];
                         if (file_exists($imagePath)) {
                             $type = pathinfo($imagePath, PATHINFO_EXTENSION);

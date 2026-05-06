@@ -1,8 +1,6 @@
 <?php
-// ==========================================
-// 1. PHP LOGIC & DATABASE PREPARATION
-// ==========================================
-require 'db.php';
+// Look UP one level to root
+require '../db.php';
 
 $extracted_json = $_POST['extracted_json'] ?? '';
 $incoming_items = [];
@@ -14,11 +12,12 @@ if (!empty($extracted_json)) {
 }
 
 if (empty($incoming_items)) {
-    header("Location: schedule_parser.php");
+    // Redirects to local parser
+    header("Location: parser.php");
     exit;
 }
 
-// FUZZY AUTO-MATCH: Strip spaces and hyphens from the incoming parsed model to match the DB safely
+// FUZZY AUTO-MATCH
 foreach ($incoming_items as &$item) {
     $clean_incoming_model = preg_replace('/[\s\-]/', '', $item['model']);
     
@@ -110,7 +109,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
 <head>
     <meta charset="UTF-8">
     <title>Project Quote Builder - AM Group</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"> 
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
@@ -127,9 +126,9 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); line-height: 1.5; padding: 30px 20px; overflow-x: hidden; }
         
-        .container { width: 100%; max-width: 1400px; margin: 0 auto; } 
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); line-height: 1.5; padding: 30px 20px; overflow-x: hidden; min-height: 100vh; }
+        .container { width: 100%; max-width: 1400px; margin: 0 auto; overflow-x: hidden; } 
 
         .page-header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 20px; flex-wrap: wrap; gap: 16px; }
         h1 { font-family: 'Outfit', sans-serif; font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 900; margin: 0; letter-spacing: -0.02em; color: var(--text-main); line-height: 1; text-transform: uppercase; }
@@ -137,9 +136,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         .btn-back { color: var(--text-muted); text-decoration: none; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; transition: color 0.2s ease; display: inline-block; }
         .btn-back:hover { color: var(--maroon); }
 
-        /* ==========================================
-           STEPPER WIZARD UI
-           ========================================== */
         .stepper-container { display: flex; align-items: center; justify-content: center; margin-bottom: 40px; gap: 16px; padding: 0 20px; }
         .step-indicator { display: flex; align-items: center; gap: 12px; color: var(--text-light); transition: all 0.3s ease; }
         .step-indicator.active { color: var(--maroon); }
@@ -162,15 +158,15 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .full { grid-column: 1/-1; }
         label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--text-light); letter-spacing: 0.08em; display: block; margin-bottom: 6px; }
+        
         input[type="text"], input[type="date"], input[type="number"], input[type="tel"], input[type="email"], select, textarea { 
-            width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid transparent; background: var(--input-bg); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--text-main); font-weight: 500; transition: all 0.3s ease; outline: none;
+            width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid transparent; background: var(--input-bg); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--text-main); font-weight: 500; transition: all 0.3s ease; outline: none; box-sizing: border-box;
         }
         input:focus, textarea:focus, select:focus { background: var(--surface); border-color: var(--maroon); box-shadow: 0 0 0 4px var(--maroon-light); }
         input::placeholder, textarea::placeholder { color: var(--text-light); font-weight: 400; }
         .readonly-input { background: transparent !important; border: 1px solid var(--border) !important; color: var(--text-muted) !important; pointer-events: none; }
         hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 
-        /* --- FORM VALIDATION STYLES --- */
         label.required::after {
             content: ' *';
             color: var(--maroon);
@@ -197,13 +193,10 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         .btn-primary:hover { background: #6A0D28; transform: translateY(-2px); box-shadow: 0 12px 24px rgba(139, 21, 56, 0.3); }
         .btn-secondary { background: var(--surface); color: var(--text-main); border: 1px solid var(--border); box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
         .btn-secondary:hover { border-color: var(--text-main); }
-        .btn-dashed { background: transparent; border: 2px dashed #E4E4E7; color: #71717A; border-radius: 16px; font-weight: 800; font-size: 0.9rem; padding: 20px; transition: all 0.2s ease; margin-bottom: 0; width: 100%; }
+        .btn-dashed { background: transparent; border: 2px dashed #E4E4E7; color: #71717A; border-radius: 16px; font-weight: 800; font-size: 0.9rem; padding: 20px; transition: all 0.2s ease; margin-bottom: 0; width: 100%; box-sizing: border-box; }
         .btn-dashed:hover { background: var(--surface); border-color: var(--text-main); color: var(--text-main); }
 
-        /* ==========================================
-           PREMIUM WIDESCREEN TABLE DESIGN (STEP 1)
-           ========================================== */
-        .items-list-container { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.02); margin-bottom: 24px; }
+        .items-list-container { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.02); margin-bottom: 24px; width: 100%; box-sizing: border-box; }
         .list-header { display: grid; grid-template-columns: 100px 70px 1fr 280px 40px; gap: 32px; padding: 0 32px 16px 32px; border-bottom: 2px solid var(--border); margin-bottom: 12px; color: var(--text-light); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; align-items: center; }
         .header-metrics { display: grid; grid-template-columns: 80px 1fr; gap: 24px; padding-left: 32px; }
         .items-list { display: flex; flex-direction: column; width: 100%; }
@@ -213,16 +206,15 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         .item-row:hover { background: #FAFAF9; }
 
         .item-mark { display: flex; align-items: center; justify-content: center; width: 100%; }
-        .mark-badge { background: var(--maroon-light); color: var(--maroon); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.95rem; padding: 8px 10px; border-radius: 8px; text-align: center; width: 100%; white-space: nowrap; }
+        .mark-badge { background: var(--maroon-light); color: var(--maroon); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.95rem; padding: 8px 10px; border-radius: 8px; text-align: center; width: 100%; white-space: nowrap; box-sizing: border-box; }
         
         .item-image { width: 70px; height: 70px; border-radius: 10px; border: 1px solid var(--border); background: #FFF; display: flex; align-items: center; justify-content: center; padding: 4px; cursor: pointer; transition: all 0.3s ease; }
         .item-image:hover { border-color: var(--maroon); box-shadow: 0 4px 12px var(--maroon-light); }
         .item-image img { width: 100%; height: 100%; object-fit: contain; }
         .item-image span { font-size: 0.5rem; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
 
-        .item-details { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+        .item-details { display: flex; flex-direction: column; justify-content: center; min-width: 0; width: 100%; }
         .item-brand-text { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-light); font-weight: 800; margin-bottom: 2px; }
-        .item-model-text { font-family: 'Outfit', sans-serif; font-size: 1.35rem; font-weight: 900; color: var(--text-main); margin-bottom: 4px; line-height: 1.2; }
         
         .item-desc-text { 
             font-size: 0.85rem; color: var(--text-muted); 
@@ -236,24 +228,21 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         
         .badge-warning { background: #FEF2F2; color: #EF4444; font-size: 0.6rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 6px; align-self: flex-start; }
 
-        /* SEPARATED METRICS SECTION */
         .item-metrics { display: grid; grid-template-columns: 80px 1fr; gap: 24px; align-items: center; border-left: 1px dashed var(--border); padding-left: 32px; }
         
         .input-qty-edit { 
-            width: 100%; text-align: center; padding: 10px 4px; background: #FAFAF9 !important; border: 1px solid var(--border) !important; border-radius: 8px !important; font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin: 0; transition: all 0.2s ease;
+            width: 100%; text-align: center; padding: 10px 4px; background: #FAFAF9 !important; border: 1px solid var(--border) !important; border-radius: 8px !important; font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin: 0; transition: all 0.2s ease; box-sizing: border-box;
         }
         .input-qty-edit:focus { border-color: var(--maroon) !important; background: var(--surface) !important; box-shadow: 0 0 0 3px var(--maroon-light) !important; }
 
         .input-qty-edit::-webkit-outer-spin-button, .input-qty-edit::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
         .input-qty-edit[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
-        /* --- PREMIUM EDITABLE PRICE FIELD --- */
-        .price-edit-wrapper { display: flex; align-items: center; background: #FFF5F7; border: 1px solid rgba(139, 21, 56, 0.15); border-radius: 8px; padding: 0 12px; transition: all 0.2s ease; width: 140px; }
+        .price-edit-wrapper { display: flex; align-items: center; background: #FFF5F7; border: 1px solid rgba(139, 21, 56, 0.15); border-radius: 8px; padding: 0 12px; transition: all 0.2s ease; width: 140px; box-sizing: border-box; }
         .price-edit-wrapper:focus-within { border-color: var(--maroon); box-shadow: 0 0 0 3px var(--maroon-light); background: var(--surface); }
         .price-currency { font-weight: 800; color: var(--maroon); font-size: 1.05rem; }
         
-        /* Changed to type="text" for formatting, css selectors remain class based */
-        .input-price-edit { width: 100%; text-align: right; padding: 10px 0 10px 8px; background: transparent !important; border: none !important; font-size: 1.05rem; font-weight: 800; color: var(--maroon) !important; outline: none !important; box-shadow: none !important; font-family: 'DM Sans', sans-serif; margin: 0; }
+        .input-price-edit { width: 100%; text-align: right; padding: 10px 0 10px 8px; background: transparent !important; border: none !important; font-size: 1.05rem; font-weight: 800; color: var(--maroon) !important; outline: none !important; box-shadow: none !important; font-family: 'DM Sans', sans-serif; margin: 0; box-sizing: border-box; }
         
         .btn-delete { background: transparent; border: none; color: var(--text-light); font-size: 1.4rem; cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; transition: all 0.2s ease; }
         .btn-delete:hover { background: #FFF5F7; color: var(--maroon); }
@@ -276,10 +265,26 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         @media (max-width: 1024px) {
             .list-header { display: none; } 
             .item-row { grid-template-columns: 1fr; padding: 24px; gap: 16px; border: 1px solid var(--border); margin-bottom: 16px; border-radius: 16px; }
-            .item-mark, .item-image { justify-content: flex-start; width: auto; }
+            .item-mark { width: auto; display: inline-block; margin-bottom: 8px; }
+            .item-image { margin: 0 auto 16px auto; width: 120px; height: 120px; justify-content: center; }
             .item-metrics { grid-template-columns: 1fr 1fr; border-left: none; border-top: 1px dashed var(--border); padding-left: 0; padding-top: 16px; margin-top: 8px; }
             .btn-delete { position: absolute; top: 16px; right: 16px; }
             .form-grid { grid-template-columns: 1fr; } 
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 20px 16px; overflow-x: hidden; }
+            .container { max-width: 100vw; overflow-x: hidden; box-sizing: border-box; }
+            .items-list-container { padding: 16px; border-radius: 16px; }
+            .item-row { padding: 16px; gap: 12px; }
+            .item-metrics { grid-template-columns: 1fr; gap: 12px; }
+            .price-edit-wrapper { width: 100%; justify-content: space-between; padding: 4px 16px; }
+            .input-price-edit { text-align: right; }
+            .btn-delete { position: relative; top: auto; right: auto; width: 100%; margin-top: 16px; background: #FFF5F7; color: var(--maroon); border: 1px dashed rgba(139, 21, 56, 0.3); }
+            .card { padding: 24px 16px; }
+            .financial-summary-block { padding: 20px; }
+            .step-actions { flex-direction: column-reverse; gap: 16px; }
+            .step-actions .btn { width: 100%; }
         }
     </style>
 </head>
@@ -294,10 +299,10 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         
         <div class="page-header">
             <h1>PROJECT <span>QUOTATION</span></h1>
-            <a href="schedule_parser.php" class="btn-back">← Back to Parser</a>
+            <!-- Looks to the local parser file -->
+            <a href="parser.php" class="btn-back">← Back to Parser</a>
         </div>
 
-        <!-- WIZARD STEPPER -->
         <div class="stepper-container">
             <div class="step-indicator active" id="ind-1">
                 <div class="step-circle">1</div>
@@ -310,11 +315,11 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
             </div>
         </div>
 
-        <form action="process_quote.php" method="POST" id="projectForm">
+        <!-- Form points to the NEW local project processor -->
+        <form action="project_process.php" method="POST" id="projectForm" autocomplete="off" novalidate>
             <input type="hidden" name="quote_type" value="project">
             <input type="hidden" name="items_json" id="items_json" value="">
             
-            <!-- STEP 1: EQUIPMENT LIST -->
             <div id="step-1" class="step-section">
                 <div class="items-list-container">
                     
@@ -332,7 +337,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                     <div class="items-list" id="items-container">
                         <?php foreach ($incoming_items as $index => $item): 
                             $first_line_desc = explode("\n", str_replace("\r", "", $item['full_desc']))[0];
-                            // Format price for initial load
                             $formatted_price = number_format((float)($item['price'] ?? 0), 2, '.', ',');
                         ?>
                             <div class="item-row">
@@ -341,6 +345,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                                     <input type="hidden" class="i-mark" value="<?= htmlspecialchars($item['mark']) ?>">
                                 </div>
                                 
+                                <!-- Images properly pointing to root folder -->
                                 <div class="item-image" data-large-src="<?= !empty($item['picture']) ? '../images/machine_images/' . htmlspecialchars($item['picture']) : '' ?>">
                                     <?php if (!empty($item['picture'])): ?>
                                         <img src="../images/machine_images/<?= htmlspecialchars($item['picture']) ?>" alt="IMG">
@@ -358,7 +363,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                                     <input type="hidden" class="i-brand" value="<?= htmlspecialchars($item['brand']) ?>">
                                     
                                     <div class="autocomplete-wrapper">
-                                        <input type="text" class="input-model-search" value="<?= htmlspecialchars($item['model']) ?>" autocomplete="off" placeholder="Search Model...">
+                                        <input type="text" class="input-model-search" value="<?= htmlspecialchars($item['model']) ?>" autocomplete="new-password" placeholder="Search Model...">
                                         <div class="autocomplete-list"></div>
                                     </div>
                                     <input type="hidden" class="i-model" value="<?= htmlspecialchars($item['model']) ?>">
@@ -368,16 +373,16 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                                 </div>
 
                                 <div class="item-metrics">
-                                    <input type="number" class="input-qty-edit i-qty" value="<?= $item['qty'] ?? 1 ?>" min="1" max="999">
+                                    <input type="number" class="input-qty-edit i-qty" value="<?= $item['qty'] ?? 1 ?>" min="1" max="999" autocomplete="off">
                                     <div class="price-edit-wrapper">
                                         <span class="price-currency">₱</span>
-                                        <!-- Changed to type="text" to support comma formatting -->
-                                        <input type="text" class="input-price-edit i-price update-db-price" value="<?= $formatted_price ?>" data-model="<?= htmlspecialchars($item['model']) ?>">
+                                        <input type="text" class="input-price-edit i-price update-db-price" value="<?= $formatted_price ?>" data-model="<?= htmlspecialchars($item['model']) ?>" autocomplete="off">
                                     </div>
                                 </div>
 
                                 <button type="button" class="btn-delete" title="Remove Item">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                                    <span style="display:none;" class="mobile-delete-text">Remove Item</span>
                                 </button>
                             </div>
                         <?php endforeach; ?>
@@ -391,34 +396,33 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                 </div>
             </div>
 
-            <!-- STEP 2: PROJECT DETAILS -->
             <div id="step-2" class="step-section" style="display: none;">
                 <div class="card project-details-card">
                     <div class="form-grid">
                         <div class="full">
-                            <label class="required">Company Name (Auto Caps)</label>
-                            <input type="text" name="company_name" id="company_name" list="company_list" style="text-transform: uppercase;" autocomplete="off" placeholder="Enter company name" required>
+                            <label class="required">Company Name</label>
+                            <input type="text" name="company_name" id="company_name" list="company_list" style="text-transform: uppercase;" autocomplete="new-password" placeholder="Enter company name" required>
                             <datalist id="company_list"></datalist>
                         </div>
                         <div class="full">
-                            <label class="required">Project Name (Auto Caps)</label>
-                            <input type="text" name="project_name" value="" style="text-transform: uppercase;" placeholder="Enter project name" required>
+                            <label class="required">Project Name</label>
+                            <input type="text" name="project_name" value="" style="text-transform: uppercase;" autocomplete="new-password" placeholder="Enter project name" required>
                         </div>
                         <div>
                             <label class="required">Contact Person</label>
-                            <input type="text" name="contact_name" id="contact_name" placeholder="Full Name" required>
+                            <input type="text" name="contact_name" id="contact_name" style="text-transform: uppercase;" autocomplete="new-password" placeholder="Full Name" required>
                         </div>
                         <div>
                             <label class="required">Contact No.</label>
-                            <input type="tel" name="contact_no" id="contact_no" pattern="^(09|\+639)\d{9}$|^[0-9]{2,3}[-\s]?[0-9]{7}$" title="Please enter a valid PH mobile number (e.g. 09171234567) or landline." placeholder="e.g. 09171234567" required>
+                            <input type="tel" name="contact_no" id="contact_no" pattern="^(09|\+639)\d{9}$|^[0-9]{2,3}[-\s]?[0-9]{7}$" title="Please enter a valid PH mobile number (e.g. 09171234567) or landline." autocomplete="new-password" placeholder="e.g. 09171234567" required>
                         </div>
                         <div class="full">
                             <label class="required">Email Address</label>
-                            <input type="email" name="email" id="email" placeholder="example@domain.com" required>
+                            <input type="email" name="email" id="email" autocomplete="new-password" placeholder="example@domain.com" required>
                         </div>
                         <div class="full">
                             <label class="required">Complete Address</label>
-                            <textarea name="client_address" id="client_address" rows="2" placeholder="Enter full delivery/billing address" required></textarea>
+                            <textarea name="client_address" id="client_address" rows="2" autocomplete="off" placeholder="Enter full delivery/billing address" required></textarea>
                         </div>
                         
                         <div class="full"><hr></div>
@@ -433,7 +437,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                         </div>
                         <div>
                             <label class="required">Offer Validity</label>
-                            <input type="text" name="offer_validity" value="" placeholder="e.g. 30 Days" required>
+                            <input type="text" name="offer_validity" value="" autocomplete="new-password" placeholder="e.g. 30 Days" required>
                         </div>
                         <div>
                             <label class="required">Mode of Dispatch</label>
@@ -447,19 +451,19 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                         </div>
                         <div class="full">
                             <label class="required">Package</label>
-                            <input type="text" name="package_type" value="" placeholder="e.g. Standard Crating / To Agree" required>
+                            <input type="text" name="package_type" value="" autocomplete="new-password" placeholder="e.g. Standard Crating / To Agree" required>
                         </div>
                         <div class="full">
                             <label class="required">Delivery Arrangements</label>
-                            <input type="text" name="delivery_arrangements" value="" placeholder="e.g. Delivered to site / Ex-works" required>
+                            <input type="text" name="delivery_arrangements" value="" autocomplete="new-password" placeholder="e.g. Delivered to site / Ex-works" required>
                         </div>
                         <div class="full">
                             <label class="required">Payment Terms</label>
-                            <textarea name="payment_terms" rows="3" placeholder="e.g. 50% Downpayment upon confirmation, 50% Before dispatch." required></textarea>
+                            <textarea name="payment_terms" rows="3" autocomplete="off" placeholder="e.g. 50% Downpayment upon confirmation, 50% Before dispatch." required></textarea>
                         </div>
                         <div class="full">
                             <label>Inclusions</label>
-                            <textarea name="inclusions" rows="2" placeholder="Optional details (e.g. Installation, 1 Year Warranty...)"></textarea>
+                            <textarea name="inclusions" rows="2" autocomplete="off" placeholder="Optional details (e.g. Installation, 1 Year Warranty...)"></textarea>
                         </div>
                         
                         <div>
@@ -471,7 +475,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                         </div>
                         <div class="full">
                             <label class="required">Prepared By</label>
-                            <input type="text" name="prepared_by" placeholder="Your Full Name" required>
+                            <input type="text" name="prepared_by" style="text-transform: uppercase;" autocomplete="new-password" placeholder="Your Full Name" required>
                         </div>
                     </div>
 
@@ -482,7 +486,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                         </div>
                         <div class="summary-row">
                             <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Discount (₱):</span>
-                            <input type="number" step="0.01" name="discount_amount" id="discount_amount" value="0" class="input-discount">
+                            <input type="number" step="0.01" name="discount_amount" id="discount_amount" value="0" class="input-discount" autocomplete="off">
                         </div>
                         <div class="summary-row total-row">
                             <span style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); text-transform: uppercase;">Total Net Amount:</span>
@@ -506,7 +510,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
     </div>
 
     <script>
-        // STEPPER LOGIC
         function goToStep(step) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
             if (step === 1) {
@@ -530,12 +533,46 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
             }
         }
 
-        // HIGH PERFORMANCE FINANCIAL CALCULATIONS (Strips Commas Safely)
+        document.getElementById('projectForm').addEventListener('submit', function(e) {
+            if (!this.checkValidity()) {
+                e.preventDefault(); 
+                this.reportValidity(); 
+                goToStep(2); 
+
+                this.querySelectorAll('select:invalid').forEach(field => {
+                    field.classList.add('touched');
+                });
+            } else {
+                const items = [];
+                document.querySelectorAll('.item-row').forEach(row => {
+                    const markInput = row.querySelector('.i-mark');
+                    const modelInput = row.querySelector('.i-model');
+                    
+                    if(markInput && modelInput.value.trim() !== '') {
+                        const priceStr = row.querySelector('.i-price').value;
+                        const cleanPrice = parseFloat(String(priceStr).replace(/,/g, '')) || 0;
+
+                        items.push({
+                            mark: markInput.value,
+                            brand: row.querySelector('.i-brand').value,
+                            model: modelInput.value,
+                            description: row.querySelector('.i-full-desc').value,
+                            picture: row.querySelector('.i-pic').value,
+                            qty: row.querySelector('.i-qty').value,
+                            unit_price: cleanPrice
+                        });
+                    }
+                });
+                document.getElementById('items_json').value = JSON.stringify(items);
+                
+                document.querySelectorAll('input.i-qty, input.i-price, input.i-mark, input.i-brand, input.i-model, input.i-full-desc, input.i-pic, .input-model-search').forEach(el => el.removeAttribute('name'));
+            }
+        });
+
         function calculateTotals() {
             let subtotal = 0;
-            
-            // 1. Batch DOM Reads
             const rowData = [];
+            
             document.querySelectorAll('.item-row').forEach(row => {
                 const priceStr = row.querySelector('.i-price').value;
                 const cleanPrice = parseFloat(String(priceStr).replace(/,/g, '')) || 0;
@@ -548,18 +585,15 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
 
             const discount = parseFloat(document.getElementById('discount_amount').value) || 0;
 
-            // 2. Perform Math
             rowData.forEach(data => {
                 subtotal += (data.qty * data.price);
             });
             const total = Math.max(0, subtotal - discount);
 
-            // 3. Batch DOM Writes
             document.getElementById('display-subtotal').textContent = '₱' + subtotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             document.getElementById('display-total').textContent = '₱' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         }
 
-        // UTILITY: Debounce Function for lag-free typing
         function debounce(func, wait) {
             let timeout;
             return function executedFunction(...args) {
@@ -664,7 +698,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
 
             if (itemsContainer) {
                 
-                // ASYNCHRONOUS AUTO-SAVE PRICE TO DATABASE
                 itemsContainer.addEventListener('change', function(e) {
                     if (e.target.classList.contains('update-db-price')) {
                         const input = e.target;
@@ -676,6 +709,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                             const wrapper = input.closest('.price-edit-wrapper');
                             wrapper.style.opacity = '0.5';
                             
+                            // Using local file in the project folder
                             fetch('update_item_price.php', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -701,14 +735,12 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                     }
                 });
                 
-                // Update totals instantly while typing
                 itemsContainer.addEventListener('input', function(e) {
                     if (e.target.classList.contains('i-qty') || e.target.classList.contains('i-price')) {
                         calculateTotals();
                     }
                 });
 
-                // HIGH PERFORMANCE DEBOUNCED SEARCH
                 const performSearch = debounce(function(input) {
                     const val = input.value.trim().toUpperCase();
                     const row = input.closest('.item-row');
@@ -725,7 +757,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                     
                     const cleanVal = val.replace(/[\s\-]/g, '');
 
-                    // Fast exact match first
                     const exactMatch = inventoryData.find(i => {
                         const safeModel = String(i.model_no || '').toUpperCase();
                         return safeModel === val || safeModel.replace(/[\s\-]/g, '') === cleanVal;
@@ -740,7 +771,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                         clearInventoryMatch(row, val); 
                     }
 
-                    // Slower fuzzy match
                     const matches = inventoryData.filter(i => {
                         const safeModel = String(i.model_no || '').toUpperCase();
                         const safeBrand = String(i.brand || '').toUpperCase();
@@ -750,7 +780,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                     
                     list.innerHTML = '';
                     
-                    // Use Document Fragment to prevent Layout Thrashing
                     if (matches.length > 0) {
                         const frag = document.createDocumentFragment();
                         matches.slice(0, 15).forEach(match => { 
@@ -784,7 +813,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                     }
                 });
 
-                // Keyboard Navigation for Autocomplete
                 itemsContainer.addEventListener('keydown', function(e) {
                     if (e.target.classList.contains('input-model-search')) {
                         const input = e.target;
@@ -824,7 +852,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                     }
                 });
 
-                // FORMATTING PRICE ON BLUR / UNFORMATTING ON FOCUS
                 itemsContainer.addEventListener('focusin', function(e) {
                     if (e.target.classList.contains('input-model-search')) {
                         const row = e.target.closest('.item-row');
@@ -906,7 +933,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                             <input type="hidden" class="i-brand" value="">
                             
                             <div class="autocomplete-wrapper">
-                                <input type="text" class="input-model-search is-searching" autocomplete="off" placeholder="Search Model...">
+                                <input type="text" class="input-model-search is-searching" autocomplete="new-password" placeholder="Search Model...">
                                 <div class="autocomplete-list"></div>
                             </div>
                             <input type="hidden" class="i-model" value="">
@@ -916,15 +943,16 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                         </div>
                         
                         <div class="item-metrics">
-                            <input type="number" class="input-qty-edit i-qty" value="1" min="1" max="999">
+                            <input type="number" class="input-qty-edit i-qty" value="1" min="1" max="999" autocomplete="off">
                             <div class="price-edit-wrapper">
                                 <span class="price-currency">₱</span>
-                                <input type="text" class="input-price-edit i-price update-db-price" value="0.00" data-model="">
+                                <input type="text" class="input-price-edit i-price update-db-price" value="0.00" data-model="" autocomplete="off">
                             </div>
                         </div>
 
                         <button type="button" class="btn-delete" title="Remove Item">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            <span style="display:none;" class="mobile-delete-text">Remove Item</span>
                         </button>
                     `;
                     
@@ -933,46 +961,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                         newRow.style.opacity = '1';
                         newRow.querySelector('.input-model-search').focus();
                     }, 50);
-                });
-            }
-
-            const projectForm = document.getElementById('projectForm');
-            if (projectForm) {
-                projectForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    
-                    // Trigger native HTML5 validation
-                    if (!this.checkValidity()) {
-                        this.reportValidity();
-                        return; // Stop submission if invalid
-                    }
-
-                    const items = [];
-                    document.querySelectorAll('.item-row').forEach(row => {
-                        const markInput = row.querySelector('.i-mark');
-                        const modelInput = row.querySelector('.i-model');
-                        
-                        if(markInput && modelInput.value.trim() !== '') {
-                            
-                            const priceStr = row.querySelector('.i-price').value;
-                            const cleanPrice = parseFloat(String(priceStr).replace(/,/g, '')) || 0;
-
-                            items.push({
-                                mark: markInput.value,
-                                brand: row.querySelector('.i-brand').value,
-                                model: modelInput.value,
-                                description: row.querySelector('.i-full-desc').value,
-                                picture: row.querySelector('.i-pic').value,
-                                qty: row.querySelector('.i-qty').value,
-                                unit_price: cleanPrice
-                            });
-                        }
-                    });
-                    document.getElementById('items_json').value = JSON.stringify(items);
-                    
-                    document.querySelectorAll('input.i-qty, input.i-price, input.i-mark, input.i-brand, input.i-model, input.i-full-desc, input.i-pic, .input-model-search').forEach(el => el.removeAttribute('name'));
-                    
-                    this.submit();
                 });
             }
         });

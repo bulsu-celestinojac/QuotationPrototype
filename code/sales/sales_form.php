@@ -1,11 +1,11 @@
 <?php
-require 'db.php';
+require '../db.php';
 
 $selected_items_json = $_POST['selected_items'] ?? '[]';
 $selected_ids = json_decode($selected_items_json, true);
 
 if (empty($selected_ids) || !is_array($selected_ids)) {
-    header("Location: index.php");
+    header("Location: ../index.php");
     exit;
 }
 
@@ -215,10 +215,10 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
     <div class="container">
         <div class="header">
             <h1 class="page-title">Generate <span class="accent">Quotation</span></h1>
-            <a href="index.php" class="btn-back">← Back to Inventory</a>
+            <a href="../index.php" class="btn-back">← Back to Inventory</a>
         </div>
 
-        <form action="process_quote.php" method="POST" autocomplete="off" id="salesQuoteForm">
+        <form action="sales_process.php" method="POST" autocomplete="off" id="salesQuoteForm">
             <input type="hidden" name="quote_type" value="sales">
             
             <div class="layout-grid">
@@ -269,6 +269,11 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
                                 <label class="required">Payment Terms</label>
                                 <textarea name="payment_terms" placeholder="50% Down payment upon confirmation...&#10;50% Before shipment..." autocomplete="off" required></textarea>
                             </div>
+                            <!-- ADDED INCLUSIONS TEXTAREA -->
+                            <div class="form-group full-width">
+                                <label>Inclusions</label>
+                                <textarea name="inclusions" placeholder="Optional details (e.g. 1 Year Warranty, Free Delivery...)" autocomplete="off"></textarea>
+                            </div>
                             <div class="form-group">
                                 <label class="required">Validity Offer Date</label>
                                 <input type="text" name="validity_date" placeholder="e.g. 30 Days" autocomplete="off" required>
@@ -297,7 +302,7 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
                         
                         <div class="machine-items-container">
                             <?php foreach ($machines as $index => $machine): 
-                                $imgPath = '../images/machine_images/' . htmlspecialchars($machine['picture']);
+                                $imgPath = '../../images/machine_images/' . htmlspecialchars($machine['picture']);
                             ?>
                                 <div class="machine-item">
                                     <input type="hidden" name="items[<?=$index?>][id]" value="<?=$machine['id']?>">
