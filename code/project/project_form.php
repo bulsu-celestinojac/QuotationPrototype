@@ -299,7 +299,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
         
         <div class="page-header">
             <h1>PROJECT <span>QUOTATION</span></h1>
-            <!-- Looks to the local parser file -->
             <a href="parser.php" class="btn-back">← Back to Parser</a>
         </div>
 
@@ -315,7 +314,6 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
             </div>
         </div>
 
-        <!-- Form points to the NEW local project processor -->
         <form action="project_process.php" method="POST" id="projectForm" autocomplete="off" novalidate>
             <input type="hidden" name="quote_type" value="project">
             <input type="hidden" name="items_json" id="items_json" value="">
@@ -345,10 +343,9 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                                     <input type="hidden" class="i-mark" value="<?= htmlspecialchars($item['mark']) ?>">
                                 </div>
                                 
-                                <!-- Images properly pointing to root folder -->
-                                <div class="item-image" data-large-src="<?= !empty($item['picture']) ? '../images/machine_images/' . htmlspecialchars($item['picture']) : '' ?>">
+                                <div class="item-image" data-large-src="<?= !empty($item['picture']) ? '../../images/machine_images/' . htmlspecialchars($item['picture']) : '' ?>">
                                     <?php if (!empty($item['picture'])): ?>
-                                        <img src="../images/machine_images/<?= htmlspecialchars($item['picture']) ?>" alt="IMG">
+                                        <img src="../../images/machine_images/<?= htmlspecialchars($item['picture']) ?>" alt="IMG">
                                     <?php else: ?>
                                         <span>NO IMG</span>
                                     <?php endif; ?>
@@ -665,8 +662,9 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                 
                 const imgBox = row.querySelector('.item-image');
                 if (match.picture) {
-                    imgBox.innerHTML = `<img src="../images/machine_images/${match.picture}" alt="IMG"><input type="hidden" class="i-pic" value="${match.picture}">`;
-                    imgBox.setAttribute('data-large-src', `../images/machine_images/${match.picture}`);
+                    // UP TWO LEVELS NOW
+                    imgBox.innerHTML = `<img src="../../images/machine_images/${match.picture}" alt="IMG"><input type="hidden" class="i-pic" value="${match.picture}">`;
+                    imgBox.setAttribute('data-large-src', `../../images/machine_images/${match.picture}`);
                 } else {
                     imgBox.innerHTML = `<span>NO IMG</span><input type="hidden" class="i-pic" value="">`;
                     imgBox.setAttribute('data-large-src', '');
@@ -709,7 +707,7 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
                             const wrapper = input.closest('.price-edit-wrapper');
                             wrapper.style.opacity = '0.5';
                             
-                            // Using local file in the project folder
+                            // USING LOCAL ENDPOINT IN PROJECT FOLDER
                             fetch('update_item_price.php', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

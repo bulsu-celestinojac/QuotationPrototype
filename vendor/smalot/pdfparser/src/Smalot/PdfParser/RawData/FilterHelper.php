@@ -209,7 +209,7 @@ class FilterHelper
                     if (255 < $tuple >> 24) {
                         $chr24Part = \chr(($tuple >> 24) % 256);
                     } else {
-                        $chr24Part = \chr(($tuple >> 24) & 0xFF);
+                        $chr24Part = \chr($tuple >> 24);
                     }
 
                     if (255 < $tuple) {
@@ -232,15 +232,15 @@ class FilterHelper
         // last tuple (if any)
         switch ($group_pos) {
             case 4:
-                $decoded .= \chr(($tuple >> 24) & 0xFF).\chr(($tuple >> 16) & 0xFF).\chr(($tuple >> 8) & 0xFF);
+                $decoded .= \chr($tuple >> 24).\chr($tuple >> 16).\chr($tuple >> 8);
                 break;
 
             case 3:
-                $decoded .= \chr(($tuple >> 24) & 0xFF).\chr(($tuple >> 16) & 0xFF);
+                $decoded .= \chr($tuple >> 24).\chr($tuple >> 16);
                 break;
 
             case 2:
-                $decoded .= \chr(($tuple >> 24) & 0xFF);
+                $decoded .= \chr($tuple >> 24);
                 break;
 
             case 1:

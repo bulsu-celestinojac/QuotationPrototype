@@ -54,8 +54,8 @@
         <tr>
             <td style="width: 15%;">
                 <?php 
-                // Look UP to root images folder
-                $logoPath = __DIR__ . '/../images/other_images/AMGLOGO.png';
+                // Look UP TWO LEVELS to images folder
+                $logoPath = __DIR__ . '/../../images/other_images/AMGLOGO.png';
                 $logoBase64 = '';
                 if (file_exists($logoPath)) {
                     $logoType = pathinfo($logoPath, PATHINFO_EXTENSION);
@@ -135,8 +135,8 @@
                     
                     $base64_img = '';
                     if (!empty($item['picture'])) {
-                        // Look UP to root images folder
-                        $imagePath = __DIR__ . '/../images/machine_images/' . $item['picture'];
+                        // Look UP TWO LEVELS to images folder
+                        $imagePath = __DIR__ . '/../../images/machine_images/' . $item['picture'];
                         if (file_exists($imagePath)) {
                             $type = pathinfo($imagePath, PATHINFO_EXTENSION);
                             $data = file_get_contents($imagePath);

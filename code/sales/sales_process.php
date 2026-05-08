@@ -1,4 +1,6 @@
 <?php
+require_once '../auth.php';
+require_login();
 require '../db.php';
 require '../vendor/autoload.php';
 use Dompdf\Dompdf;
@@ -80,6 +82,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             die("Invalid Quote Type.");
         }
 
+        // --- INTERCEPTION POINT FOR EMPLOYEES ---
+        log_activity($pdo, 'QUOTE_CREATED', "Generated Sales Quote #{$trans['quotation_no']}");
+
+        if (!has_role(['admin', 'super_admin'])) {
+            $pdo->commit();
+            if (session_status() === PHP_SESSION_NONE) session_start();
+            $_SESSION['flash'] = [
+                'type' => 'success',
+                'message' => "Quotation #{$trans['quotation_no']} submitted successfully and is pending Admin approval."
+            ];
+            header("Location: ../index.php");
+            exit;
+        }
+
         $pdo->commit();
 
         // GENERATE THE PDF
@@ -96,6 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dompdf->loadHtml($html);
         $dompdf->setPaper($paper_size, 'portrait');
         $dompdf->render();
+        
+        log_activity($pdo, 'PDF_DOWNLOAD', "Downloaded PDF for Sales Quote #{$trans['quotation_no']}");
         $dompdf->stream($trans['quotation_no'] . ".pdf", ["Attachment" => false]);
         exit;
 

@@ -1,5 +1,7 @@
 <?php
-session_start();
+require_once 'auth.php';
+require_login();
+
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -9,7 +11,7 @@ require 'db.php';
 require_once 'functions.php';
 
 // Fetch data for search suggestions
-$suggestionStmt = $pdo->query("SELECT brand, model_no FROM items");
+$suggestionStmt = $pdo->query("SELECT brand, model_no FROM items WHERE status = 'active'");
 $allSuggestions = $suggestionStmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Pagination setup
@@ -17,14 +19,14 @@ $perPage = 50;
 $page = isset($_GET['page']) && is_numeric($_GET['page']) && $_GET['page'] > 0 ? (int)$_GET['page'] : 1;
 $offset = ($page - 1) * $perPage;
 
-$countSql = "SELECT COUNT(*) FROM items";
-$sql = "SELECT * FROM items";
+$countSql = "SELECT COUNT(*) FROM items WHERE status = 'active'";
+$sql = "SELECT * FROM items WHERE status = 'active'";
 $search = $_GET['search'] ?? '';
 $params = [];
 
 // Apply search filters
 if ($search) {
-    $where = " WHERE brand LIKE ? OR model_no LIKE ? OR description LIKE ? OR factor LIKE ?";
+    $where = " AND (brand LIKE ? OR model_no LIKE ? OR description LIKE ? OR factor LIKE ?)";
     $sql .= $where;
     $countSql .= $where;
     $params = ["%$search%", "%$search%", "%$search%", "%$search%"];
@@ -416,9 +418,10 @@ $items = $stmt->fetchAll();
                     <div id="searchSuggestions" class="custom-dropdown"></div>
                 </form>
 
-                <a href="add.php" class="btn">+ Add Item</a>
+                <?php if (has_role(['admin', 'super_admin'])): ?>
+                    <a href="add.php" class="btn">+ Add Item</a>
+                <?php endif; ?>
                 
-                <!-- THIS IS NOW POINTING TO PROJECT FOLDER -->
                 <a href="project/parser.php" class="btn" id="projectQuotationBtn">Project Quotation</a>
                 
                 <button class="btn cart-trigger" id="cartTrigger" onclick="openCart()">
@@ -497,7 +500,6 @@ $items = $stmt->fetchAll();
         <div class="cart-items" id="cartItemsList"></div>
         <div class="cart-footer">
             
-            <!-- THIS IS NOW POINTING TO SALES FOLDER -->
             <form action="sales/sales_form.php" method="POST" id="quoteForm">
                 <input type="hidden" name="selected_items" id="selectedItemsInput">
                 <button type="submit" class="btn-checkout" id="btnProceed" disabled>Proceed to Quotation</button>
@@ -519,8 +521,10 @@ $items = $stmt->fetchAll();
                 <div class="info-grid">
                     <div class="info-item"><label>Brand</label><div class="value" id="modalBrand"></div></div>
                     <div class="info-item"><label>Base Price</label><div class="value" style="color: var(--maroon);" id="modalPrice"></div></div>
+                    <?php if (has_role(['admin', 'super_admin'])): ?>
                     <div class="info-item"><label>Currency</label><div class="value" id="modalCurrency"></div></div>
                     <div class="info-item"><label>Buying Cost</label><div class="value" id="modalCost"></div></div>
+                    <?php endif; ?>
                 </div>
                 
                 <div>
@@ -530,11 +534,13 @@ $items = $stmt->fetchAll();
                 
                 <div id="modalPdfSection" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);"></div>
                 
+                <?php if (has_role(['admin', 'super_admin'])): ?>
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border); text-align: right;">
                     <a id="modalDeleteBtn" href="#" style="color: var(--maroon); font-size: 0.75rem; text-transform: uppercase; font-weight: 800; text-decoration: none; padding: 8px 16px; border: 1px solid rgba(139, 21, 56, 0.2); border-radius: 8px; transition: all 0.2s; background: #FFF5F7;">
                         Delete Record
                     </a>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -707,10 +713,17 @@ $items = $stmt->fetchAll();
             document.getElementById('modalBrand').textContent = data.brand || 'Unbranded';
             document.getElementById('modalModel').textContent = data.model_no || '';
             document.getElementById('modalDesc').textContent = data.description || '';
-            document.getElementById('modalCurrency').textContent = data.buying_currency || '-';
-            document.getElementById('modalCost').textContent = data.buying_cost || '-';
+            
+            // Only populate these if they exist in the DOM (Admin View)
+            const currencyEl = document.getElementById('modalCurrency');
+            if (currencyEl) currencyEl.textContent = data.buying_currency || '-';
+            const costEl = document.getElementById('modalCost');
+            if (costEl) costEl.textContent = data.buying_cost || '-';
+            
             document.getElementById('modalPrice').textContent = '₱' + data.selling_price;
-            document.getElementById('modalDeleteBtn').href = 'delete.php?id=' + data.id + '&token=' + csrfToken;
+            
+            const deleteBtn = document.getElementById('modalDeleteBtn');
+            if (deleteBtn) deleteBtn.href = 'delete.php?id=' + data.id + '&token=' + csrfToken;
 
             const imgElement = document.getElementById('modalImage');
             const noImgElement = document.getElementById('modalNoImg');
