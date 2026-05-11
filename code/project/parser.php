@@ -1,7 +1,11 @@
 <?php
 // Look UP one level to the vendor and db files
+require_once '../auth.php';
+require_role(['project', 'admin', 'super_admin']); // THE LOCK
+
 require __DIR__ . '/../vendor/autoload.php';
 require '../db.php';
+// ... rest of your code ...
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Smalot\PdfParser\Parser;

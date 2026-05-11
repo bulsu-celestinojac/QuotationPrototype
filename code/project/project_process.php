@@ -1,8 +1,11 @@
 <?php
+require_once '../auth.php';
+require_role(['project', 'admin', 'super_admin']); // THE LOCK
+
 require '../db.php';
 require '../vendor/autoload.php';
 use Dompdf\Dompdf;
-use Dompdf\Options;
+// ... rest of your code ...
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     

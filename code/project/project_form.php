@@ -1,6 +1,10 @@
 <?php
 // Look UP one level to root
+require_once '../auth.php';
+require_role(['project', 'admin', 'super_admin']); // THE LOCK
+
 require '../db.php';
+// ... rest of your code ...
 
 $extracted_json = $_POST['extracted_json'] ?? '';
 $incoming_items = [];
