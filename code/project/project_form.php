@@ -908,6 +908,13 @@ $inventory_json_safe = json_encode($clean_inventory ?: [], $json_flags) ?: '[]';
 
                 if (spanClose) spanClose.onclick = () => { modal.style.display = 'none'; };
                 if (modal) modal.onclick = (e) => { if (e.target === modal) { modal.style.display = 'none'; } };
+
+                document.addEventListener('keydown', function(e) {
+                    if (e.key !== 'Escape') return;
+                    if (modal && modal.style.display === 'block') {
+                        modal.style.display = 'none';
+                    }
+                });
             }
 
             const btnAddItem = document.getElementById('btnAddItem');

@@ -588,6 +588,13 @@ function extractInfo(string $text) {
                 closeDescModal();
             }
         });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            if (descModal.classList.contains('active')) {
+                closeDescModal();
+            }
+        });
     </script>
 </body>
 </html>

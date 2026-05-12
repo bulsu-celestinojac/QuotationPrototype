@@ -398,7 +398,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
 <body>
 
     <div class="modal-card">
-        <button class="close-btn" onclick="window.location.href='index.php'" title="Close Dashboard">✕</button>
+        <button class="close-btn" id="closeDashboardBtn" onclick="window.location.href='index.php'" title="Close Dashboard">✕</button>
         
         <div class="modal-header">
             <h2 class="modal-title">New Record</h2>
@@ -642,6 +642,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
         zoomClose.addEventListener('click', () => zoomOverlay.classList.remove('active'));
         zoomOverlay.addEventListener('click', function(e) {
             if (e.target === this) zoomOverlay.classList.remove('active');
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            if (zoomOverlay.classList.contains('active')) {
+                zoomOverlay.classList.remove('active');
+                return;
+            }
+            const closeBtn = document.getElementById('closeDashboardBtn');
+            if (closeBtn) closeBtn.click();
         });
 
         document.addEventListener('paste', function(e) {

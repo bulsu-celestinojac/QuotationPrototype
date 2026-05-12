@@ -606,6 +606,19 @@ foreach ($items as $item) {
             if (e.target === this) closeModal();
         });
 
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            const detailModal = document.getElementById('detailModal');
+            if (detailModal && detailModal.classList.contains('active')) {
+                closeModal();
+                return;
+            }
+            const cartDrawer = document.getElementById('cartDrawer');
+            if (cartDrawer && cartDrawer.classList.contains('active')) {
+                closeCart();
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', updateCartUI);
     </script>
 </body>
