@@ -644,6 +644,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             if (e.target === this) zoomOverlay.classList.remove('active');
         });
 
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            if (zoomOverlay.classList.contains('active')) {
+                zoomOverlay.classList.remove('active');
+                return;
+            }
+            const closeBtn = document.querySelector('.close-btn');
+            if (closeBtn) closeBtn.click();
+        });
+
         document.addEventListener('paste', function(e) {
             const activeTag = document.activeElement ? document.activeElement.tagName : '';
             if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') { return; }
