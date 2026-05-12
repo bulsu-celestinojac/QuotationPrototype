@@ -1,8 +1,11 @@
 <?php
-require_once '../auth.php';
+session_start();
+require_once 'auth.php';
 require_login();
-require '../db.php';
-require '../vendor/autoload.php';
+require 'db.php';
+require_once 'functions.php'; // Required for log_activity
+require 'vendor/autoload.php';
+
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -24,6 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $items = $_POST['items'] ?? [];
             if (empty($items)) die("No items selected. Please go back and try again.");
 
+            $user_id = $_SESSION['user_id'] ?? null;
+
             $trans = [
                 'quotation_no'       => trim($_POST['quotation_no'] ?? ''),
                 'client_name'        => trim($_POST['client_name'] ?? ''),
@@ -40,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'prepared_by'        => trim($_POST['prepared_by'] ?? '')
             ];
 
+            // Insert Quotation Data
             $stmtTrans = $pdo->prepare("
                 INSERT INTO sales_quotations 
                 (quotation_no, client_name, client_address, attention_to, client_email, client_contact, quote_date, payment_terms, validity_date, eta, proposal_purpose, corporate_discount, prepared_by) 
@@ -48,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtTrans->execute(array_values($trans));
             $quotation_id = $pdo->lastInsertId();
 
+            // Insert Machine Items
             $stmtItemInsert = $pdo->prepare("INSERT INTO sales_quotation_items (quotation_id, item_id, qty, unit_price, discount) VALUES (?, ?, ?, ?, ?)");
             $stmtItemFetch = $pdo->prepare("SELECT brand, model_no, description, picture, selling_price FROM items WHERE id = ?");
 
@@ -75,61 +82,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             
-            $pdf_template = 'sales_template.php';
-            $paper_size = 'A4'; // Sales quotes always A4
+            $pdf_template = __DIR__ . '/sales_template.php';
+            $paper_size = 'A4';
 
         } else {
             die("Invalid Quote Type.");
         }
 
-        // --- INTERCEPTION POINT FOR EMPLOYEES ---
         log_activity($pdo, 'QUOTE_CREATED', "Generated Sales Quote #{$trans['quotation_no']}");
-
-        if (!has_role(['admin', 'super_admin'])) {
-            $pdo->commit();
-            if (session_status() === PHP_SESSION_NONE) session_start();
-            $_SESSION['flash'] = [
-                'type' => 'success',
-                'message' => "Quotation #{$trans['quotation_no']} submitted successfully and is pending Admin approval."
-            ];
-            header("Location: ../index.php");
-            exit;
-        }
-
         $pdo->commit();
 
-        // GENERATE THE PDF
+        // ==========================================
+        // GENERATE AND DISPLAY PDF INSTANTLY
+        // ==========================================
+        
+        // This is the magic vacuum cleaner that fixes PDF corruption!
+        if (ob_get_length()) {
+            ob_end_clean(); 
+        }
+
         $options = new Options();
         $options->set('isRemoteEnabled', true); 
         $options->set('dpi', 150); 
         $options->set('defaultFont', 'DejaVu Sans'); 
         
         $dompdf = new Dompdf($options);
+        
         ob_start();
-        include $pdf_template; // The template will now have access to $paper_size
+        include $pdf_template; 
         $html = ob_get_clean();
 
         $dompdf->loadHtml($html);
         $dompdf->setPaper($paper_size, 'portrait');
         $dompdf->render();
         
-        log_activity($pdo, 'PDF_DOWNLOAD', "Downloaded PDF for Sales Quote #{$trans['quotation_no']}");
+        // "Attachment" => false makes it pop open in the browser instead of downloading directly
         $dompdf->stream($trans['quotation_no'] . ".pdf", ["Attachment" => false]);
         exit;
 
-} catch (Exception $e) {
+    } catch (Exception $e) {
         if ($pdo->inTransaction()) { $pdo->rollBack(); }
-        
-        // Safely grab the quotation number, falling back to POST data if $trans isn't defined yet
-        $failed_quote_no = $trans['quotation_no'] ?? $_POST['quotation_no'] ?? 'Unknown';
-        
-        if ($e->getCode() == 23000) { 
-            die("Error: Quotation number '" . $failed_quote_no . "' already exists."); 
-        }
         die("System Error: " . $e->getMessage());
     }
 } else {
-    header("Location: ../index.php");
+    header("Location: index.php");
     exit;
 }
 ?>
