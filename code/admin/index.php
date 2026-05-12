@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 // 3. FETCH DATASETS FOR TABS
 // ==========================================
 
-// A. Quotes
+// A. Quotes (FIXED: Removed user_id join to prevent database crashes)
 $sales_pending = $pdo->query("SELECT * FROM sales_quotations WHERE status = 'pending_admin' ORDER BY created_at DESC")->fetchAll();
 $project_pending = $pdo->query("SELECT * FROM project_quotations WHERE status = 'pending_admin' ORDER BY created_at DESC")->fetchAll();
 

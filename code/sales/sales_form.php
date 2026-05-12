@@ -269,7 +269,6 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
                                 <label class="required">Payment Terms</label>
                                 <textarea name="payment_terms" placeholder="50% Down payment upon confirmation...&#10;50% Before shipment..." autocomplete="off" required></textarea>
                             </div>
-                            <!-- ADDED INCLUSIONS TEXTAREA -->
                             <div class="form-group full-width">
                                 <label>Inclusions</label>
                                 <textarea name="inclusions" placeholder="Optional details (e.g. 1 Year Warranty, Free Delivery...)" autocomplete="off"></textarea>
@@ -322,7 +321,6 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
                             <?php endforeach; ?>
                         </div>
 
-                        <!-- LIVE FINANCIAL SUMMARY UI -->
                         <div class="financial-summary-block">
                             <div class="summary-row">
                                 <span class="summary-label">Subtotal</span>
@@ -346,7 +344,6 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
         </form>
     </div>
 
-    <!-- JAVASCRIPT FOR LIVE CALCULATION -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const qtyInputs = document.querySelectorAll('.calc-qty');
@@ -387,12 +384,20 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
             // Initial calculation on page load
             calculateLiveTotals();
             
-            // Add HTML5 Native Validation execution on submit
+            // Validate form, empty the cart, and send the user back to the main dashboard
             const form = document.getElementById('salesQuoteForm');
             form.addEventListener('submit', function(e) {
                 if (!this.checkValidity()) {
                     e.preventDefault();
                     this.reportValidity();
+                } else {
+                    // This is the vacuum that clears out the user's cart items
+                    sessionStorage.removeItem('quoteCartData');
+                    
+                    // Small delay to allow the new tab to open the PDF before refreshing this tab
+                    setTimeout(() => {
+                        window.location.href = '../index.php';
+                    }, 500);
                 }
             });
         });

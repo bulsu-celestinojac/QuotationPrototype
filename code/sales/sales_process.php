@@ -1,10 +1,12 @@
 <?php
 session_start();
-require_once 'auth.php';
+
+// Step out of the 'sales' folder to access the main core files
+require_once '../auth.php';
 require_login();
-require 'db.php';
-require_once 'functions.php'; // Required for log_activity
-require 'vendor/autoload.php';
+require_once '../db.php';
+require_once '../functions.php'; // Required for log_activity
+require_once '../vendor/autoload.php';
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -42,7 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'eta'                => trim($_POST['eta'] ?? ''),
                 'proposal_purpose'   => trim($_POST['proposal_purpose'] ?? ''),
                 'corporate_discount' => (float)($_POST['corporate_discount'] ?? 0),
-                'prepared_by'        => trim($_POST['prepared_by'] ?? '')
+                'prepared_by'        => trim($_POST['prepared_by'] ?? ''),
+                'inclusions'         => trim($_POST['inclusions'] ?? '')
             ];
 
             // Insert Quotation Data
@@ -51,7 +54,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 (quotation_no, client_name, client_address, attention_to, client_email, client_contact, quote_date, payment_terms, validity_date, eta, proposal_purpose, corporate_discount, prepared_by) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmtTrans->execute(array_values($trans));
+            $dbParams = [
+                $trans['quotation_no'], $trans['client_name'], $trans['client_address'], 
+                $trans['attention_to'], $trans['client_email'], $trans['client_contact'], 
+                $trans['quote_date'], $trans['payment_terms'], $trans['validity_date'], 
+                $trans['eta'], $trans['proposal_purpose'], $trans['corporate_discount'], 
+                $trans['prepared_by']
+            ];
+            $stmtTrans->execute($dbParams);
             $quotation_id = $pdo->lastInsertId();
 
             // Insert Machine Items
@@ -82,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             
+            // Look for the template in the same 'sales' folder
             $pdf_template = __DIR__ . '/sales_template.php';
             $paper_size = 'A4';
 
@@ -125,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die("System Error: " . $e->getMessage());
     }
 } else {
-    header("Location: index.php");
+    header("Location: ../index.php");
     exit;
 }
 ?>

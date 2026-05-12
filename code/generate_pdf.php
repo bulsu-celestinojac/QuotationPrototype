@@ -41,7 +41,7 @@ try {
         $stmtItems->execute([$id]);
         $payload_items = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
 
-        $pdf_template = __DIR__ . '/sales_template.php'; 
+        $pdf_template = __DIR__ . '/sales/sales_template.php'; 
         $paper_size = 'A4';
 
     } else {
