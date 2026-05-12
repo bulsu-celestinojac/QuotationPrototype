@@ -398,7 +398,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
 <body>
 
     <div class="modal-card">
-        <button class="close-btn" onclick="window.location.href='index.php'" title="Close Dashboard">✕</button>
+        <button class="close-btn" id="closeDashboardBtn" onclick="window.location.href='index.php'" title="Close Dashboard">✕</button>
         
         <div class="modal-header">
             <h2 class="modal-title">New Record</h2>
@@ -650,7 +650,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                 zoomOverlay.classList.remove('active');
                 return;
             }
-            const closeBtn = document.querySelector('.close-btn');
+            const closeBtn = document.getElementById('closeDashboardBtn');
             if (closeBtn) closeBtn.click();
         });
 
