@@ -1,75 +1,137 @@
 <?php
+// login.php
 session_start();
 require 'db.php';
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+require 'vendor/autoload.php';
+
+// 1. Generate CSRF Token
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 $error = '';
-if (isset($_GET['error'])) {
-    if ($_GET['error'] === 'inactive') {
-        $error = "Your account is pending approval or suspended.";
+$username_input = ''; 
+
+if (empty($error)) {
+    if (isset($_GET['error'])) {
+        if ($_GET['error'] === 'inactive') $error = "Your account is pending approval or suspended.";
+        if ($_GET['error'] === 'logout') $error = "You have been successfully logged out.";
     }
-    if ($_GET['error'] === 'logout') {
-        $error = "You have been successfully logged out.";
+    if (isset($_GET['success']) && $_GET['success'] === 'reset') {
+        $error = "Password successfully reset. You may now log in.";
     }
-}
-if (isset($_GET['success']) && $_GET['success'] === 'reset') {
-    $error = "Password successfully reset. You may now log in.";
 }
 
 if (isset($_SESSION['user_id'])) {
-    if ($_SESSION['user_role'] === 'super_admin') {
-        header("Location: superadmin/index.php");
-    } elseif ($_SESSION['user_role'] === 'admin') {
-        header("Location: admin/index.php");
-    } else {
-        header("Location: index.php");
-    }
+    if ($_SESSION['user_role'] === 'super_admin') header("Location: superadmin/index.php");
+    elseif ($_SESSION['user_role'] === 'admin') header("Location: admin/index.php");
+    else header("Location: index.php");
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         $error = "Security validation failed. Please refresh and try again.";
     } else {
-        $username = trim($_POST['username'] ?? '');
+        $username_input = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        if (!empty($username) && !empty($password)) {
-            $stmt = $pdo->prepare("SELECT id, username, password, role, status FROM users WHERE username = ?");
-            $stmt->execute([$username]);
+        if (!empty($username_input) && !empty($password)) {
+            
+            // Fetch User AND Database Security Counters
+            $stmt = $pdo->prepare("SELECT id, username, email, password, role, status, failed_attempts, locked_until FROM users WHERE username = ?");
+            $stmt->execute([$username_input]);
             $user = $stmt->fetch();
 
-            if ($user && password_verify($password, $user['password'])) {
-                if ($user['status'] === 'active') {
-                    session_regenerate_id(true);
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['username'] = $user['username'];
-                    $_SESSION['user_role'] = $user['role'];
-                    $_SESSION['user_status'] = $user['status'];
-                    
-                    if ($user['role'] === 'super_admin') {
-                        header("Location: superadmin/index.php");
-                    } elseif ($user['role'] === 'admin') {
-                        header("Location: admin/index.php");
+            if ($user) {
+                // Check if account is currently locked in the database
+                if ($user['locked_until'] !== null && strtotime($user['locked_until']) > time()) {
+                    $minutes_left = ceil((strtotime($user['locked_until']) - time()) / 60);
+                    $error = "Account locked due to security protocols. Please try again in {$minutes_left} minute(s).";
+                } 
+                else {
+                    // Account is not locked, verify password
+                    if (password_verify($password, $user['password']) && $user['status'] === 'active') {
+                        
+                        // SUCCESS: Reset database counters to zero
+                        $resetStmt = $pdo->prepare("UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?");
+                        $resetStmt->execute([$user['id']]);
+
+                        session_regenerate_id(true);
+                        $_SESSION['user_id'] = $user['id'];
+                        $_SESSION['username'] = $user['username'];
+                        $_SESSION['user_role'] = $user['role'];
+                        $_SESSION['user_status'] = $user['status'];
+                        
+                        if ($user['role'] === 'super_admin') header("Location: superadmin/index.php");
+                        elseif ($user['role'] === 'admin') header("Location: admin/index.php");
+                        else header("Location: index.php");
+                        exit;
+
                     } else {
-                        header("Location: index.php");
+                        // FAILED ATTEMPT: Update database counters
+                        $attempts = $user['failed_attempts'] + 1;
+                        
+                        if ($attempts >= 5) {
+                            // Lock account for 15 minutes
+                            $lockoutTime = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+                            $lockStmt = $pdo->prepare("UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?");
+                            $lockStmt->execute([$attempts, $lockoutTime, $user['id']]);
+
+                            // Auto-Email Recovery
+                            if (!empty($user['email'])) {
+                                $token = bin2hex(random_bytes(32));
+                                $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+                                $updateTokenStmt = $pdo->prepare("UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?");
+                                $updateTokenStmt->execute([$token, $expires, $user['id']]);
+
+                                $resetLink = "http://127.0.0.1/asalesquotation/code/reset_password.php?token=" . $token;
+
+                                $mail = new PHPMailer(true);
+                                try {
+                                    $mail->isSMTP();
+                                    $mail->Host       = 'smtp.gmail.com';
+                                    $mail->SMTPAuth   = true;
+                                    $mail->Username   = 'it.amgroupp@gmail.com'; 
+                                    $mail->Password   = 'yoruuuphsufblgvl'; 
+                                    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                                    $mail->Port       = 587;
+
+                                    $mail->setFrom('it.amgroupp@gmail.com', 'AM Group IT Support');
+                                    $mail->addAddress($user['email'], $user['username']);
+                                    $mail->isHTML(true);
+                                    $mail->Subject = 'Security Alert: Account Locked - AM Group';
+                                    $mail->Body    = "Hi {$user['username']},<br><br>Your account has been locked due to 5 failed login attempts.<br><br>Reset your password here:<br><a href='{$resetLink}'>{$resetLink}</a><br><br>Or wait 15 minutes to try again.";
+                                    $mail->send();
+                                } catch (Exception $e) {}
+                            }
+                            
+                            $error = "Account locked due to multiple failed attempts. A recovery link has been sent to your email.";
+                        } else {
+                            // Just increment the fail counter
+                            $incStmt = $pdo->prepare("UPDATE users SET failed_attempts = ? WHERE id = ?");
+                            $incStmt->execute([$attempts, $user['id']]);
+                            
+                            $attempts_left = 5 - $attempts;
+                            $error = "Invalid credentials. {$attempts_left} attempt(s) remaining.";
+                        }
                     }
-                    exit;
-                } else {
-                    $error = "Invalid credentials or inactive account.";
                 }
             } else {
-                $error = "Invalid credentials or inactive account.";
+                // If username doesn't exist, give generic error (Anti-Enumeration)
+                $error = "Invalid credentials. Please try again.";
             }
         } else {
             $error = "Please fill in all fields.";
         }
     }
 }
-?><!DOCTYPE html>
+?>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -97,9 +159,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php 
                         $is_success = (strpos($error, 'successfully') !== false || strpos($error, 'logout') !== false); 
                         $alert_class = $is_success ? 'alert-success' : 'alert-error';
+                        $icon = $is_success 
+                            ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>'
+                            : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
                     ?>
                     <div class="alert <?php echo $alert_class; ?>">
-                        <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
+                        <?php echo $icon; ?>
+                        <span><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></span>
                     </div>
                 <?php endif; ?>
 
@@ -110,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label>Username</label>
                         <div class="input-wrapper">
                             <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                            <input type="text" name="username" placeholder="Enter your username" required autocomplete="username">
+                            <input type="text" name="username" placeholder="Enter your username" value="<?php echo htmlspecialchars($username_input, ENT_QUOTES, 'UTF-8'); ?>" required autocomplete="username">
                         </div>
                     </div>
                     
@@ -145,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         const togglePassword = document.getElementById('togglePassword');
         const passwordField = document.getElementById('passwordField');
-        if(togglePassword) {
+        if(togglePassword && !passwordField.disabled) {
             togglePassword.addEventListener('click', function () {
                 const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
                 passwordField.setAttribute('type', type);
