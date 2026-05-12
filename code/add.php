@@ -264,25 +264,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
 
         .helper-text { font-size: 0.65rem; color: var(--text-muted); font-style: italic; }
 
+        /* Premium Duplicate Warning Upgrade */
         .duplicate-warning {
             position: absolute;
-            top: 100%;
+            top: calc(100% + 6px);
             left: 0;
             width: 100%;
             z-index: 10;
-            color: var(--danger);
-            font-size: 0.7rem;
+            color: #B91C1C;
+            font-size: 0.75rem;
             font-weight: 700;
             background: #FEF2F2;
-            padding: 6px 10px;
-            border-radius: 6px;
+            padding: 10px 14px;
+            border-radius: 8px;
             border: 1px solid #FECACA;
-            margin-top: 4px;
             display: none;
-            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
-            animation: fadeIn 0.2s ease;
+            box-shadow: 0 8px 20px rgba(220, 38, 38, 0.12);
+            animation: slideDownFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            align-items: center;
+            gap: 8px;
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .duplicate-warning svg { flex-shrink: 0; }
+        @keyframes slideDownFade { 
+            from { opacity: 0; transform: translateY(-8px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
 
         input[type="text"], input[type="number"], select, textarea {
             width: 100%;
@@ -417,10 +423,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
         .alert-success { color: #166534; background: #F0FDF4; }
         .alert-warning { color: #9A6324; background: #FFF8DC; border-color: #F5DEB3; }
 
-        .custom-dropdown { position: absolute; top: calc(100% + 4px); left: 0; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; max-height: 180px; overflow-y: auto; z-index: 9999; box-shadow: 0 8px 20px rgba(122, 16, 46, 0.1); display: none; }
-        .custom-dropdown.active { display: block; }
-        .custom-dropdown-item { padding: 8px 12px; font-size: 0.8rem; color: var(--text-main); cursor: pointer; transition: all 0.2s ease; }
-        .custom-dropdown-item:hover { background: var(--maroon-light); color: var(--maroon); font-weight: 500; }
+        /* Premium Custom Dropdown Upgrade */
+        .custom-dropdown { 
+            position: absolute; 
+            top: calc(100% + 8px); 
+            left: 0; 
+            width: 100%; 
+            background: var(--surface); 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            max-height: 220px; 
+            overflow-y: auto; 
+            z-index: 9999; 
+            box-shadow: 0 12px 30px rgba(122, 16, 46, 0.1); 
+            display: none; 
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .custom-dropdown.active { 
+            display: block; 
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .custom-dropdown::-webkit-scrollbar { width: 6px; }
+        .custom-dropdown::-webkit-scrollbar-thumb { background: rgba(139, 21, 56, 0.2); border-radius: 10px; }
+        
+        .custom-dropdown-item { 
+            padding: 12px 16px; 
+            font-size: 0.85rem; 
+            font-weight: 600;
+            color: var(--text-main); 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            border-bottom: 1px solid var(--maroon-light);
+        }
+        .custom-dropdown-item:last-child { border-bottom: none; }
+        .custom-dropdown-item:hover { 
+            background: var(--maroon-light); 
+            color: var(--maroon); 
+            padding-left: 22px; 
+        }
 
         .zoom-overlay { position: fixed; inset: 0; background: rgba(248, 246, 245, 0.95); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         .zoom-overlay.active { opacity: 1; pointer-events: all; }
@@ -464,10 +507,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                     Basic Details
                 </div>
 
-                <div class="form-group span-2" style="position: relative;">
+                <div class="form-group span-2">
                     <label for="brand">Brand</label>
-                    <input type="text" name="brand" id="brand" autocomplete="off" required>
-                    <div id="custom-brand-list" class="custom-dropdown"></div>
+                    <div style="position: relative; display: flex; flex-direction: column;">
+                        <input type="text" name="brand" id="brand" autocomplete="off" required>
+                        <div id="custom-brand-list" class="custom-dropdown" style="top: calc(100% + 4px);"></div>
+                    </div>
                 </div>
 
                 <div class="form-group span-2">
@@ -576,8 +621,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                         body: 'ajax_check_model=1&model_no=' + encodeURIComponent(val)
                     }).then(res => res.json()).then(data => {
                         if (data.exists) {
-                            modelWarning.innerHTML = '⚠️ Exists under brand: ' + data.brands.join(', ');
-                            modelWarning.style.display = 'block';
+                            // Premium SVG Icon added to warning
+                            modelWarning.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Exists under brand: ' + data.brands.join(', ');
+                            modelWarning.style.display = 'flex';
                         }
                     }).catch(err => console.error(err));
                 }, 500);
@@ -708,9 +754,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             catch (error) { console.log('Could not load brand suggestions'); }
         }
 
+        // Updated: Require 2 characters to show suggestions
         function showBrands(filterText = '') {
             customDropdown.innerHTML = '';
             const val = filterText.trim().toLowerCase();
+            
+            // This forces the user to type at least 2 letters before the dropdown appears
+            if (val.length < 2) {
+                customDropdown.classList.remove('active');
+                return;
+            }
+
             const filteredBrands = allBrands.filter(brand => brand.toLowerCase().includes(val));
 
             if (filteredBrands.length > 0) {
@@ -718,16 +772,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                     const div = document.createElement('div');
                     div.className = 'custom-dropdown-item';
                     div.textContent = brand;
-                    div.addEventListener('click', function(e) { e.stopPropagation(); brandInput.value = brand; customDropdown.classList.remove('active'); });
+                    div.addEventListener('click', function(e) { 
+                        e.stopPropagation(); 
+                        brandInput.value = brand; 
+                        customDropdown.classList.remove('active'); 
+                    });
                     customDropdown.appendChild(div);
                 });
                 customDropdown.classList.add('active'); 
-            } else customDropdown.classList.remove('active');
+            } else {
+                customDropdown.classList.remove('active');
+            }
         }
 
-        brandInput.addEventListener('focus', function() { showBrands(this.value); });
+        // Check as user types
         brandInput.addEventListener('input', function() { showBrands(this.value); });
-        document.addEventListener('click', function(e) { if (e.target !== brandInput && e.target !== customDropdown) customDropdown.classList.remove('active'); });
+        
+        // Hide dropdown if clicked outside
+        document.addEventListener('click', function(e) { 
+            if (e.target !== brandInput && e.target !== customDropdown) {
+                customDropdown.classList.remove('active'); 
+            }
+        });
+        
         loadBrandSuggestions();
     </script>
 </body>

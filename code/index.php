@@ -53,7 +53,7 @@ $items = $stmt->fetchAll();
 $js_item_data = [];
 foreach ($items as $item) {
     $picture = $item['picture'] ?? '';
-    // FIXED: Added ../ to properly target the images folder outside of code/
+    // Path configuration
     $hasImage = ($picture !== '' && @file_exists(__DIR__ . '/../images/machine_images/' . $picture));
     $publicFilePath = $hasImage ? '../images/machine_images/' . htmlspecialchars($picture, ENT_QUOTES, 'UTF-8') : null;
 
@@ -87,6 +87,7 @@ foreach ($items as $item) {
             --border: #E8D8D7;
             --maroon: #8B1538;
             --maroon-light: #FFF5F7;
+            --danger: #EF4444;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -97,13 +98,14 @@ foreach ($items as $item) {
         .top-bar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
         .page-title { font-family: 'Outfit', sans-serif; font-size: 3rem; font-weight: 900; letter-spacing: -0.04em; text-transform: uppercase; line-height: 1; }
         .page-title .accent { color: var(--maroon); }
-        .controls { display: flex; gap: 16px; align-items: center; }
+        .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 
-        .search-wrapper { position: relative; overflow: visible !important; background: var(--surface); display: flex; align-items: center; border: 1px solid var(--border); border-radius: 50px; width: 350px; height: 48px; transition: border-color 0.3s ease; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
+        /* Premium Input & Buttons */
+        .search-wrapper { position: relative; overflow: visible !important; background: var(--surface); display: flex; align-items: center; border: 1px solid var(--border); border-radius: 50px; width: 350px; height: 46px; transition: border-color 0.3s ease; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
         .search-wrapper:focus-within { border-color: var(--maroon); box-shadow: 0 4px 16px rgba(139, 21, 56, 0.08); }
         .search-input { flex: 1; border: none; background: transparent; padding: 0 20px; font-size: 0.9rem; outline: none; color: var(--text-main); min-width: 0; }
         .search-btn { background: var(--maroon); color: white; border: none; border-radius: 0 50px 50px 0; height: 100%; padding: 0 24px; font-weight: 800; font-family: 'Outfit', sans-serif; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s ease; }
-        .search-btn:hover { background: #5A0000; }
+        .search-btn:hover { background: #6A0D28; }
         .clear-btn { background: transparent; border: none; color: var(--maroon); font-size: 1.4rem; cursor: pointer; padding: 0 12px; line-height: 1; display: none; align-items: center; justify-content: center; height: 100%; transition: all 0.2s ease; }
         .clear-btn:hover { color: #5A0000; transform: scale(1.15); }
 
@@ -114,18 +116,56 @@ foreach ($items as $item) {
         .sugg-model { font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); font-size: 1rem; }
         .sugg-brand { font-size: 0.7rem; color: var(--maroon); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 
-        .btn { font-family: 'Outfit', sans-serif; height: 48px; padding: 0 24px; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; border: none; border-radius: 50px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; background: var(--maroon-light); color: var(--maroon); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); white-space: nowrap; }
-        .btn:hover { background: var(--maroon); color: white; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(139, 21, 56, 0.15); }
+        /* Unified Button Architecture */
+        .btn { 
+            font-family: 'Outfit', sans-serif; 
+            height: 46px; 
+            padding: 0 24px; 
+            font-weight: 800; 
+            font-size: 0.8rem; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+            border: 1px solid var(--border); 
+            border-radius: 50px; 
+            cursor: pointer; 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            text-decoration: none; 
+            background: var(--surface); 
+            color: var(--text-main); 
+            transition: all 0.2s ease; 
+            white-space: nowrap; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .btn:hover { 
+            border-color: var(--maroon); 
+            color: var(--maroon); 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 16px rgba(139, 21, 56, 0.1); 
+        }
 
-        .cart-trigger { background: var(--surface); border: 2px solid var(--border); color: var(--text-main); }
-        .cart-trigger:hover { border-color: var(--text-main); background: var(--surface); color: var(--text-main); }
-        .cart-trigger.has-items { background: var(--maroon); color: white; border: none; box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); }
-        .cart-trigger.has-items:hover { background: #5A0000; }
+        .cart-trigger.has-items { 
+            background: var(--maroon); 
+            color: white; 
+            border-color: var(--maroon); 
+            box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); 
+        }
+        .cart-trigger.has-items:hover { 
+            background: #6A0D28; 
+            border-color: #6A0D28; 
+            color: white; 
+        }
 
+        /* Logout Button Custom Styling */
+        .btn-logout { background: #FFF5F5; color: var(--danger); border-color: #FECACA; }
+        .btn-logout:hover { background: var(--danger); color: white; border-color: var(--danger); box-shadow: 0 8px 20px rgba(239, 68, 68, 0.2); }
+
+        /* Grid & Cards */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; margin-bottom: 60px; }
         .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; cursor: pointer; transition: all 0.3s ease; display: flex; flex-direction: column; position: relative; overflow: hidden; }
-        .card:hover { border-color: var(--maroon); transform: translateY(-4px); box-shadow: 0 10px 30px rgba(139, 21, 56, 0.05); }
-        .card.is-selected { border: 2px solid var(--maroon); transform: translateY(0); }
+        .card:hover { border-color: var(--maroon); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(139, 21, 56, 0.08); }
+        .card.is-selected { border: 2px solid var(--maroon); transform: translateY(0); box-shadow: 0 10px 25px rgba(139, 21, 56, 0.1); }
         .card-image { width: 100%; height: 200px; display: flex; align-items: center; justify-content: center; padding: 24px; border-bottom: 1px solid var(--border); background: #FFFFFF; }
         .card-image img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.5s ease; }
         .card:hover .card-image img { transform: scale(1.05); }
@@ -135,9 +175,37 @@ foreach ($items as $item) {
         .card-model { font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 900; color: var(--text-main); margin-bottom: 6px; line-height: 1.2; word-wrap: break-word; }
         .card-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card-price { font-size: 1.15rem; font-weight: 900; color: var(--maroon); margin-bottom: 24px; }
-        .btn-select { margin-top: auto; width: 100%; padding: 12px; background: transparent; border: 1px solid var(--border); border-radius: 50px; color: var(--text-main); font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; }
-        .btn-select:hover { border-color: var(--maroon); color: var(--maroon); background: var(--maroon-light); }
-        .card.is-selected .btn-select { background: var(--maroon); color: white; border-color: var(--maroon); font-size: 0; }
+        
+        /* Upgraded Select Button */
+        .btn-select { 
+            margin-top: auto; 
+            width: 100%; 
+            height: 44px;
+            background: var(--surface); 
+            border: 1px solid var(--border); 
+            border-radius: 50px; 
+            color: var(--text-main); 
+            font-family: 'Outfit', sans-serif; 
+            font-weight: 800; 
+            font-size: 0.8rem; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+        }
+        .btn-select:hover { 
+            border-color: var(--maroon); 
+            color: var(--maroon); 
+            background: var(--maroon-light); 
+            transform: translateY(-2px);
+        }
+        .card.is-selected .btn-select { 
+            background: var(--maroon); 
+            color: white; 
+            border-color: var(--maroon); 
+            font-size: 0; 
+            box-shadow: 0 6px 16px rgba(139, 21, 56, 0.2);
+        }
         .card.is-selected .btn-select::after { content: "SELECTED"; font-size: 0.8rem; }
 
         .pagination { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 50px; }
@@ -145,6 +213,7 @@ foreach ($items as $item) {
         .page-link:hover { border-color: var(--maroon); color: var(--maroon); background: var(--maroon-light); }
         .page-link.active { background: var(--maroon); color: white; border-color: var(--maroon); }
 
+        /* CART SLIDER */
         .cart-overlay { position: fixed; inset: 0; background: rgba(248, 246, 245, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 998; display: none; opacity: 0; transition: opacity 0.3s ease; }
         .cart-overlay.active { display: block; opacity: 1; }
         .cart-drawer { position: fixed; top: 0; right: 0; width: 400px; height: 100vh; background: var(--surface); border-left: 1px solid var(--border); z-index: 999; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
@@ -164,13 +233,25 @@ foreach ($items as $item) {
         .btn-checkout:hover { background: #5A0000; }
         .btn-checkout:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
 
-        .modal-overlay { position: fixed; inset: 0; background: rgba(248, 246, 245, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 1000; display: none; padding: 5vh 20px; overflow-y: auto; text-align: center; }
-        .modal-overlay.active { display: block; }
-        .modal-card { background: var(--surface); border: 1px solid var(--maroon); box-shadow: 0 24px 60px rgba(139, 21, 56, 0.12); border-radius: 24px; max-width: 900px; width: 100%; display: inline-flex; text-align: left; position: relative; margin: 0 auto; }
-        .modal-img { flex: 1; padding: 40px; border-right: 1px dashed rgba(139, 21, 56, 0.3); display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #FFFFFF 0%, #FFF5F7 100%); border-radius: 24px 0 0 24px; }
+        /* PERFECTLY CENTERED MODAL */
+        .modal-overlay { 
+            position: fixed; inset: 0; background: rgba(248, 246, 245, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 1000; display: none; padding: 20px; 
+        }
+        .modal-overlay.active { 
+            display: flex; align-items: center; justify-content: center;
+        }
+        .modal-card { 
+            background: var(--surface); border: 1px solid var(--maroon); box-shadow: 0 24px 60px rgba(139, 21, 56, 0.12); border-radius: 24px; max-width: 900px; width: 100%; display: flex; text-align: left; position: relative; 
+            max-height: 90vh; 
+        }
+        .modal-img { 
+            flex: 1; padding: 40px; border-right: 1px dashed rgba(139, 21, 56, 0.3); display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #FFFFFF 0%, #FFF5F7 100%); border-radius: 24px 0 0 24px; overflow-y: auto; 
+        }
         .modal-img img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.05)); }
         
-        .modal-details { flex: 1; padding: 50px; display: flex; flex-direction: column; position: relative; }
+        .modal-details { 
+            flex: 1; padding: 50px; display: flex; flex-direction: column; position: relative; overflow-y: auto; 
+        }
         .modal-close-btn { position: absolute; top: 24px; right: 24px; background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); transition: all 0.2s ease; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 10; }
         .modal-close-btn:hover { color: var(--maroon); background: #FFF5F7; border-radius: 50%; }
         
@@ -240,6 +321,8 @@ foreach ($items as $item) {
                         Quote Cart (<span id="cartBadge">0</span>)
                     </button>
                 <?php endif; ?>
+
+                <a href="logout.php" class="btn btn-logout">Logout</a>
             </div>
         </div>
 
@@ -248,7 +331,6 @@ foreach ($items as $item) {
         <div class="grid">
             <?php foreach ($items as $item):
                 $picture = $item['picture'] ?? '';
-                // FIXED: Added ../ to path
                 $hasImage = ($picture !== '' && @file_exists(__DIR__ . '/../images/machine_images/' . $picture));
                 $publicFilePath = '../images/machine_images/' . htmlspecialchars($picture, ENT_QUOTES, 'UTF-8');
             ?>
@@ -441,7 +523,7 @@ foreach ($items as $item) {
                 idleTimer = setTimeout(() => { window.location.href = 'index.php'; }, 30000);
             }
         }
-        ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'].forEach(evt => window.addEventListener(evt, resetIdleTimer));
+        ['mousemove', 'scroll', 'click', 'touchstart'].forEach(evt => window.addEventListener(evt, resetIdleTimer));
         resetIdleTimer();
 
         // 3. CART LOGIC
@@ -472,7 +554,7 @@ foreach ($items as $item) {
 
         function updateCartUI() {
             const badge = document.getElementById('cartBadge');
-            if(!badge) return; // Exit if not Sales/Admin
+            if(!badge) return;
 
             const count = cartData.length;
             badge.textContent = count;
@@ -541,7 +623,6 @@ foreach ($items as $item) {
             document.getElementById('modalModel').textContent = data.model_no;
             document.getElementById('modalDesc').textContent = data.description || '';
             
-            // Format to 000,000.00 using toLocaleString
             const rawPrice = parseFloat(data.selling_price) || 0;
             document.getElementById('modalPrice').textContent = '₱' + rawPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             
@@ -576,7 +657,6 @@ foreach ($items as $item) {
 
             const pdfSection = document.getElementById('modalPdfSection');
             if (data.pdf_path) {
-                // FIXED: Added ../ to PDF path
                 pdfSection.innerHTML = `
                     <label style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.1em; display: block; margin-bottom: 8px;">Documentation</label>
                     <a href="../pdfs/machine_pdfs/${data.pdf_path}" target="_blank" style="display: inline-flex; align-items: center; justify-content: center; background: var(--maroon); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.85rem; transition: background 0.2s;">
@@ -604,6 +684,14 @@ foreach ($items as $item) {
 
         document.getElementById('detailModal').addEventListener('click', function(e) {
             if (e.target === this) closeModal();
+        });
+
+        // 5. ESC KEY EVENT LISTENER
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeCart();
+            }
         });
 
         document.addEventListener('DOMContentLoaded', updateCartUI);

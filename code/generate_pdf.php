@@ -41,16 +41,13 @@ try {
         $stmtItems->execute([$id]);
         $payload_items = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
 
+        // FIXED: Pointing directly into your new sales folder!
         $pdf_template = __DIR__ . '/sales/sales_template.php'; 
         $paper_size = 'A4';
 
     } else {
         die("Error: Only Sales Quotes are supported right now.");
     }
-
-    // ==========================================
-    // GENERATE AND DISPLAY PDF
-    // ==========================================
 
     // Clean any accidental blank spaces that corrupt PDFs
     if (ob_get_length()) {

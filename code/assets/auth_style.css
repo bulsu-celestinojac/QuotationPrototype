@@ -19,18 +19,12 @@
 
 body { 
     font-family: 'DM Sans', sans-serif; 
-    background-color: #FFFFFF;
-    /* Staggered Maroon Dot Pattern */
-    background-image: 
-        radial-gradient(rgba(122, 16, 46, 0.08) 1.5px, transparent 1.5px),
-        radial-gradient(rgba(122, 16, 46, 0.08) 1.5px, transparent 1.5px);
-    background-size: 30px 30px;
-    background-position: 0 0, 15px 15px;
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFF0F3 100%);
     color: var(--text-main); 
     margin: 0; 
     padding: 0; 
+    min-height: 100vh;
 }
-
 .auth-master-layout {
     position: absolute;
     inset: 0; 
