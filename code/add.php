@@ -1,5 +1,20 @@
 <?php
+session_start();
 require 'db.php';
+
+// Ensure user is logged in
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
+$user_role = $_SESSION['user_role'] ?? '';
+$user_id = $_SESSION['user_id'];
+
+// Generate CSRF Token for Security
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 // =========================================================================
 // 1. AJAX ENDPOINT: REAL-TIME DUPLICATE DETECTOR
@@ -24,96 +39,107 @@ if (isset($_POST['ajax_check_model'])) {
 
 $error = '';
 $success = '';
+$pending_msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model'])) {
-    $brand = trim($_POST['brand'] ?? '');
-    $model_no = trim($_POST['model_no'] ?? '');
-    $description = trim($_POST['description'] ?? '');
-    $buying_currency = $_POST['buying_currency'] ?? '';
     
-    // Safely strip commas before saving to the database
-    $buying_cost = str_replace(',', '', $_POST['buying_cost'] ?? '0');
-    $factor = str_replace(',', '', $_POST['factor'] ?? '0');
-    $selling_price = str_replace(',', '', $_POST['selling_price'] ?? '0');
-    
-    $picture = '';
-    $target_file = '';
-    $pdf_path = null;
-
-    if (!is_numeric($factor) || floatval($factor) <= 0) {
-        $error = 'Factor must be a positive number greater than zero.';
+    // Validate CSRF Token
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $error = "Security validation failed. Please refresh the page and try again.";
     } else {
-        // --- IMAGE UPLOAD ---
-        if (isset($_FILES['picture']) && $_FILES['picture']['error'] === UPLOAD_ERR_OK) {
-            $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-            $allowed_mime_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-            
-            $file_info = finfo_open(FILEINFO_MIME_TYPE);
-            $mime_type = finfo_file($file_info, $_FILES['picture']['tmp_name']);
-            $ext = strtolower(pathinfo($_FILES['picture']['name'], PATHINFO_EXTENSION));
+        $brand = trim($_POST['brand'] ?? '');
+        $model_no = trim($_POST['model_no'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $buying_currency = $_POST['buying_currency'] ?? '';
+        
+        $buying_cost = str_replace(',', '', $_POST['buying_cost'] ?? '0');
+        $factor = str_replace(',', '', $_POST['factor'] ?? '0');
+        $selling_price = str_replace(',', '', $_POST['selling_price'] ?? '0');
+        
+        $picture = '';
+        $target_file = '';
+        $pdf_path = null;
 
-            if (!in_array($ext, $allowed_extensions) || !in_array($mime_type, $allowed_mime_types)) {
-                $error = 'Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.';
-            } else {
-                $safe_model_no = preg_replace('/[^A-Za-z0-9_\-]/', '_', $model_no);
-                if (empty($safe_model_no)) {
-                    $safe_model_no = 'unnamed_model_' . time();
-                }
-                $filename = $safe_model_no . '.' . $ext;
-                $target_dir = __DIR__ . '/../images/machine_images/';
+        if (!is_numeric($factor) || floatval($factor) <= 0) {
+            $error = 'Factor must be a positive number greater than zero.';
+        } else {
+            // --- IMAGE UPLOAD ---
+            if (isset($_FILES['picture']) && $_FILES['picture']['error'] === UPLOAD_ERR_OK) {
+                $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                $allowed_mime_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
                 
-                if (!is_dir($target_dir)) mkdir($target_dir, 0755, true);
-                
-                $target_file = $target_dir . $filename;
-                if (move_uploaded_file($_FILES['picture']['tmp_name'], $target_file)) {
-                    $picture = $filename;
-                } else {
-                    $error = 'Image upload failed. Please check folder permissions.';
-                }
-            }
-        }
+                $file_info = finfo_open(FILEINFO_MIME_TYPE);
+                $mime_type = finfo_file($file_info, $_FILES['picture']['tmp_name']);
+                $ext = strtolower(pathinfo($_FILES['picture']['name'], PATHINFO_EXTENSION));
 
-        // --- PDF UPLOAD ---
-        if (!$error && isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) {
-            $pdf_ext = strtolower(pathinfo($_FILES['pdf_file']['name'], PATHINFO_EXTENSION));
-            
-            if ($pdf_ext !== 'pdf') {
-                $error = 'Invalid document type. Only PDF files are allowed.';
-            } else {
-                $safe_brand = !empty($brand) ? preg_replace('/[^A-Za-z0-9_\-]/', '_', $brand) : 'UNBRANDED';
-                $safe_model_no = preg_replace('/[^A-Za-z0-9_\-]/', '_', $model_no);
-                if (empty($safe_model_no)) $safe_model_no = 'unnamed_model_' . time();
-                
-                $pdf_filename = $safe_model_no . '.pdf';
-                $relative_pdf_path = $safe_brand . '/' . $pdf_filename;
-                $pdf_target_dir = __DIR__ . '/../pdfs/machine_pdfs/' . $safe_brand . '/';
-                
-                if (!is_dir($pdf_target_dir)) mkdir($pdf_target_dir, 0755, true);
-                
-                $pdf_target_file = $pdf_target_dir . $pdf_filename;
-                if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $pdf_target_file)) {
-                    $pdf_path = $relative_pdf_path;
+                if (!in_array($ext, $allowed_extensions) || !in_array($mime_type, $allowed_mime_types)) {
+                    $error = 'Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.';
                 } else {
-                    $error = 'PDF upload failed. Please check folder permissions.';
+                    $safe_model_no = preg_replace('/[^A-Za-z0-9_\-]/', '_', $model_no);
+                    if (empty($safe_model_no)) $safe_model_no = 'unnamed_model_' . time();
+                    
+                    $filename = $safe_model_no . '_' . time() . '.' . $ext;
+                    $target_dir = __DIR__ . '/../images/machine_images/';
+                    if (!is_dir($target_dir)) mkdir($target_dir, 0755, true);
+                    
+                    $target_file = $target_dir . $filename;
+                    if (move_uploaded_file($_FILES['picture']['tmp_name'], $target_file)) {
+                        $picture = $filename;
+                    } else {
+                        $error = 'Image upload failed. Please check folder permissions.';
+                    }
                 }
             }
-        }
 
-        // --- DB INSERT (WITH HARD DUPLICATE CHECK) ---
-        if (!$error) {
-            $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM items WHERE brand = ? AND model_no = ?");
-            $checkStmt->execute([$brand, $model_no]);
-            
-            if ($checkStmt->fetchColumn() > 0) {
-                $error = "The machine '{$brand} - {$model_no}' already exists in the inventory.";
-                if ($picture && file_exists($target_file)) unlink($target_file);
-                if ($pdf_path && file_exists(__DIR__ . '/../pdfs/machine_pdfs/' . $pdf_path)) unlink(__DIR__ . '/../pdfs/machine_pdfs/' . $pdf_path);
-            } else {
-                $stmt = $pdo->prepare("INSERT INTO items (brand, model_no, description, picture, buying_currency, buying_cost, factor, selling_price, pdf_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                if ($stmt->execute([$brand, $model_no, $description, $picture, $buying_currency, $buying_cost, $factor, $selling_price, $pdf_path])) {
-                    $success = 'Machine added successfully!';
+            // --- PDF UPLOAD ---
+            if (!$error && isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) {
+                $pdf_ext = strtolower(pathinfo($_FILES['pdf_file']['name'], PATHINFO_EXTENSION));
+                if ($pdf_ext !== 'pdf') {
+                    $error = 'Invalid document type. Only PDF files are allowed.';
                 } else {
-                    $error = 'Database error occurred.';
+                    $safe_brand = !empty($brand) ? preg_replace('/[^A-Za-z0-9_\-]/', '_', $brand) : 'UNBRANDED';
+                    $safe_model_no = preg_replace('/[^A-Za-z0-9_\-]/', '_', $model_no);
+                    if (empty($safe_model_no)) $safe_model_no = 'unnamed_model_' . time();
+                    
+                    $pdf_filename = $safe_model_no . '_' . time() . '.pdf';
+                    $relative_pdf_path = $safe_brand . '/' . $pdf_filename;
+                    $pdf_target_dir = __DIR__ . '/../pdfs/machine_pdfs/' . $safe_brand . '/';
+                    if (!is_dir($pdf_target_dir)) mkdir($pdf_target_dir, 0755, true);
+                    
+                    $pdf_target_file = $pdf_target_dir . $pdf_filename;
+                    if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $pdf_target_file)) {
+                        $pdf_path = $relative_pdf_path;
+                    } else {
+                        $error = 'PDF upload failed. Please check folder permissions.';
+                    }
+                }
+            }
+
+            // --- SMART DB INSERT (APPROVAL ENGINE) ---
+            if (!$error) {
+                $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM items WHERE brand = ? AND model_no = ?");
+                $checkStmt->execute([$brand, $model_no]);
+                
+                if ($checkStmt->fetchColumn() > 0) {
+                    $error = "The machine '{$brand} - {$model_no}' already exists in the live inventory.";
+                    if ($picture && file_exists($target_file)) unlink($target_file);
+                    if ($pdf_path && file_exists(__DIR__ . '/../pdfs/machine_pdfs/' . $pdf_path)) unlink(__DIR__ . '/../pdfs/machine_pdfs/' . $pdf_path);
+                } else {
+                    if (in_array($user_role, ['admin', 'super_admin'])) {
+                        $stmt = $pdo->prepare("INSERT INTO items (brand, model_no, description, picture, buying_currency, buying_cost, factor, selling_price, pdf_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        if ($stmt->execute([$brand, $model_no, $description, $picture, $buying_currency, $buying_cost, $factor, $selling_price, $pdf_path])) {
+                            $success = 'Machine added successfully to Live Inventory!';
+                        } else {
+                            $error = 'Database error occurred.';
+                        }
+                    } else {
+                        $stmt = $pdo->prepare("INSERT INTO pending_approvals (action_type, item_id, requested_by, brand, model_no, description, picture, buying_currency, buying_cost, factor, selling_price, pdf_path) VALUES ('add', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        if ($stmt->execute([$user_id, $brand, $model_no, $description, $picture, $buying_currency, $buying_cost, $factor, $selling_price, $pdf_path])) {
+                            $pending_msg = 'New Machine submitted! Waiting for Admin approval.';
+                        } else {
+                            $error = 'Failed to submit approval request.';
+                        }
+                    }
                 }
             }
         }
@@ -149,53 +175,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             display: flex;
             align-items: flex-start;
             justify-content: center;
-            padding: 30px 20px;
+            padding: 24px 20px;
         }
 
         .modal-card {
             background: var(--surface);
             width: 100%;
             max-width: 820px; 
-            border-radius: 20px;
+            border-radius: 16px;
             padding: 0;
             position: relative;
             border: 1px solid var(--border);
-            box-shadow: 0 16px 40px rgba(122, 16, 46, 0.08);
+            box-shadow: 0 12px 32px rgba(122, 16, 46, 0.08);
             margin: auto;
         }
 
         .modal-header {
             background: var(--surface);
-            padding: 30px 40px 16px 40px;
-            border-radius: 20px 20px 0 0;
+            padding: 24px 32px 16px 32px;
+            border-radius: 16px 16px 0 0;
             position: relative;
             border-bottom: 1px solid var(--border);
         }
 
-        .modal-form-wrapper { padding: 24px 40px 40px 40px; }
+        .modal-form-wrapper { padding: 20px 32px 32px 32px; }
 
         .form-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px 20px; /* Tighter spacing: 16px vertical, 20px horizontal */
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px 16px;
         }
+        .span-2 { grid-column: span 2; }
+        .span-4 { grid-column: 1 / -1; }
 
         .modal-title { 
             font-family: 'Outfit', sans-serif; 
-            font-size: 2rem; 
+            font-size: 1.8rem; 
             font-weight: 900; 
-            color: var(--text-main); 
+            color: var(--maroon); 
             text-transform: uppercase;
             letter-spacing: -0.02em;
             line-height: 1;
         }
 
-        .modal-subtitle { font-size: 0.9rem; color: var(--text-muted); margin-top: 6px; font-weight: 400; }
+        .modal-subtitle { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
 
         .close-btn {
             position: absolute;
-            top: 28px;
-            right: 32px;
+            top: 24px;
+            right: 28px;
             background: transparent;
             border: none;
             font-size: 1.4rem;
@@ -209,34 +237,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
         .section-label {
             grid-column: 1 / -1;
             font-family: 'Outfit', sans-serif;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-weight: 800;
             color: var(--maroon);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            border-bottom: 2px solid var(--maroon-light);
-            padding-bottom: 6px;
-            margin-top: 12px;
-            margin-bottom: 2px; 
+            border-bottom: 1px solid var(--maroon-light);
+            padding-bottom: 4px;
+            margin-top: 10px;
+            margin-bottom: 0px; 
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .form-group { display: flex; flex-direction: column; gap: 4px; position: relative; }
-        .full-width { grid-column: 1 / -1; }
 
         label {
             font-size: 0.65rem;
             font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
         }
 
-        .helper-text { font-size: 0.7rem; color: var(--text-muted); font-style: italic; }
+        .helper-text { font-size: 0.65rem; color: var(--text-muted); font-style: italic; }
 
-        /* ABSOLUTE POSITIONED WARNING (Prevents Layout Shifting) */
         .duplicate-warning {
             position: absolute;
             top: 100%;
@@ -244,11 +271,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             width: 100%;
             z-index: 10;
             color: var(--danger);
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 700;
             background: #FEF2F2;
-            padding: 8px 12px;
-            border-radius: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
             border: 1px solid #FECACA;
             margin-top: 4px;
             display: none;
@@ -259,39 +286,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
 
         input[type="text"], input[type="number"], select, textarea {
             width: 100%;
-            padding: 12px 14px;
-            border-radius: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
             border: 1px solid var(--border);
             background: #F8F6F6;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-family: 'DM Sans', sans-serif;
             color: var(--text-main);
             transition: all 0.2s ease;
             outline: none;
         }
 
-        /* MINIMIZED PRICING FIELDS */
-        .compact-field {
-            padding: 10px 12px;
-            font-size: 0.9rem;
-        }
+        .compact-field { padding: 8px 10px; font-size: 0.85rem; }
 
         select {
             appearance: none;
             cursor: pointer;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%237A102E' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 12px center;
+            background-position: right 10px center;
             background-size: 10px;
-            padding-right: 32px;
+            padding-right: 28px;
         }
 
-        textarea { resize: vertical; min-height: 80px; } /* Slimmer Textarea */
+        textarea { resize: vertical; min-height: 60px; }
 
         input:focus:not([readonly]), textarea:focus, select:focus {
             border-color: var(--maroon);
             background: var(--surface);
-            box-shadow: 0 4px 12px rgba(122, 16, 46, 0.08);
+            box-shadow: 0 4px 10px rgba(122, 16, 46, 0.08);
         }
         
         .input-readonly {
@@ -306,23 +329,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
         .price-wrapper::before {
             content: "₱";
             position: absolute;
-            left: 14px;
+            left: 10px;
             font-weight: 800;
-            font-size: 1rem;
+            font-size: 0.9rem;
             color: var(--maroon);
             z-index: 1;
             pointer-events: none;
         }
-        
-        /* OVERRIDE OVERLAP BUG HERE */
-        .price-wrapper input.compact-field { 
-            padding-left: 38px !important; 
-        }
+        .price-wrapper input.compact-field { padding-left: 28px !important; }
 
         .file-drop-area {
-            border: 2px dashed var(--border);
-            border-radius: 12px;
-            padding: 20px;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            padding: 12px;
             text-align: center;
             background: #F8F6F6;
             cursor: pointer;
@@ -330,68 +349,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             position: relative;
             overflow: hidden;
             height: 100%; 
-            min-height: 110px; /* Slimmer Dropzone */
+            min-height: 80px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
         }
 
-        .file-drop-area svg { color: #C8BDBD; transition: color 0.3s ease; }
+        .file-drop-area svg { color: #C8BDBD; transition: color 0.3s ease; width: 20px; height: 20px; }
         .file-drop-area:hover, .file-drop-area.is-active { background: var(--maroon-light); border-color: var(--maroon); }
         .file-drop-area:hover svg { color: var(--maroon); }
 
         .file-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 1; }
-        .file-msg { font-size: 0.8rem; color: var(--text-muted); position: relative; z-index: 1; transition: color 0.2s; font-weight: 500; }
+        .file-msg { font-size: 0.75rem; color: var(--text-muted); position: relative; z-index: 1; transition: color 0.2s; font-weight: 500; }
         .file-drop-area.is-active .file-msg { color: var(--maroon); font-weight: 700; }
 
-        .preview-container { position: absolute; inset: 0; z-index: 10; display: none; background: var(--surface); padding: 8px; border-radius: 12px; }
-        .preview-img { width: 100%; height: 100%; border-radius: 6px; cursor: zoom-in; object-fit: contain; transition: transform 0.2s ease; }
-        .remove-img-btn { position: absolute; top: 4px; right: 4px; background: var(--surface); color: var(--maroon); border: 1px solid var(--border); border-radius: 50%; width: 24px; height: 24px; font-size: 0.8rem; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: all 0.2s ease; }
+        .preview-container { position: absolute; inset: 0; z-index: 10; display: none; background: var(--surface); padding: 4px; border-radius: 8px; }
+        .preview-img { width: 100%; height: 100%; border-radius: 4px; cursor: zoom-in; object-fit: contain; transition: transform 0.2s ease; }
+        .remove-img-btn { position: absolute; top: 4px; right: 4px; background: var(--surface); color: var(--maroon); border: 1px solid var(--border); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: all 0.2s ease; }
         .remove-img-btn:hover { background: var(--maroon); color: var(--surface); transform: scale(1.1); }
 
+        .action-buttons { display: flex; gap: 12px; margin-top: 24px; }
+        
         .btn-submit {
+            flex: 1;
             background: var(--maroon);
             color: white;
-            width: 100%;
-            height: 54px;
+            height: 48px;
             border: none;
-            border-radius: 50px;
-            font-size: 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
             font-family: 'Outfit', sans-serif;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             cursor: pointer;
-            margin-top: 30px;
             transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(122, 16, 46, 0.2);
+            box-shadow: 0 6px 16px rgba(122, 16, 46, 0.2);
         }
-        .btn-submit:hover { background: var(--maroon-hover); transform: translateY(-2px); box-shadow: 0 12px 24px rgba(122, 16, 46, 0.3); }
+        .btn-submit:hover { background: var(--maroon-hover); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(122, 16, 46, 0.3); }
 
-        .alert { padding: 14px 40px; margin: 0; font-size: 0.9rem; font-weight: 700; border-bottom: 1px solid var(--border); }
+        .btn-cancel {
+            flex: 1;
+            background: #F8F6F6;
+            color: var(--text-muted);
+            height: 48px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .btn-cancel:hover { background: var(--border); color: var(--text-main); }
+
+        .alert { padding: 12px 24px; margin: 0; font-size: 0.85rem; font-weight: 700; border-bottom: 1px solid var(--border); }
         .alert-error { color: var(--maroon); background: var(--maroon-light); }
         .alert-success { color: #166534; background: #F0FDF4; }
+        .alert-warning { color: #9A6324; background: #FFF8DC; border-color: #F5DEB3; }
 
-        .custom-dropdown { position: absolute; top: calc(100% + 4px); left: 0; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; max-height: 200px; overflow-y: auto; z-index: 9999; box-shadow: 0 8px 24px rgba(122, 16, 46, 0.1); display: none; }
+        .custom-dropdown { position: absolute; top: calc(100% + 4px); left: 0; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; max-height: 180px; overflow-y: auto; z-index: 9999; box-shadow: 0 8px 20px rgba(122, 16, 46, 0.1); display: none; }
         .custom-dropdown.active { display: block; }
-        .custom-dropdown-item { padding: 10px 14px; font-size: 0.85rem; color: var(--text-main); cursor: pointer; transition: all 0.2s ease; }
+        .custom-dropdown-item { padding: 8px 12px; font-size: 0.8rem; color: var(--text-main); cursor: pointer; transition: all 0.2s ease; }
         .custom-dropdown-item:hover { background: var(--maroon-light); color: var(--maroon); font-weight: 500; }
 
         .zoom-overlay { position: fixed; inset: 0; background: rgba(248, 246, 245, 0.95); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         .zoom-overlay.active { opacity: 1; pointer-events: all; }
-        .zoom-overlay img { max-width: 90vw; max-height: 90vh; border-radius: 16px; box-shadow: 0 20px 40px rgba(122, 16, 46, 0.15); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .zoom-overlay img { max-width: 90vw; max-height: 90vh; border-radius: 12px; box-shadow: 0 20px 40px rgba(122, 16, 46, 0.15); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .zoom-overlay.active img { transform: scale(1); }
-        .zoom-close-btn { position: absolute; top: 30px; right: 40px; background: transparent; border: none; font-size: 2rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s ease; }
+        .zoom-close-btn { position: absolute; top: 24px; right: 32px; background: transparent; border: none; font-size: 1.8rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s ease; }
         .zoom-close-btn:hover { color: var(--maroon); }
 
         @media (max-width: 768px) {
-            .form-grid { grid-template-columns: 1fr; gap: 16px; }
-            .modal-form-wrapper { padding: 24px 30px; }
-            .modal-header { padding: 24px 30px 16px 30px; }
-            .close-btn { top: 22px; right: 24px; }
-            .file-drop-area { min-height: 100px; }
+            .form-grid { grid-template-columns: 1fr; gap: 12px; }
+            .span-2, .span-4 { grid-column: 1 / -1; }
+            .modal-form-wrapper { padding: 20px 24px; }
+            .modal-header { padding: 20px 24px 14px 24px; }
+            .close-btn { top: 18px; right: 20px; }
+            .action-buttons { flex-direction: column; gap: 10px; }
         }
     </style>
 </head>
@@ -407,37 +451,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
 
         <?php if ($error): ?><div class="alert alert-error"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
         <?php if ($success): ?><div class="alert alert-success"><?php echo htmlspecialchars($success, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+        <?php if ($pending_msg): ?><div class="alert alert-warning">⏳ <?php echo htmlspecialchars($pending_msg, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
 
         <div class="modal-form-wrapper">
         <form method="post" enctype="multipart/form-data" id="machineForm" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
+
             <div class="form-grid">
                 
-                <div class="section-label">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <div class="section-label span-4">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                     Basic Details
                 </div>
 
-                <div class="form-group" style="position: relative;">
+                <div class="form-group span-2" style="position: relative;">
                     <label for="brand">Brand</label>
                     <input type="text" name="brand" id="brand" autocomplete="off" required>
                     <div id="custom-brand-list" class="custom-dropdown"></div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group span-2">
                     <label for="model_no">Model Number</label>
                     <input type="text" name="model_no" id="model_no" autocomplete="off" required>
                     <div class="helper-text">*Determines the file names.</div>
-                    
                     <div id="model-warning" class="duplicate-warning"></div>
                 </div>
 
-                <div class="form-group full-width">
+                <div class="form-group span-4">
                     <label for="description">Description</label>
                     <textarea name="description" id="description" autocomplete="off" required></textarea>
                 </div>
 
-                <div class="section-label">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                <div class="section-label span-4">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                     Pricing Data
                 </div>
 
@@ -467,15 +513,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                     </div>
                 </div>
 
-                <div class="section-label">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                <div class="section-label span-4">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     Media & Documents
                 </div>
 
-                <div class="form-group">
+                <div class="form-group span-2">
                     <label for="picture">Product Image</label>
                     <div class="file-drop-area" id="drop-area">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                         <span class="file-msg" id="file-msg">Drop or Paste (Ctrl+V)</span>
                         
                         <div class="preview-container" id="preview-container">
@@ -487,10 +533,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                     </div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group span-2">
                     <label for="pdf_file">Specification PDF (Optional)</label>
                     <div class="file-drop-area" id="pdf-drop-area">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
                         <span class="file-msg" id="pdf-file-msg">Browse or Drop PDF</span>
                         <input type="file" name="pdf_file" id="pdf_file" class="file-input" accept="application/pdf">
                     </div>
@@ -498,7 +544,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
 
             </div>
 
-            <button type="submit" class="btn-submit">Save to Inventory</button>
+            <div class="action-buttons">
+                <a href="index.php" class="btn-cancel">Cancel</a>
+                <button type="submit" class="btn-submit">
+                    <?php echo in_array($user_role, ['admin', 'super_admin']) ? 'Save to Live Inventory' : 'Submit for Approval'; ?>
+                </button>
+            </div>
         </form>
         </div>
     </div>
@@ -509,9 +560,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
     </div>
 
    <script>
-        // ==========================================
-        // 1. AJAX DUPLICATE CHECKER (REAL-TIME)
-        // ==========================================
         const modelInput = document.getElementById('model_no');
         const modelWarning = document.getElementById('model-warning');
         let duplicateDebounceTimer;
@@ -519,64 +567,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
         modelInput.addEventListener('input', function() {
             clearTimeout(duplicateDebounceTimer);
             modelWarning.style.display = 'none'; 
-            
             const val = this.value.trim();
             if (val.length > 2) {
-                // Wait 500ms after typing to check DB
                 duplicateDebounceTimer = setTimeout(() => {
                     fetch('', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'ajax_check_model=1&model_no=' + encodeURIComponent(val)
-                    })
-                    .then(res => res.json())
-                    .then(data => {
+                    }).then(res => res.json()).then(data => {
                         if (data.exists) {
                             modelWarning.innerHTML = '⚠️ Exists under brand: ' + data.brands.join(', ');
                             modelWarning.style.display = 'block';
                         }
-                    })
-                    .catch(err => console.error(err));
+                    }).catch(err => console.error(err));
                 }, 500);
             }
         });
 
-        // ==========================================
-        // 2. COMMA FORMATTER (000,000.00) & PRICING
-        // ==========================================
         const costInput = document.getElementById('buying_cost');
         const factorInput = document.getElementById('factor');
         const priceInput = document.getElementById('selling_price');
 
-        function unformat(val) {
-            return parseFloat(val.toString().replace(/,/g, '')) || 0;
-        }
+        function unformat(val) { return parseFloat(val.toString().replace(/,/g, '')) || 0; }
 
         function calculatePrice() {
             const cost = unformat(costInput.value);
             const factor = parseFloat(factorInput.value) || 0;
-            
-            if (factor <= 0 && factorInput.value !== '') {
-                factorInput.setCustomValidity("Factor must be greater than 0");
-            } else {
-                factorInput.setCustomValidity("");
-            }
+            if (factor <= 0 && factorInput.value !== '') factorInput.setCustomValidity("Factor must be greater than 0");
+            else factorInput.setCustomValidity("");
 
             const total = cost * factor;
-            if (total > 0) {
-                priceInput.value = total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            } else {
-                priceInput.value = '';
-            }
+            if (total > 0) priceInput.value = total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            else priceInput.value = '';
         }
 
         costInput.addEventListener('blur', function() {
             let val = unformat(this.value);
-            if (val > 0) {
-                this.value = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            } else {
-                this.value = '';
-            }
+            if (val > 0) this.value = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            else this.value = '';
             calculatePrice();
         });
 
@@ -587,10 +615,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
 
         factorInput.addEventListener('input', calculatePrice);
 
-
-        // ==========================================
-        // 3. EXCEL TEXT PASTE CLEANER
-        // ==========================================
         document.querySelectorAll('input[type="text"], textarea').forEach(input => {
             input.addEventListener('paste', function(e) {
                 let pastedText = (e.clipboardData || window.clipboardData).getData('text');
@@ -606,9 +630,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             });
         });
 
-        // ==========================================
-        // 4. IMAGE UPLOAD, PASTE, REMOVE & ZOOM
-        // ==========================================
         const fileInput = document.getElementById('picture');
         const fileMsg = document.getElementById('file-msg');
         const dropArea = document.getElementById('drop-area');
@@ -626,31 +647,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             imagePreview.src = '';
         }
 
-        removeBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation(); 
-            resetImage();
-        });
-
-        imagePreview.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation(); 
-            zoomedImage.src = this.src;
-            zoomOverlay.classList.add('active');
-        });
-
+        removeBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); resetImage(); });
+        imagePreview.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); zoomedImage.src = this.src; zoomOverlay.classList.add('active'); });
         zoomClose.addEventListener('click', () => zoomOverlay.classList.remove('active'));
-        zoomOverlay.addEventListener('click', function(e) {
-            if (e.target === this) zoomOverlay.classList.remove('active');
-        });
+        zoomOverlay.addEventListener('click', function(e) { if (e.target === this) zoomOverlay.classList.remove('active'); });
 
         document.addEventListener('paste', function(e) {
             const activeTag = document.activeElement ? document.activeElement.tagName : '';
-            if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') { return; }
-
+            if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
             const clipboardData = e.clipboardData || window.clipboardData;
             if (!clipboardData) return;
-
             const items = clipboardData.items;
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
@@ -660,10 +666,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                     const dataTransfer = new DataTransfer();
                     const file = new File([blob], "pasted_image_" + Date.now() + ".png", { type: blob.type });
                     dataTransfer.items.add(file);
-                    
                     fileInput.files = dataTransfer.files;
                     fileInput.dispatchEvent(new Event('change'));
-                    
                     dropArea.style.backgroundColor = 'var(--maroon-light)';
                     setTimeout(() => { dropArea.style.backgroundColor = ''; }, 200);
                     return; 
@@ -675,21 +679,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             if (this.files && this.files.length > 0) {
                 const file = this.files[0];
                 dropArea.classList.add('is-active');
-                
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    imagePreview.src = e.target.result;
-                    previewContainer.style.display = 'block';
-                }
+                reader.onload = function(e) { imagePreview.src = e.target.result; previewContainer.style.display = 'block'; }
                 reader.readAsDataURL(file);
-            } else {
-                resetImage();
-            }
+            } else resetImage();
         });
 
-        // ==========================================
-        // 5. PDF UPLOAD LOGIC
-        // ==========================================
         const pdfInput = document.getElementById('pdf_file');
         const pdfMsg = document.getElementById('pdf-file-msg');
         const pdfDropArea = document.getElementById('pdf-drop-area');
@@ -704,59 +699,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             }
         });
 
-        // ==========================================
-        // 6. SMART BRAND DROPDOWN LOGIC
-        // ==========================================
         let allBrands = [];
         const brandInput = document.getElementById('brand');
         const customDropdown = document.getElementById('custom-brand-list');
 
         async function loadBrandSuggestions() {
-            try {
-                const response = await fetch('get_brands.php');
-                allBrands = await response.json();
-            } catch (error) {
-                console.log('Could not load brand suggestions');
-            }
+            try { const response = await fetch('get_brands.php'); allBrands = await response.json(); } 
+            catch (error) { console.log('Could not load brand suggestions'); }
         }
 
         function showBrands(filterText = '') {
             customDropdown.innerHTML = '';
             const val = filterText.trim().toLowerCase();
-            
-            const filteredBrands = allBrands.filter(brand => 
-                brand.toLowerCase().includes(val)
-            );
+            const filteredBrands = allBrands.filter(brand => brand.toLowerCase().includes(val));
 
             if (filteredBrands.length > 0) {
                 filteredBrands.forEach(brand => {
                     const div = document.createElement('div');
                     div.className = 'custom-dropdown-item';
                     div.textContent = brand;
-                    
-                    div.addEventListener('click', function(e) {
-                        e.stopPropagation(); 
-                        brandInput.value = brand;
-                        customDropdown.classList.remove('active');
-                    });
-                    
+                    div.addEventListener('click', function(e) { e.stopPropagation(); brandInput.value = brand; customDropdown.classList.remove('active'); });
                     customDropdown.appendChild(div);
                 });
                 customDropdown.classList.add('active'); 
-            } else {
-                customDropdown.classList.remove('active');
-            }
+            } else customDropdown.classList.remove('active');
         }
 
         brandInput.addEventListener('focus', function() { showBrands(this.value); });
         brandInput.addEventListener('input', function() { showBrands(this.value); });
-
-        document.addEventListener('click', function(e) {
-            if (e.target !== brandInput && e.target !== customDropdown) {
-                customDropdown.classList.remove('active');
-            }
-        });
-
+        document.addEventListener('click', function(e) { if (e.target !== brandInput && e.target !== customDropdown) customDropdown.classList.remove('active'); });
         loadBrandSuggestions();
     </script>
 </body>

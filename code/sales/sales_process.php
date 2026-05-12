@@ -82,23 +82,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             die("Invalid Quote Type.");
         }
 
-        // --- INTERCEPTION POINT FOR EMPLOYEES ---
         log_activity($pdo, 'QUOTE_CREATED', "Generated Sales Quote #{$trans['quotation_no']}");
-
-        if (!has_role(['admin', 'super_admin'])) {
-            $pdo->commit();
-            if (session_status() === PHP_SESSION_NONE) session_start();
-            $_SESSION['flash'] = [
-                'type' => 'success',
-                'message' => "Quotation #{$trans['quotation_no']} submitted successfully and is pending Admin approval."
-            ];
-            header("Location: ../index.php");
-            exit;
-        }
 
         $pdo->commit();
 
-        // GENERATE THE PDF
+        // GENERATE THE PDF FOR EVERYONE (NO ADMIN RESTRICTION)
         $options = new Options();
         $options->set('isRemoteEnabled', true); 
         $options->set('dpi', 150); 
@@ -106,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $dompdf = new Dompdf($options);
         ob_start();
-        include $pdf_template; // The template will now have access to $paper_size
+        include $pdf_template; 
         $html = ob_get_clean();
 
         $dompdf->loadHtml($html);
@@ -120,7 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 } catch (Exception $e) {
         if ($pdo->inTransaction()) { $pdo->rollBack(); }
         
-        // Safely grab the quotation number, falling back to POST data if $trans isn't defined yet
         $failed_quote_no = $trans['quotation_no'] ?? $_POST['quotation_no'] ?? 'Unknown';
         
         if ($e->getCode() == 23000) { 

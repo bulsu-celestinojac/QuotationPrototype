@@ -218,7 +218,7 @@ $default_quote_num = date('ydm') . '_AMG_' . str_pad($nextId, 4, '0', STR_PAD_LE
             <a href="../index.php" class="btn-back">← Back to Inventory</a>
         </div>
 
-        <form action="sales_process.php" method="POST" autocomplete="off" id="salesQuoteForm">
+        <form action="sales_process.php" method="POST" target="_blank autocomplete="off" id="salesQuoteForm">
             <input type="hidden" name="quote_type" value="sales">
             
             <div class="layout-grid">
