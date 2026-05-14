@@ -62,16 +62,21 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         textarea { resize: vertical; min-height: 80px; }
         .readonly-input { background: transparent !important; border: 1px solid var(--border) !important; color: var(--text-muted) !important; pointer-events: none; font-weight: 800; letter-spacing: 1px; }
         label.required::after { content: ' *'; color: var(--maroon); font-weight: 900; font-size: 0.8rem; }
+        
         .machine-items-container { display: flex; flex-direction: column; gap: 12px; max-height: 50vh; overflow-y: auto; padding-right: 8px; margin-bottom: 24px; }
-        .machine-item { display: grid; grid-template-columns: 64px 1fr 80px; gap: 20px; align-items: center; padding: 16px 20px; border: 1px solid var(--border); border-radius: 16px; }
+        
+        .machine-item { display: grid; grid-template-columns: 64px 1fr 120px 80px; gap: 16px; align-items: center; padding: 16px 20px; border: 1px solid var(--border); border-radius: 16px; }
+        
         .machine-img { width: 64px; height: 64px; border-radius: 10px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; padding: 4px; background: #FAFAF9; }
         .machine-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
         .machine-info { flex: 1; min-width: 0; }
         .m-brand { font-size: 0.65rem; font-weight: 800; color: var(--maroon); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
         .m-model { font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
-        .m-price { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin-top: 4px; }
         .control-group { display: flex; flex-direction: column; gap: 6px; }
+        
         .input-qty-edit { width: 100%; text-align: center; padding: 10px 4px !important; background: #FAFAF9 !important; border: 1px solid var(--border) !important; border-radius: 8px !important; font-size: 1.05rem !important; font-weight: 700 !important; color: var(--text-main) !important; margin: 0; }
+        .input-price-edit { width: 100%; text-align: right; padding: 10px 8px !important; background: #FAFAF9 !important; border: 1px solid var(--border) !important; border-radius: 8px !important; font-size: 0.95rem !important; font-weight: 700 !important; color: var(--maroon) !important; margin: 0; }
+
         .financial-summary-block { background: #FAFAF9; padding: 24px; border-radius: 16px; border: 1px dashed var(--border); margin-bottom: 24px; }
         .summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .summary-row.total-row { border-top: 2px dashed var(--border); padding-top: 16px; margin-top: 16px; margin-bottom: 0; }
@@ -162,7 +167,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                             
                             <div class="form-group full-width" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border);">
                                 <label style="color: var(--maroon);">Special Corporate Discount (₱) - Applied to Grand Total</label>
-                                <input type="number" name="corporate_discount" id="corporate_discount" value="0" step="0.01" min="0" autocomplete="off" required style="font-size: 1.15rem; font-weight: 700; color: var(--maroon);">
+                                <input type="text" name="corporate_discount" id="corporate_discount" value="0.00" autocomplete="off" required style="font-size: 1.15rem; font-weight: 700; color: var(--maroon);">
                             </div>
                             
                             <div class="form-group full-width">
@@ -189,8 +194,13 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                                     <div class="machine-info">
                                         <div class="m-brand"><?=htmlspecialchars($machine['brand'])?></div>
                                         <div class="m-model" title="<?=htmlspecialchars($machine['model_no'])?>"><?=htmlspecialchars($machine['model_no'])?></div>
-                                        <div class="m-price" data-price="<?=$machine['selling_price']?>">₱<?=number_format($machine['selling_price'], 2)?></div>
                                     </div>
+                                    
+                                    <div class="control-group">
+                                        <label style="color: var(--maroon);">Price (₱)</label>
+                                        <input type="text" name="items[<?=$index?>][price]" class="input-price-edit calc-price" value="<?= number_format((float)$machine['selling_price'], 2) ?>" autocomplete="off" required>
+                                    </div>
+
                                     <div class="control-group">
                                         <label>QTY</label>
                                         <input type="number" name="items[<?=$index?>][qty]" class="input-qty-edit calc-qty" value="1" min="1" autocomplete="off" required>
@@ -227,42 +237,58 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Live Total Calculation
             const qtyInputs = document.querySelectorAll('.calc-qty');
+            const priceInputs = document.querySelectorAll('.calc-price');
             const discountInput = document.getElementById('corporate_discount');
             const subtotalEl = document.getElementById('live-subtotal');
             const discountEl = document.getElementById('live-discount');
             const totalEl = document.getElementById('live-total');
 
+            function unformat(val) { return parseFloat(val.toString().replace(/,/g, '')) || 0; }
+            function format(val) { return val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+
             function calculateLiveTotals() {
                 let subtotal = 0;
                 document.querySelectorAll('.machine-item').forEach(item => {
-                    const price = parseFloat(item.querySelector('.m-price').getAttribute('data-price')) || 0;
-                    const qty = parseInt(item.querySelector('.calc-qty').value) || 0;
+                    const price = unformat(item.querySelector('.calc-price').value);
+                    const qty = unformat(item.querySelector('.calc-qty').value);
                     subtotal += (price * qty);
                 });
-                const discount = parseFloat(discountInput.value) || 0;
+                const discount = unformat(discountInput.value);
                 const total = Math.max(0, subtotal - discount);
 
-                subtotalEl.textContent = '₱' + subtotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                discountEl.textContent = '- ₱' + discount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                totalEl.textContent = '₱' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                subtotalEl.textContent = '₱' + format(subtotal);
+                discountEl.textContent = '- ₱' + format(discount);
+                totalEl.textContent = '₱' + format(total);
             }
 
             qtyInputs.forEach(input => input.addEventListener('input', calculateLiveTotals));
+            priceInputs.forEach(input => input.addEventListener('input', calculateLiveTotals));
             discountInput.addEventListener('input', calculateLiveTotals);
             calculateLiveTotals();
 
-            // Dynamic Quotation Number Engine
+            document.querySelectorAll('.calc-price, #corporate_discount').forEach(input => {
+                input.addEventListener('blur', function() {
+                    let val = unformat(this.value);
+                    this.value = format(val);
+                    calculateLiveTotals();
+                });
+                input.addEventListener('focus', function() {
+                    let val = unformat(this.value);
+                    if(val > 0) this.value = val;
+                    else this.value = '';
+                });
+            });
+
             const dateInput = document.getElementById('quote_date');
             const quoteNoInput = document.getElementById('quotation_no');
             const nextIdStr = "<?= $paddedId ?>";
 
             dateInput.addEventListener('change', function() {
                 if(this.value) {
-                    const dateParts = this.value.split('-'); // format from picker is YYYY-MM-DD
+                    const dateParts = this.value.split('-'); 
                     if(dateParts.length === 3) {
-                        const yy = dateParts[0].substring(2); // Extracts '26' from '2026'
+                        const yy = dateParts[0].substring(2); 
                         const mm = dateParts[1];
                         const dd = dateParts[2];
                         quoteNoInput.value = yy + mm + dd + '_AMG_' + nextIdStr;

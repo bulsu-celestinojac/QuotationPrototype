@@ -34,6 +34,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
             $stmt = $pdo->prepare("UPDATE {$table} SET status = ?, admin_notes = ?, is_notified = 1 WHERE id = ?");
             $stmt->execute([$new_status, $notes, $quote_id]);
             
+            // ==========================================
+            // AUTO-SYNC PRICE ENGINE (Updates Master Inventory)
+            // ==========================================
+            if ($action === 'approve_quote' && $type === 'sales') {
+                $stmtFetchItems = $pdo->prepare("SELECT item_id, unit_price FROM sales_quotation_items WHERE quotation_id = ?");
+                $stmtFetchItems->execute([$quote_id]);
+                $quoteItems = $stmtFetchItems->fetchAll();
+                
+                $stmtUpdateMasterPrice = $pdo->prepare("UPDATE items SET selling_price = ? WHERE id = ?");
+                foreach ($quoteItems as $qi) {
+                    $stmtUpdateMasterPrice->execute([$qi['unit_price'], $qi['item_id']]);
+                }
+            }
+            
             $action_text = ($action === 'approve_quote') ? "Approved to Super Admin" : "Requested Revision";
             log_activity($pdo, 'ADMIN_REVIEW', "Admin {$action_text} for {$type} quote ID: {$quote_id}");
             
@@ -301,7 +315,7 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
                                         
                                         <input type="text" name="admin_notes" class="note-input" placeholder="Notes (Optional)...">
                                         
-                                        <button type="submit" name="action" value="approve_quote" class="btn btn-approve" onclick="return confirm('Send to Super Admin for final check?');">Approve</button>
+                                        <button type="submit" name="action" value="approve_quote" class="btn btn-approve" onclick="return confirm('Approve quote? Note: This will sync the custom prices to the master inventory database.');">Approve</button>
                                         <button type="submit" name="action" value="reject_quote" class="btn btn-reject" onclick="return confirm('Reject and request revision?');">Reject</button>
                                     </form>
                                 </td>

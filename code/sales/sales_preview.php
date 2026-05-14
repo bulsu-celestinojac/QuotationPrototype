@@ -13,13 +13,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($items)) die("No items selected.");
 
     $trans = $_POST; 
+    
+    // Safely strip commas from the submitted corporate discount!
+    $trans['corporate_discount'] = (float)str_replace(',', '', $_POST['corporate_discount'] ?? 0);
+    
     $payload_items = [];
-
-    $stmtItemFetch = $pdo->prepare("SELECT brand, model_no, description, picture, selling_price FROM items WHERE id = ?");
+    $stmtItemFetch = $pdo->prepare("SELECT brand, model_no, description, picture FROM items WHERE id = ?");
 
     foreach ($items as $item) {
         $item_id = (int)$item['id'];
         $qty = (int)$item['qty'];
+        
+        // Safely strip commas from the custom entered item price!
+        $custom_price = (float)str_replace(',', '', $item['price'] ?? 0);
+
         $stmtItemFetch->execute([$item_id]);
         $machineData = $stmtItemFetch->fetch();
 
@@ -30,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'description' => $machineData['description'],
                 'picture' => $machineData['picture'], 
                 'qty' => $qty,
-                'unit_price' => $machineData['selling_price']
+                'unit_price' => $custom_price
             ];
         }
     }
@@ -52,7 +59,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $dompdf->setPaper('A4', 'portrait');
     $dompdf->render();
     
-    // Generates a temporary PREVIEW PDF
     $dompdf->stream("PREVIEW_" . $trans['quotation_no'] . ".pdf", ["Attachment" => false]);
     exit;
 }

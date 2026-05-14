@@ -251,7 +251,7 @@ if (file_exists($logoPath)) {
                     }
                     
                     $qty = (int)($item['qty'] ?? 1);
-                    $price = (float)($item['unit_price'] ?? 0);
+                    $price = (float)str_replace(',', '', $item['unit_price'] ?? 0);
                     $lineTotal = $qty * $price;
                     $subtotal += $lineTotal;
             ?>
@@ -282,7 +282,7 @@ if (file_exists($logoPath)) {
     </table>
 
     <?php
-        $discount = (float)($trans['corporate_discount'] ?? 0);
+        $discount = (float)str_replace(',', '', $trans['corporate_discount'] ?? 0);
         $netTotal = max(0, $subtotal - $discount);
     ?>
     <table class="summary-table">
