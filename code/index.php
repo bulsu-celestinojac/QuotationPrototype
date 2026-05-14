@@ -121,6 +121,17 @@ foreach ($items as $item) {
         .cart-trigger.has-items { background: var(--maroon); color: white; border-color: var(--maroon); box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); }
         .cart-trigger.has-items:hover { background: #6A0D28; border-color: #6A0D28; color: white; }
 
+        /* PULSING NOTIFICATION BADGE */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .notif-badge {
+            position: absolute; top: -6px; right: -6px; background: var(--danger); color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 4px 8px rgba(239,68,68,0.3);
+            animation: pulse-ring 2s infinite;
+        }
+
         .btn-logout { background: #FFF5F5 !important; color: var(--danger) !important; border-color: #FECACA !important; }
         .btn-logout:hover { background: var(--danger) !important; color: white !important; border-color: var(--danger) !important; box-shadow: 0 8px 20px rgba(239, 68, 68, 0.2) !important; }
 
@@ -162,6 +173,7 @@ foreach ($items as $item) {
         .cart-item-info .c-model { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 1.15rem; color: var(--text-main); margin-top: 2px; }
         .btn-remove { background: #FFF5F7; border: 1px solid rgba(139, 21, 56, 0.15); color: var(--maroon); font-size: 0.7rem; text-transform: uppercase; font-weight: 800; cursor: pointer; padding: 8px 14px; border-radius: 50px; transition: all 0.2s ease; letter-spacing: 0.05em; }
         .btn-remove:hover { background: var(--maroon); color: white; box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2); transform: translateY(-1px); }
+        
         .cart-footer { padding: 30px; border-top: 1px solid var(--border); background: var(--surface); }
         .btn-checkout { width: 100%; height: 56px; font-size: 1rem; background: var(--maroon); color: white; border: none; border-radius: 50px; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: background 0.3s; }
         .btn-checkout:hover { background: #5A0000; }
@@ -252,7 +264,7 @@ foreach ($items as $item) {
                     <a href="history.php" class="btn" style="position: relative;">
                         📜 My Quotes
                         <?php if($unreadNotifs > 0): ?>
-                            <span style="position: absolute; top: -6px; right: -6px; background: var(--danger); color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 4px 8px rgba(239,68,68,0.3);"><?= $unreadNotifs ?></span>
+                            <span class="notif-badge"><?= $unreadNotifs ?></span>
                         <?php endif; ?>
                     </a>
                 <?php endif; ?>
@@ -323,6 +335,12 @@ foreach ($items as $item) {
         </div>
         <div class="cart-items" id="cartItemsList"></div>
         <div class="cart-footer">
+            
+            <div class="cart-total-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Est. Base Total</span>
+                <span id="cartTotalPrice" style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 900; color: var(--maroon);">₱0.00</span>
+            </div>
+
             <form action="sales/sales_form.php" method="POST" id="quoteForm">
                 <input type="hidden" name="selected_items" id="selectedItemsInput">
                 <button type="submit" class="btn-checkout" id="btnProceed" disabled>Proceed to Quotation</button>
@@ -513,18 +531,32 @@ foreach ($items as $item) {
             const listContainer = document.getElementById('cartItemsList');
             listContainer.innerHTML = ''; 
             
+            let cartTotal = 0; // Initialize Total Counter
+
             cartData.forEach(item => {
+                const data = itemDatabase[item.id];
+                const price = data ? parseFloat(data.selling_price) || 0 : 0;
+                cartTotal += price; // Add to Live Total
+
                 const row = document.createElement('div');
                 row.className = 'cart-item-row';
+                // Added the dynamic price string beneath the model name
                 row.innerHTML = `
                     <div class="cart-item-info">
                         <div class="c-brand">${item.brand || 'Unbranded'}</div>
                         <div class="c-model">${item.model}</div>
+                        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-top: 4px;">₱${price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                     </div>
                     <button class="btn-remove" onclick="removeCartItem(${item.id})">Remove</button>
                 `;
                 listContainer.appendChild(row);
             });
+
+            // Update Total UI element
+            const cartTotalEl = document.getElementById('cartTotalPrice');
+            if(cartTotalEl) {
+                cartTotalEl.textContent = '₱' + cartTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
 
             document.querySelectorAll('.card').forEach(card => card.classList.remove('is-selected'));
             cartData.forEach(item => {
