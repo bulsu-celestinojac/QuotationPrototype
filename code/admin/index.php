@@ -23,20 +23,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
     } else {
         $quote_id = (int)$_POST['quote_id'];
         $action = $_POST['action']; 
-        $type = $_POST['type']; // 'sales' or 'project'
-        $notes = trim($_POST['admin_notes'] ?? '');
+        $type = $_POST['type']; 
+        $notes = ''; // Notes removed per request
         
         $table = ($type === 'project') ? 'project_quotations' : 'sales_quotations';
         $new_status = ($action === 'approve_quote') ? 'pending_super' : 'revision';
         
         try {
-            // NOTIFICATION ENGINE WIRED: is_notified = 1 added to flag the user!
             $stmt = $pdo->prepare("UPDATE {$table} SET status = ?, admin_notes = ?, is_notified = 1 WHERE id = ?");
             $stmt->execute([$new_status, $notes, $quote_id]);
             
-            // ==========================================
             // AUTO-SYNC PRICE ENGINE (Updates Master Inventory)
-            // ==========================================
             if ($action === 'approve_quote' && $type === 'sales') {
                 $stmtFetchItems = $pdo->prepare("SELECT item_id, unit_price FROM sales_quotation_items WHERE quotation_id = ?");
                 $stmtFetchItems->execute([$quote_id]);
@@ -48,10 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                 }
             }
             
-            $action_text = ($action === 'approve_quote') ? "Approved to Super Admin" : "Requested Revision";
-            log_activity($pdo, 'ADMIN_REVIEW', "Admin {$action_text} for {$type} quote ID: {$quote_id}");
-            
-            $success = "Quotation successfully processed and updated.";
+            $success = "Quotation successfully processed.";
         } catch (Exception $e) {
             $error = "Database error processing quotation.";
         }
@@ -59,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 }
 
 // ==========================================
-// 2. PROCESS INVENTORY APPROVALS (Add/Update)
+// 2. PROCESS INVENTORY APPROVALS
 // ==========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['approve_inv', 'reject_inv'])) {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
@@ -85,7 +79,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                                 $pending['picture'], $pending['buying_currency'], $pending['buying_cost'], 
                                 $pending['factor'], $pending['selling_price'], $pending['pdf_path']
                             ]);
-                            log_activity($pdo, 'ADMIN_REVIEW', "Approved NEW machine request: {$pending['brand']} {$pending['model_no']}");
                             $success = "New machine added to live inventory.";
                         } 
                         elseif ($pending['action_type'] === 'edit') {
@@ -96,7 +89,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                                 $pending['selling_price'], $pending['picture'], $pending['pdf_path'], 
                                 $pending['item_id']
                             ]);
-                            log_activity($pdo, 'ADMIN_REVIEW', "Approved UPDATE request for Machine ID #{$pending['item_id']}");
                             $success = "Machine #{$pending['item_id']} updated in live inventory.";
                         }
 
@@ -112,7 +104,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                 elseif ($action === 'reject_inv') {
                     $rejectStmt = $pdo->prepare("UPDATE pending_approvals SET status = 'rejected' WHERE id = ?");
                     if ($rejectStmt->execute([$approval_id])) {
-                        log_activity($pdo, 'ADMIN_REVIEW', "REJECTED inventory database request for: {$pending['brand']} {$pending['model_no']}");
                         $success = "Inventory request has been rejected and discarded.";
                     }
                 }
@@ -124,21 +115,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 }
 
 // ==========================================
-// 3. FETCH DATASETS FOR TABS
+// 3. FETCH DATASETS & COUNTS
 // ==========================================
+// Fetch Pending Sales + Username
+$sales_pending = $pdo->query("SELECT sq.*, u.username FROM sales_quotations sq LEFT JOIN users u ON sq.user_id = u.id WHERE sq.status = 'pending_admin' ORDER BY sq.created_at DESC")->fetchAll();
+$sales_count = count($sales_pending);
 
-$sales_pending = $pdo->query("SELECT * FROM sales_quotations WHERE status = 'pending_admin' ORDER BY created_at DESC")->fetchAll();
+// Fetch Pending Projects 
 $project_pending = $pdo->query("SELECT * FROM project_quotations WHERE status = 'pending_admin' ORDER BY created_at DESC")->fetchAll();
+$project_count = count($project_pending);
 
-$pending_inventory = $pdo->query("
-    SELECT p.*, u.username as requested_by_name 
-    FROM pending_approvals p 
-    JOIN users u ON p.requested_by = u.id 
-    WHERE p.status = 'pending' 
-    ORDER BY p.created_at ASC
-")->fetchAll();
+// Fetch Pending Inventory
+$pending_inventory = $pdo->query("SELECT p.*, u.username as requested_by_name FROM pending_approvals p JOIN users u ON p.requested_by = u.id WHERE p.status = 'pending' ORDER BY p.created_at ASC")->fetchAll();
+$inv_count = count($pending_inventory);
 
-$history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 100")->fetchAll();
+// Fetch Quotation History (Fixed: Using created_at instead of updated_at)
+$history_stmt = $pdo->query("
+    SELECT 'Sales' as quote_type, quotation_no, client_name as reference_name, status, created_at 
+    FROM sales_quotations 
+    WHERE status != 'pending_admin' AND status != 'draft'
+    UNION ALL
+    SELECT 'Project' as quote_type, quotation_no, project_name as reference_name, status, created_at 
+    FROM project_quotations 
+    WHERE status != 'pending_admin' AND status != 'draft'
+    ORDER BY created_at DESC
+    LIMIT 150
+");
+$quote_history = $history_stmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -146,118 +149,126 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
     <meta charset="UTF-8">
     <title>Admin Command Center - AM Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #F8F9FA;
-            --surface: #FFFFFF;
-            --text-main: #111827;
-            --text-muted: #6B7280;
-            --border: #E5E7EB;
-            --maroon: #7A102E; 
-            --maroon-hover: #5A081E;
-            --maroon-light: #FFF5F7;
+        :root { 
+            --bg: #FAFAFA; 
+            --surface: #FFFFFF; 
+            --text-main: #18181B; 
+            --text-muted: #71717A; 
+            --text-light: #A1A1AA; 
+            --border: #E4E4E7; 
+            --maroon: #8B1538; 
+            --maroon-hover: #6A0D28;
+            --maroon-light: #FFF5F7; 
+            --input-bg: #F4F4F5;
             --success: #10B981;
             --danger: #EF4444;
             --warning: #F59E0B;
         }
         
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 40px 20px; min-height: 100vh; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); padding: 30px 20px; min-height: 100vh; }
         .container { max-width: 1400px; margin: 0 auto; }
         
         /* HEADER */
-        .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 20px; }
-        .header h1 { font-family: 'Outfit', sans-serif; font-size: 2.5rem; font-weight: 900; color: var(--text-main); margin: 0; text-transform: uppercase; letter-spacing: -0.02em; }
+        .header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 20px; flex-wrap: wrap; gap: 20px; }
+        .header h1 { font-family: 'Outfit', sans-serif; font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1; color: var(--text-main); }
         .header h1 span { color: var(--maroon); }
-        .header-controls { display: flex; gap: 12px; }
-        .btn-nav { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-        .btn-nav:hover { border-color: var(--maroon); color: var(--maroon); transform: translateY(-2px); }
+        
+        .header-controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn-nav { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 50px; color: var(--text-main); text-decoration: none; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.02); white-space: nowrap; }
+        .btn-nav:hover { border-color: var(--maroon); color: var(--maroon); transform: translateY(-2px); box-shadow: 0 8px 15px rgba(139, 21, 56, 0.08); }
         .btn-logout { background: #FEF2F2 !important; color: #EF4444 !important; border-color: #FECACA !important; }
-        .btn-logout:hover { background: #EF4444 !important; color: white !important; }
+        .btn-logout:hover { background: #EF4444 !important; color: white !important; box-shadow: 0 8px 15px rgba(239, 68, 68, 0.2); }
 
         /* ALERTS */
-        .alert { padding: 14px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; animation: slideDown 0.3s ease; }
+        .alert { padding: 14px 20px; border-radius: 12px; font-size: 0.9rem; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; animation: slideDown 0.3s ease; }
         @keyframes slideDown { from{ opacity:0; transform: translateY(-10px); } to{ opacity:1; transform: translateY(0); } }
-        .alert-success { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; border-left: 4px solid var(--success); }
-        .alert-error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; border-left: 4px solid var(--danger); }
+        .alert-success { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+        .alert-error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
 
         /* TABS NAVIGATION */
-        .tabs-nav { display: flex; gap: 10px; margin-bottom: 24px; overflow-x: auto; padding-bottom: 4px; }
+        .tabs-nav { display: flex; gap: 8px; margin-bottom: 30px; overflow-x: auto; padding-bottom: 4px; border-bottom: 1px solid var(--border); -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .tabs-nav::-webkit-scrollbar { display: none; }
         .tab-btn {
-            background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
-            padding: 12px 24px; border-radius: 50px; font-family: 'Outfit', sans-serif; font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
-            cursor: pointer; transition: all 0.2s ease; white-space: nowrap; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--text-muted);
+            padding: 12px 16px; font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+            cursor: pointer; transition: all 0.3s ease; white-space: nowrap; border-radius: 0; display: flex; align-items: center; gap: 8px;
         }
-        .tab-btn:hover { border-color: var(--maroon); color: var(--maroon); }
-        .tab-btn.active { background: var(--maroon); color: white; border-color: var(--maroon); box-shadow: 0 8px 16px rgba(122, 16, 46, 0.2); }
-
-        .tab-content { display: none; animation: fadeIn 0.3s ease; }
-        .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* CARD & TABLE SYSTEM */
-        .card { background: var(--surface); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid var(--border); }
-        .card h2 { font-family: 'Outfit', sans-serif; font-size: 1.4rem; color: var(--maroon); margin-bottom: 20px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+        .tab-btn:hover { color: var(--maroon); }
+        .tab-btn.active { color: var(--maroon); border-bottom-color: var(--maroon); }
         
-        .table-responsive { overflow-x: auto; }
+        .badge-count { background: var(--danger); color: white; padding: 2px 8px; border-radius: 50px; font-size: 0.75rem; font-weight: 900; line-height: 1; }
+
+        .tab-content { display: none; animation: fadeIn 0.4s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CARDS */
+        .card { background: var(--surface); border-radius: 20px; padding: 30px; margin-bottom: 32px; border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 10px 40px rgba(0,0,0,0.03); overflow: hidden; }
+        .card h2 { font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 800; margin-bottom: 24px; border-bottom: 2px solid var(--border); padding-bottom: 16px; color: var(--text-main); }
+        
+        /* TABLES */
+        .table-responsive { overflow-x: auto; margin: 0 -10px; padding: 0 10px; -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; min-width: 800px; }
-        th, td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border); }
-        th { background: #F9FAFB; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; letter-spacing: 0.05em; border-top: 1px solid var(--border); }
-        td { font-size: 0.95rem; vertical-align: middle; }
-        tr:hover td { background: #F9FAFB; }
+        th, td { padding: 16px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { font-size: 0.75rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; background: #FAFAF9; border-radius: 8px 8px 0 0; }
+        td { font-size: 0.95rem; font-weight: 500; vertical-align: middle; }
+        tr:hover td { background: #FAFAF9; }
 
-        /* QUOTE CONTROLS */
+        /* CONTROLS */
         .quote-form { display: flex; align-items: center; gap: 10px; margin: 0; }
-        .note-input { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; width: 200px; outline: none; transition: 0.2s; }
-        .note-input:focus { border-color: var(--maroon); box-shadow: 0 0 0 3px var(--maroon-light); }
-
+        
         /* BUTTONS */
-        .btn { padding: 10px 16px; font-weight: 800; border: none; border-radius: 8px; cursor: pointer; font-size: 0.8rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; }
-        .btn-pdf { background: #EEF2FF; color: #1D4ED8; border: 1px solid #C7D2FE; }
-        .btn-pdf:hover { background: #1D4ED8; color: white; }
-        .btn-approve { background: #ECFDF5; color: var(--success); border: 1px solid #A7F3D0; }
-        .btn-approve:hover { background: var(--success); color: white; }
-        .btn-reject { background: #FEF2F2; color: var(--danger); border: 1px solid #FECACA; }
-        .btn-reject:hover { background: var(--danger); color: white; }
+        .btn { padding: 10px 16px; font-weight: 800; border: none; border-radius: 50px; cursor: pointer; font-size: 0.8rem; transition: all 0.3s ease; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        .btn-pdf { background: #FFF5F7; color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.2); }
+        .btn-pdf:hover { background: var(--maroon); color: white; border-color: var(--maroon); }
+        .btn-approve { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+        .btn-approve:hover { background: #047857; color: white; border-color: #047857; }
+        .btn-reject { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+        .btn-reject:hover { background: #B91C1C; color: white; border-color: #B91C1C; }
 
         /* BADGES */
-        .badge { padding: 6px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
-        .badge-add { background: #EEF2FF; color: #1D4ED8; border: 1px solid #C7D2FE; }
+        .badge { padding: 6px 12px; border-radius: 50px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; display: inline-block; }
+        .badge-add { background: #FFF5F7; color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.2); }
         .badge-edit { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+        .b-super { background: #EEF2FF; color: #1D4ED8; border: 1px solid #C7D2FE; }
+        .b-rev { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+        .b-app { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
 
         /* INVENTORY APPROVAL CARDS */
-        .request-card { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 12px 30px rgba(122, 16, 46, 0.03); margin-bottom: 24px; overflow: hidden; transition: transform 0.2s; }
-        .request-card:hover { border-color: #D1D5DB; box-shadow: 0 15px 35px rgba(122, 16, 46, 0.08); }
-        .card-header { background: #FAFAFA; padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .request-meta { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
-        .request-meta strong { color: var(--text-main); font-weight: 700; }
+        .request-card { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.02); margin-bottom: 24px; overflow: hidden; transition: all 0.3s ease; }
+        .card-header { background: #FAFAF9; padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .request-meta { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+        .request-meta strong { color: var(--text-main); font-weight: 800; }
         .card-body { padding: 24px; }
-        .data-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px 16px; }
+        .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
         .span-2 { grid-column: span 2; }
         .span-4 { grid-column: 1 / -1; }
-        .data-group { display: flex; flex-direction: column; gap: 4px; }
-        .data-label { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-        .data-value { font-size: 1rem; font-weight: 600; color: var(--text-main); background: #F9FAFB; padding: 10px 12px; border-radius: 8px; border: 1px solid #E5E7EB; }
-        .data-value.price { color: var(--maroon); font-weight: 800; background: var(--maroon-light); border-color: #FCE7F3; }
-        .media-link { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 700; color: var(--maroon); text-decoration: none; padding: 8px 12px; border-radius: 6px; background: var(--maroon-light); border: 1px solid #FCE7F3; transition: all 0.2s; }
-        .media-link:hover { background: var(--maroon); color: white; }
-        .card-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; background: #FFFFFF; }
+        .data-group { display: flex; flex-direction: column; gap: 6px; }
+        .data-label { font-size: 0.65rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; }
+        .data-value { font-size: 1rem; font-weight: 700; color: var(--text-main); background: #FAFAF9; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); word-break: break-word; }
+        .data-value.price { color: var(--maroon); font-weight: 900; background: var(--maroon-light); border-color: rgba(139, 21, 56, 0.2); }
+        .media-link { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 800; color: var(--maroon); text-decoration: none; padding: 8px 14px; border-radius: 50px; background: var(--maroon-light); border: 1px solid rgba(139, 21, 56, 0.2); text-transform: uppercase; }
+        .card-footer { padding: 16px 24px; border-top: 1px dashed var(--border); display: flex; justify-content: flex-end; gap: 12px; background: #FAFAF9; flex-wrap: wrap; }
 
-        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 500; border: 2px dashed var(--border); border-radius: 16px; background: var(--surface); }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; border: 2px dashed var(--border); border-radius: 16px; background: #FAFAF9; font-size: 1rem; }
+
+        @media (max-width: 768px) {
+            .data-grid { grid-template-columns: 1fr; }
+            .span-2, .span-4 { grid-column: 1 / -1; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         
         <div class="header">
-            <h1>Admin <span>Command Center</span></h1>
+            <h1>Admin <span class="accent">Command Center</span></h1>
             <div class="header-controls">
-                <a href="users.php" class="btn-nav">👥 Manage Users</a>
-                <a href="../index.php" class="btn-nav">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                    Employee Portal
-                </a>
+                <a href="../index.php" class="btn-nav">Employee Portal</a>
                 <a href="../logout.php" class="btn-nav btn-logout">Logout</a>
             </div>
         </div>
@@ -276,15 +287,23 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
         <?php endif; ?>
 
         <div class="tabs-nav">
-            <button class="tab-btn active" onclick="openTab('tab-quotes', this)">📄 Quotation Review</button>
-            <button class="tab-btn" onclick="openTab('tab-inventory', this)">📦 Inventory Approvals</button>
-            <button class="tab-btn" onclick="openTab('tab-history', this)">🕒 Activity History</button>
+            <button class="tab-btn active" onclick="openTab('tab-sales', this)">
+                Sales Quotes <?php if($sales_count > 0) echo "<span class='badge-count'>$sales_count</span>"; ?>
+            </button>
+            <button class="tab-btn" onclick="openTab('tab-project', this)">
+                Project Quotes <?php if($project_count > 0) echo "<span class='badge-count'>$project_count</span>"; ?>
+            </button>
+            <button class="tab-btn" onclick="openTab('tab-inventory', this)">
+                Inventory Approvals <?php if($inv_count > 0) echo "<span class='badge-count'>$inv_count</span>"; ?>
+            </button>
+            <button class="tab-btn" onclick="openTab('tab-history', this)">
+                Quotation History
+            </button>
         </div>
 
-        <div id="tab-quotes" class="tab-content active">
-            
+        <div id="tab-sales" class="tab-content active">
             <div class="card">
-                <h2>Sales Quotations (Pending Admin)</h2>
+                <h2>Sales Quotations (Pending Review)</h2>
                 <?php if (empty($sales_pending)): ?>
                     <div class="empty-state">No pending sales quotations require approval right now.</div>
                 <?php else: ?>
@@ -292,31 +311,29 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
                         <table>
                             <tr>
                                 <th>Quote No</th>
-                                <th>Client / Submitted By</th>
-                                <th>Date</th>
-                                <th>Action Notes</th>
+                                <th>Client / Submitter</th>
+                                <th>Date Submitted</th>
                                 <th>Controls</th>
                             </tr>
                             <?php foreach($sales_pending as $q): ?>
                             <tr>
-                                <td><strong><?php echo htmlspecialchars($q['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
+                                <td><strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: var(--maroon);"><?php echo htmlspecialchars($q['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
                                 <td>
-                                    <div style="font-weight: 700; color: var(--text-main);"><?php echo htmlspecialchars($q['client_name'], ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <div style="font-size: 0.8rem; color: var(--text-muted);">By: Sales Team</div>
+                                    <div style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;"><?php echo htmlspecialchars($q['client_name'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-top: 4px;">
+                                        Prepared By: <?php echo htmlspecialchars(ucfirst($q['username'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8'); ?> (Sales Team)
+                                    </div>
                                 </td>
-                                <td><?php echo date('M d, Y', strtotime($q['quote_date'])); ?></td>
-                                <td colspan="2">
+                                <td><div style="font-weight: 700; color: var(--text-main);"><?php echo date('M d, Y', strtotime($q['quote_date'])); ?></div></td>
+                                <td>
                                     <form method="POST" class="quote-form">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="quote_id" value="<?php echo $q['id']; ?>">
                                         <input type="hidden" name="type" value="sales">
                                         
                                         <a href="../generate_pdf.php?id=<?php echo $q['id']; ?>&type=sales" target="_blank" class="btn btn-pdf">View PDF</a>
-                                        
-                                        <input type="text" name="admin_notes" class="note-input" placeholder="Notes (Optional)...">
-                                        
                                         <button type="submit" name="action" value="approve_quote" class="btn btn-approve" onclick="return confirm('Approve quote? Note: This will sync the custom prices to the master inventory database.');">Approve</button>
-                                        <button type="submit" name="action" value="reject_quote" class="btn btn-reject" onclick="return confirm('Reject and request revision?');">Reject</button>
+                                        <button type="submit" name="action" value="reject_quote" class="btn btn-reject" onclick="return confirm('Reject and request revision?');">Decline</button>
                                     </form>
                                 </td>
                             </tr>
@@ -325,9 +342,11 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
                     </div>
                 <?php endif; ?>
             </div>
+        </div>
 
+        <div id="tab-project" class="tab-content">
             <div class="card">
-                <h2>Project Quotations (Pending Admin)</h2>
+                <h2>Project Quotations (Pending Review)</h2>
                 <?php if (empty($project_pending)): ?>
                     <div class="empty-state">No pending project quotations require approval right now.</div>
                 <?php else: ?>
@@ -335,31 +354,29 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
                         <table>
                             <tr>
                                 <th>Quote No</th>
-                                <th>Project / Submitted By</th>
-                                <th>Date</th>
-                                <th>Action Notes</th>
+                                <th>Project / Submitter</th>
+                                <th>Date Submitted</th>
                                 <th>Controls</th>
                             </tr>
                             <?php foreach($project_pending as $p): ?>
                             <tr>
-                                <td><strong><?php echo htmlspecialchars($p['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
+                                <td><strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: var(--maroon);"><?php echo htmlspecialchars($p['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
                                 <td>
-                                    <div style="font-weight: 700; color: var(--text-main);"><?php echo htmlspecialchars($p['project_name'] ?? 'Project', ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <div style="font-size: 0.8rem; color: var(--text-muted);">By: Project Team</div>
+                                    <div style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;"><?php echo htmlspecialchars($p['project_name'] ?? 'Project', ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-top: 4px;">
+                                        Prepared By: <?php echo htmlspecialchars(ucfirst($p['prepared_by'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8'); ?> (Project Team)
+                                    </div>
                                 </td>
-                                <td><?php echo date('M d, Y', strtotime($p['quote_date'])); ?></td>
-                                <td colspan="2">
+                                <td><div style="font-weight: 700; color: var(--text-main);"><?php echo date('M d, Y', strtotime($p['quote_date'])); ?></div></td>
+                                <td>
                                     <form method="POST" class="quote-form">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="quote_id" value="<?php echo $p['id']; ?>">
                                         <input type="hidden" name="type" value="project">
                                         
                                         <a href="../generate_pdf.php?id=<?php echo $p['id']; ?>&type=project" target="_blank" class="btn btn-pdf">View PDF</a>
-                                        
-                                        <input type="text" name="admin_notes" class="note-input" placeholder="Notes (Optional)...">
-                                        
                                         <button type="submit" name="action" value="approve_quote" class="btn btn-approve" onclick="return confirm('Send to Super Admin for final check?');">Approve</button>
-                                        <button type="submit" name="action" value="reject_quote" class="btn btn-reject" onclick="return confirm('Reject and request revision?');">Reject</button>
+                                        <button type="submit" name="action" value="reject_quote" class="btn btn-reject" onclick="return confirm('Reject and request revision?');">Decline</button>
                                     </form>
                                 </td>
                             </tr>
@@ -368,20 +385,19 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
                     </div>
                 <?php endif; ?>
             </div>
-
         </div>
 
         <div id="tab-inventory" class="tab-content">
             <?php if (empty($pending_inventory)): ?>
                 <div class="empty-state">
-                    <h2>You're all caught up!</h2>
-                    <p>There are currently no new machines or price updates waiting for approval.</p>
+                    You are all caught up!<br>
+                    <span style="font-size: 0.9rem; font-weight: 500;">There are currently no new machines or price updates waiting for approval.</span>
                 </div>
             <?php else: ?>
                 <?php foreach ($pending_inventory as $req): ?>
                     <div class="request-card">
                         <div class="card-header">
-                            <div class="badge-group">
+                            <div>
                                 <?php if ($req['action_type'] === 'add'): ?>
                                     <span class="badge badge-add">➕ NEW Addition</span>
                                 <?php else: ?>
@@ -393,7 +409,6 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
                                 on <?php echo date('M d, Y - h:i A', strtotime($req['created_at'])); ?>
                             </div>
                         </div>
-
                         <div class="card-body">
                             <div class="data-grid">
                                 <div class="data-group span-2">
@@ -402,11 +417,11 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
                                 </div>
                                 <div class="data-group span-2">
                                     <span class="data-label">Model Number</span>
-                                    <div class="data-value"><?php echo htmlspecialchars($req['model_no'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <div class="data-value" style="font-family: 'Outfit', sans-serif; font-size: 1.2rem;"><?php echo htmlspecialchars($req['model_no'], ENT_QUOTES, 'UTF-8'); ?></div>
                                 </div>
                                 <div class="data-group span-4">
                                     <span class="data-label">Description</span>
-                                    <div class="data-value desc"><?php echo htmlspecialchars($req['description'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <div class="data-value" style="white-space: pre-line; line-height: 1.5; font-size: 0.95rem;"><?php echo htmlspecialchars($req['description'], ENT_QUOTES, 'UTF-8'); ?></div>
                                 </div>
                                 <div class="data-group">
                                     <span class="data-label">Currency</span>
@@ -426,18 +441,17 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
                                 </div>
 
                                 <?php if (!empty($req['picture']) || !empty($req['pdf_path'])): ?>
-                                    <div class="data-group span-4" style="flex-direction: row; gap: 16px; margin-top: 10px;">
+                                    <div class="data-group span-4" style="flex-direction: row; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border);">
                                         <?php if (!empty($req['picture'])): ?>
-                                            <a href="../../images/machine_images/<?php echo htmlspecialchars($req['picture'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="media-link">🖼️ View Uploaded Image</a>
+                                            <a href="../../images/machine_images/<?php echo htmlspecialchars($req['picture'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="media-link">🖼️ View Image</a>
                                         <?php endif; ?>
                                         <?php if (!empty($req['pdf_path'])): ?>
-                                            <a href="../../pdfs/machine_pdfs/<?php echo htmlspecialchars($req['pdf_path'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="media-link">📄 View Attached PDF</a>
+                                            <a href="../../pdfs/machine_pdfs/<?php echo htmlspecialchars($req['pdf_path'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="media-link">📄 View PDF</a>
                                         <?php endif; ?>
                                     </div>
                                 <?php endif; ?>
                             </div>
                         </div>
-
                         <div class="card-footer">
                             <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to REJECT and delete this request?');">
                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
@@ -457,24 +471,36 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
 
         <div id="tab-history" class="tab-content">
             <div class="card">
-                <h2>System Activity Logs (Last 100 Actions)</h2>
-                <?php if (empty($history_logs)): ?>
-                    <div class="empty-state">No history recorded yet.</div>
+                <h2>Quotation History Log</h2>
+                <?php if (empty($quote_history)): ?>
+                    <div class="empty-state">No processed quotations found in history.</div>
                 <?php else: ?>
                     <div class="table-responsive">
                         <table>
                             <tr>
-                                <th>Timestamp</th>
-                                <th>Action Type</th>
-                                <th>Details</th>
+                                <th>Department</th>
+                                <th>Quote No.</th>
+                                <th>Client / Project</th>
+                                <th>Last Updated</th>
+                                <th>Status</th>
                             </tr>
-                            <?php foreach($history_logs as $log): ?>
+                            <?php foreach($quote_history as $log): ?>
                             <tr>
-                                <td style="white-space: nowrap; color: var(--text-muted); font-size: 0.85rem;">
-                                    <?php echo date('M d, Y - h:i:s A', strtotime($log['created_at'])); ?>
+                                <td><span class="badge" style="background:#F4F4F5; color:var(--text-main); border:1px solid var(--border);"><?php echo htmlspecialchars($log['quote_type'], ENT_QUOTES, 'UTF-8'); ?></span></td>
+                                <td><strong style="font-family: 'Outfit', sans-serif; font-size: 1.05rem;"><?php echo htmlspecialchars($log['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
+                                <td style="font-weight: 700; color: var(--text-main);"><?php echo htmlspecialchars($log['reference_name'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">
+                                    <?php echo date('M d, Y - h:i A', strtotime($log['created_at'])); ?>
                                 </td>
-                                <td><span class="badge" style="background:#F3F4F6; color:var(--text-main); border:1px solid #E5E7EB;"><?php echo htmlspecialchars($log['action'] ?? 'SYSTEM_EVENT', ENT_QUOTES, 'UTF-8'); ?></span></td>
-                                <td><?php echo htmlspecialchars($log['details'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td>
+                                    <?php 
+                                        if ($log['status'] === 'pending_super') echo '<span class="badge b-super">Sent to Super Admin</span>';
+                                        elseif ($log['status'] === 'revision') echo '<span class="badge b-rev">Declined / Revision</span>';
+                                        elseif ($log['status'] === 'approved') echo '<span class="badge b-app">Approved (Final)</span>';
+                                        elseif ($log['status'] === 'rejected') echo '<span class="badge b-rev">Rejected (Final)</span>';
+                                        else echo '<span class="badge" style="background:#E4E4E7; color:#3F3F46;">' . htmlspecialchars($log['status']) . '</span>';
+                                    ?>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                         </table>
@@ -487,15 +513,12 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
 
     <script>
         function openTab(tabId, btnElement) {
-            // Hide all tabs
             const contents = document.querySelectorAll('.tab-content');
             contents.forEach(content => content.classList.remove('active'));
             
-            // Remove active class from all buttons
             const buttons = document.querySelectorAll('.tab-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
             
-            // Show selected tab and set button as active
             document.getElementById(tabId).classList.add('active');
             btnElement.classList.add('active');
         }

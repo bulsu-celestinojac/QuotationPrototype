@@ -53,7 +53,7 @@ $items = $stmt->fetchAll();
 $js_item_data = [];
 foreach ($items as $item) {
     $picture = $item['picture'] ?? '';
-    // Path configuration
+    // FIXED: Restored the proper ../ linking to the images folder!
     $hasImage = ($picture !== '' && @file_exists(__DIR__ . '/../images/machine_images/' . $picture));
     $publicFilePath = $hasImage ? '../images/machine_images/' . htmlspecialchars($picture, ENT_QUOTES, 'UTF-8') : null;
 
@@ -95,15 +95,17 @@ foreach ($items as $item) {
         body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); padding: 40px 30px; min-height: 100vh; }
         .container { max-width: 1600px; margin: 0 auto; }
 
-        .top-bar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
-        .page-title { font-family: 'Outfit', sans-serif; font-size: 3rem; font-weight: 900; letter-spacing: -0.04em; text-transform: uppercase; line-height: 1; }
+        /* FLUID TOP BAR LAYOUT */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 40px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+        .page-title { font-family: 'Outfit', sans-serif; font-size: clamp(2rem, 3vw, 2.5rem); font-weight: 900; letter-spacing: -0.04em; text-transform: uppercase; line-height: 1; margin: 0; flex-shrink: 0; }
         .page-title .accent { color: var(--maroon); }
-        .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; flex: 1; }
 
-        .search-wrapper { position: relative; overflow: visible !important; background: var(--surface); display: flex; align-items: center; border: 1px solid var(--border); border-radius: 50px; width: 350px; height: 46px; transition: border-color 0.3s ease; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
+        /* FLUID SEARCH BAR */
+        .search-wrapper { position: relative; overflow: visible !important; background: var(--surface); display: flex; align-items: center; border: 1px solid var(--border); border-radius: 50px; flex: 1 1 250px; max-width: 350px; height: 44px; transition: border-color 0.3s ease; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
         .search-wrapper:focus-within { border-color: var(--maroon); box-shadow: 0 4px 16px rgba(139, 21, 56, 0.08); }
         .search-input { flex: 1; border: none; background: transparent; padding: 0 20px; font-size: 0.9rem; outline: none; color: var(--text-main); min-width: 0; }
-        .search-btn { background: var(--maroon); color: white; border: none; border-radius: 0 50px 50px 0; height: 100%; padding: 0 24px; font-weight: 800; font-family: 'Outfit', sans-serif; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s ease; }
+        .search-btn { background: var(--maroon); color: white; border: none; border-radius: 0 50px 50px 0; height: 100%; padding: 0 20px; font-weight: 800; font-family: 'Outfit', sans-serif; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s ease; }
         .search-btn:hover { background: #6A0D28; }
         .clear-btn { background: transparent; border: none; color: var(--maroon); font-size: 1.4rem; cursor: pointer; padding: 0 12px; line-height: 1; display: none; align-items: center; justify-content: center; height: 100%; transition: all 0.2s ease; }
         .clear-btn:hover { color: #5A0000; transform: scale(1.15); }
@@ -115,7 +117,8 @@ foreach ($items as $item) {
         .sugg-model { font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); font-size: 1rem; }
         .sugg-brand { font-size: 0.7rem; color: var(--maroon); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 
-        .btn { font-family: 'Outfit', sans-serif; height: 46px; padding: 0 24px; font-weight: 800; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid var(--border); border-radius: 50px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; background: var(--surface); color: var(--text-main); transition: all 0.2s ease; white-space: nowrap; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        /* BUTTONS TIGHTENED FOR BETTER FIT */
+        .btn { font-family: 'Outfit', sans-serif; height: 44px; padding: 0 18px; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid var(--border); border-radius: 50px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; background: var(--surface); color: var(--text-main); transition: all 0.2s ease; white-space: nowrap; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
         .btn:hover { border-color: var(--maroon); color: var(--maroon); transform: translateY(-2px); box-shadow: 0 8px 16px rgba(139, 21, 56, 0.1); }
 
         .cart-trigger.has-items { background: var(--maroon); color: white; border-color: var(--maroon); box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); }
@@ -195,22 +198,17 @@ foreach ($items as $item) {
         .info-item .value { font-size: 1.1rem; font-weight: 700; color: var(--text-main); word-wrap: break-word; }
 
         @media (max-width: 1024px) {
-            .top-bar { flex-direction: column; align-items: stretch; gap: 24px; margin-bottom: 30px; }
-            .controls { flex-wrap: wrap; justify-content: space-between; gap: 12px; }
-            .search-wrapper { width: 100%; order: -1; } 
-            .btn { flex: 1 1 calc(33.333% - 12px); justify-content: center; padding: 0 12px; font-size: 0.75rem; }
-            .modal-card { flex-direction: column; }
-            .modal-img { border-right: none; border-bottom: 1px dashed rgba(139, 21, 56, 0.3); padding: 24px; min-height: 250px; border-radius: 24px 24px 0 0; }
-            .modal-details { padding: 30px; }
-            .info-grid { grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px; padding-bottom: 20px; }
+            .top-bar { flex-direction: column; align-items: stretch; gap: 20px; }
+            .controls { justify-content: flex-start; }
+            .search-wrapper { width: 100%; max-width: none; order: -1; } 
         }
 
         @media (max-width: 600px) {
             body { padding: 20px 16px; }
             .page-title { font-size: 2.2rem; text-align: center; }
-            .controls { flex-direction: column; align-items: stretch; gap: 14px; }
-            .search-wrapper { height: 54px; }
-            .btn { flex: 1 1 100%; width: 100%; height: 54px; font-size: 0.95rem; } 
+            .controls { flex-direction: column; align-items: stretch; gap: 10px; }
+            .search-wrapper { height: 50px; }
+            .btn { flex: 1 1 100%; width: 100%; height: 50px; font-size: 0.85rem; } 
             .grid { grid-template-columns: 1fr; gap: 16px; margin-bottom: 40px; }
             .cart-drawer { width: 100%; }
             .cart-header, .cart-items, .cart-footer { padding: 20px; }
@@ -256,7 +254,11 @@ foreach ($items as $item) {
                     </button>
                 <?php endif; ?>
 
-                <?php if (in_array($user_role, ['sales', 'admin', 'super_admin'])): 
+                <?php if (in_array($user_role, ['admin', 'super_admin'])): ?>
+                    <a href="admin/index.php" class="btn" style="color: var(--maroon); border-color: var(--border);">
+                        ⚙️ Command Center
+                    </a>
+                <?php elseif ($user_role === 'sales'): 
                     $notifStmt = $pdo->prepare("SELECT COUNT(*) FROM sales_quotations WHERE user_id = ? AND is_notified = 1");
                     $notifStmt->execute([$_SESSION['user_id']]);
                     $unreadNotifs = (int)$notifStmt->fetchColumn();
@@ -278,8 +280,9 @@ foreach ($items as $item) {
         <div class="grid">
             <?php foreach ($items as $item):
                 $picture = $item['picture'] ?? '';
+                // FIXED: Restored the proper ../ linking to the images folder!
                 $hasImage = ($picture !== '' && @file_exists(__DIR__ . '/../images/machine_images/' . $picture));
-                $publicFilePath = '../images/machine_images/' . htmlspecialchars($picture, ENT_QUOTES, 'UTF-8');
+                $publicFilePath = $hasImage ? '../images/machine_images/' . htmlspecialchars($picture, ENT_QUOTES, 'UTF-8') : null;
             ?>
                 <div class="card" id="card-<?php echo (int)$item['id']; ?>" onclick="openModal(<?php echo (int)$item['id']; ?>)">
                     
@@ -624,6 +627,7 @@ foreach ($items as $item) {
 
             const pdfSection = document.getElementById('modalPdfSection');
             if (data.pdf_path) {
+                // FIXED: Restored the proper ../ linking to the pdfs folder!
                 pdfSection.innerHTML = `
                     <label style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.1em; display: block; margin-bottom: 8px;">Documentation</label>
                     <a href="../pdfs/machine_pdfs/${data.pdf_path}" target="_blank" style="display: inline-flex; align-items: center; justify-content: center; background: var(--maroon); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.85rem; transition: background 0.2s;">

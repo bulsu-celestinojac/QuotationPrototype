@@ -91,72 +91,80 @@ $users = $stmt->fetchAll();
     <meta charset="UTF-8">
     <title>Manage Users - AM Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #F8F9FA;
-            --surface: #FFFFFF;
-            --text-main: #111827;
-            --text-muted: #6B7280;
-            --border: #E5E7EB;
-            --maroon: #7A102E; 
-            --maroon-hover: #5A081E;
-            --maroon-light: #FFF5F7;
+        :root { 
+            --bg: #FAFAFA; 
+            --surface: #FFFFFF; 
+            --text-main: #18181B; 
+            --text-muted: #71717A; 
+            --text-light: #A1A1AA; 
+            --border: #E4E4E7; 
+            --maroon: #8B1538; 
+            --maroon-hover: #6A0D28;
+            --maroon-light: #FFF5F7; 
+            --input-bg: #F4F4F5;
             --success: #10B981;
             --danger: #EF4444;
-            --warning: #F59E0B;
         }
         
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 40px 20px; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); padding: 40px 30px; min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; }
         
         /* HEADER */
-        .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 20px; }
-        .header h1 { font-family: 'Outfit', sans-serif; font-size: 2.5rem; font-weight: 900; color: var(--text-main); margin: 0; text-transform: uppercase; letter-spacing: -0.02em; }
+        .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+        .header h1 { font-family: 'Outfit', sans-serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1; color: var(--text-main); }
         .header h1 span { color: var(--maroon); }
-        .btn-nav { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-        .btn-nav:hover { border-color: var(--maroon); color: var(--maroon); transform: translateY(-2px); }
+        
+        .btn-nav { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 50px; color: var(--text-main); text-decoration: none; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.85rem; transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
+        .btn-nav:hover { border-color: var(--maroon); color: var(--maroon); transform: translateY(-2px); box-shadow: 0 8px 15px rgba(139, 21, 56, 0.08); }
 
         /* ALERTS */
-        .alert { padding: 14px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; animation: slideDown 0.3s ease; }
+        .alert { padding: 16px 24px; border-radius: 12px; font-size: 0.95rem; font-weight: 700; margin-bottom: 32px; display: flex; align-items: center; gap: 12px; animation: slideDown 0.3s ease; }
         @keyframes slideDown { from{ opacity:0; transform: translateY(-10px); } to{ opacity:1; transform: translateY(0); } }
         .alert-success { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
         .alert-error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
 
-        .layout-grid { display: grid; grid-template-columns: 350px 1fr; gap: 30px; align-items: start; }
+        .layout-grid { display: grid; grid-template-columns: 380px 1fr; gap: 40px; align-items: start; }
 
-        .card { background: var(--surface); border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid var(--border); }
-        .card h2 { font-family: 'Outfit', sans-serif; font-size: 1.3rem; color: var(--maroon); margin-bottom: 20px; text-transform: uppercase; border-bottom: 1px solid var(--maroon-light); padding-bottom: 10px;}
+        /* CARDS */
+        .card { background: var(--surface); border-radius: 20px; padding: 40px; border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 10px 40px rgba(0,0,0,0.03); }
+        .card h2 { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 800; margin-bottom: 32px; border-bottom: 2px solid var(--border); padding-bottom: 16px; color: var(--text-main); }
 
-        .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; background: #F9FAFB; outline: none; transition: 0.2s; }
-        .form-group input:focus, .form-group select:focus { border-color: var(--maroon); background: #FFF; box-shadow: 0 0 0 3px var(--maroon-light); }
+        /* FORM INPUTS (Matching Sales Form) */
+        .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+        .form-group label { font-size: 0.65rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; }
+        .form-group input, .form-group select { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid transparent; background: var(--input-bg); font-size: 0.95rem; font-family: 'DM Sans', sans-serif; font-weight: 600; color: var(--text-main); outline: none; transition: all 0.3s ease; }
+        .form-group input:focus, .form-group select:focus { background: var(--surface); border-color: var(--maroon); box-shadow: 0 0 0 4px var(--maroon-light); }
         
-        .btn-submit { background: var(--maroon); color: white; width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 0.95rem; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: 0.2s; margin-top: 10px; }
-        .btn-submit:hover { background: var(--maroon-hover); transform: translateY(-2px); box-shadow: 0 6px 12px rgba(139, 21, 56, 0.2); }
+        .btn-submit { background: var(--maroon); color: white; width: 100%; height: 60px; border: none; border-radius: 50px; font-size: 0.95rem; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); margin-top: 10px; }
+        .btn-submit:hover { background: var(--maroon-hover); transform: translateY(-2px); box-shadow: 0 12px 24px rgba(139, 21, 56, 0.3); }
 
-        .table-responsive { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); }
-        th { background: #F9FAFB; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; letter-spacing: 0.05em; }
-        td { font-size: 0.95rem; }
+        /* TABLES */
+        .table-responsive { overflow-x: auto; margin: 0 -10px; padding: 0 10px; }
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th, td { padding: 18px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { font-size: 0.75rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; background: #FAFAF9; border-radius: 8px 8px 0 0; }
+        td { font-size: 0.95rem; font-weight: 600; vertical-align: middle; color: var(--text-main); }
+        tr:hover td { background: #FAFAF9; }
         
-        .badge { padding: 6px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+        /* BADGES & ACTION BUTTONS */
+        .badge { padding: 8px 14px; border-radius: 50px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; display: inline-block; }
         .badge-active { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
         .badge-pending { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
         .badge-suspended { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
-        .badge-role { background: #EEF2FF; color: #1D4ED8; border: 1px solid #C7D2FE; }
+        .badge-role { background: #FFF5F7; color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.2); }
 
-        .action-form { display: inline-flex; gap: 8px; }
-        .btn-action { padding: 6px 12px; font-size: 0.75rem; font-weight: 800; border: none; border-radius: 6px; cursor: pointer; font-family: 'Outfit', sans-serif; text-transform: uppercase; transition: 0.2s; }
-        .btn-approve { background: #ECFDF5; color: var(--success); border: 1px solid #A7F3D0; }
-        .btn-approve:hover { background: var(--success); color: white; }
-        .btn-suspend { background: #FEF2F2; color: var(--danger); border: 1px solid #FECACA; }
-        .btn-suspend:hover { background: var(--danger); color: white; }
+        .action-form { display: inline-flex; gap: 10px; }
+        .btn-action { padding: 8px 16px; font-size: 0.75rem; font-weight: 800; border: none; border-radius: 50px; cursor: pointer; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .btn-action:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
+        .btn-approve { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+        .btn-approve:hover { background: #047857; color: white; border-color: #047857; }
+        .btn-suspend { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+        .btn-suspend:hover { background: #B91C1C; color: white; border-color: #B91C1C; }
 
-        @media (max-width: 900px) {
+        @media (max-width: 1024px) {
             .layout-grid { grid-template-columns: 1fr; }
             .header { flex-direction: column; align-items: flex-start; gap: 16px; }
         }
@@ -166,7 +174,7 @@ $users = $stmt->fetchAll();
     <div class="container">
         
         <div class="header">
-            <h1>Account <span>Management</span></h1>
+            <h1>Account <span class="accent">Management</span></h1>
             <a href="index.php" class="btn-nav">← Back to Command Center</a>
         </div>
 
@@ -193,12 +201,12 @@ $users = $stmt->fetchAll();
                     
                     <div class="form-group">
                         <label>Username</label>
-                        <input type="text" name="username" placeholder="Employee Name" required>
+                        <input type="text" name="username" placeholder="Employee Name" autocomplete="off" required>
                     </div>
                     
                     <div class="form-group">
                         <label>Temporary Password</label>
-                        <input type="password" name="password" placeholder="••••••••" required>
+                        <input type="password" name="password" placeholder="••••••••" autocomplete="new-password" required>
                     </div>
                     
                     <div class="form-group">
@@ -215,7 +223,9 @@ $users = $stmt->fetchAll();
                     
                     <button type="submit" class="btn-submit">Create Account</button>
                     <?php if ($_SESSION['user_role'] === 'admin'): ?>
-                        <p style="font-size:0.7rem; color:var(--text-muted); margin-top:10px; text-align:center;">*Accounts created by Admins start as 'Pending' until reviewed by Super Admin.</p>
+                        <div style="font-size:0.75rem; color:var(--text-light); margin-top:16px; text-align:center; font-weight:700;">
+                            *Accounts created by Admins start as 'Pending' until reviewed by Super Admin.
+                        </div>
                     <?php endif; ?>
                 </form>
             </div>
@@ -236,7 +246,9 @@ $users = $stmt->fetchAll();
                         <tbody>
                             <?php foreach($users as $u): ?>
                             <tr>
-                                <td><strong><?= htmlspecialchars($u['username'], ENT_QUOTES, 'UTF-8') ?></strong></td>
+                                <td style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: var(--maroon);">
+                                    <?= htmlspecialchars($u['username'], ENT_QUOTES, 'UTF-8') ?>
+                                </td>
                                 <td><span class="badge badge-role"><?= htmlspecialchars(str_replace('_', ' ', $u['role']), ENT_QUOTES, 'UTF-8') ?></span></td>
                                 <td>
                                     <?php 
@@ -245,9 +257,9 @@ $users = $stmt->fetchAll();
                                         else echo '<span class="badge badge-suspended">Suspended</span>';
                                     ?>
                                 </td>
-                                <td style="font-size: 0.8rem; color: var(--text-muted);">
+                                <td style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">
                                     <?php if($u['failed_attempts'] > 0): ?>
-                                        <span style="color:var(--danger); font-weight:bold;"><?= $u['failed_attempts'] ?> Failed Logins</span>
+                                        <span style="color:var(--danger);"><?= $u['failed_attempts'] ?> Failed Logins</span>
                                     <?php else: ?>
                                         Clean
                                     <?php endif; ?>
@@ -270,11 +282,11 @@ $users = $stmt->fetchAll();
                                             <?php endif; ?>
                                         </form>
                                     <?php else: ?>
-                                        <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Current User</span>
+                                        <span style="font-size: 0.8rem; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Current User</span>
                                     <?php endif; ?>
                                 </td>
                                 <?php else: ?>
-                                    <td><span style="font-size: 0.75rem; color: var(--text-muted);">Restricted</span></td>
+                                    <td><span style="font-size: 0.8rem; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Restricted</span></td>
                                 <?php endif; ?>
                             </tr>
                             <?php endforeach; ?>
