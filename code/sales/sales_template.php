@@ -167,7 +167,6 @@ if (file_exists($logoPath)) {
 </head>
 <body>
 
-    <!-- PERFECTLY GROUPED AND CENTERED HEADER -->
     <table style="margin: 0 auto; border-collapse: collapse; margin-bottom: 30px;">
         <tr>
             <td style="vertical-align: middle; padding-right: 20px; text-align: right;">
@@ -192,7 +191,6 @@ if (file_exists($logoPath)) {
     
     <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 25px;">
 
-    <!-- TWO COLUMN INFO SECTION -->
     <table style="width: 100%; border-collapse: collapse;">
         <tr>
             <td style="width: 50%; vertical-align: top; padding-right: 20px;">
@@ -209,7 +207,7 @@ if (file_exists($logoPath)) {
             <td style="width: 50%; vertical-align: top; padding-left: 20px;">
                 <div class="section-title">TRANSACTION DETAILS:</div>
                 <table class="info-table">
-                    <tr><td class="info-label">Date:</td><td><?= htmlspecialchars($trans['quote_date'] ?? '') ?></td></tr>
+                    <tr><td class="info-label">Date:</td><td><?= htmlspecialchars(date('d-M-y', strtotime($trans['quote_date'] ?? date('Y-m-d')))) ?></td></tr>
                     <tr><td class="info-label">Quotation No.:</td><td style="font-weight: bold;"><?= htmlspecialchars($trans['quotation_no'] ?? '') ?></td></tr>
                     <tr><td class="info-label">Payment Terms:</td><td style="white-space: pre-line;"><?= htmlspecialchars($trans['payment_terms'] ?? '') ?></td></tr>
                     <tr><td class="info-label">Validity Offer:</td><td><?= htmlspecialchars($trans['validity_date'] ?? '') ?></td></tr>
@@ -221,7 +219,6 @@ if (file_exists($logoPath)) {
 
     <div class="proposal-title">PROPOSAL FOR <?= htmlspecialchars(strtoupper($trans['proposal_purpose'] ?? '')) ?></div>
 
-    <!-- ITEMS TABLE -->
     <table class="items-table">
         <thead>
             <tr>
@@ -284,7 +281,6 @@ if (file_exists($logoPath)) {
         </tbody>
     </table>
 
-    <!-- FINANCIAL SUMMARY -->
     <?php
         $discount = (float)($trans['corporate_discount'] ?? 0);
         $netTotal = max(0, $subtotal - $discount);
@@ -304,10 +300,8 @@ if (file_exists($logoPath)) {
         </tr>
     </table>
 
-    <!-- EXACT BOTTOM SECTION -->
     <table class="bottom-section">
         <tr>
-            <!-- Left Side: Terms and Details -->
             <td style="width: 60%; vertical-align: top;">
                 
                 <table class="terms-table">
@@ -343,7 +337,6 @@ if (file_exists($logoPath)) {
 
             </td>
 
-            <!-- Right Side: Signature Block -->
             <td style="width: 40%; vertical-align: bottom; text-align: center; padding-left: 20px;">
                 <div style="font-style: italic; font-weight: bold; margin-bottom: 80px;">
                     Please confirm your order of this quote by signing this document.

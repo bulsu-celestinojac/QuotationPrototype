@@ -100,7 +100,6 @@ foreach ($items as $item) {
         .page-title .accent { color: var(--maroon); }
         .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 
-        /* Premium Input & Buttons */
         .search-wrapper { position: relative; overflow: visible !important; background: var(--surface); display: flex; align-items: center; border: 1px solid var(--border); border-radius: 50px; width: 350px; height: 46px; transition: border-color 0.3s ease; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
         .search-wrapper:focus-within { border-color: var(--maroon); box-shadow: 0 4px 16px rgba(139, 21, 56, 0.08); }
         .search-input { flex: 1; border: none; background: transparent; padding: 0 20px; font-size: 0.9rem; outline: none; color: var(--text-main); min-width: 0; }
@@ -116,52 +115,15 @@ foreach ($items as $item) {
         .sugg-model { font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); font-size: 1rem; }
         .sugg-brand { font-size: 0.7rem; color: var(--maroon); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 
-        /* Unified Button Architecture */
-        .btn { 
-            font-family: 'Outfit', sans-serif; 
-            height: 46px; 
-            padding: 0 24px; 
-            font-weight: 800; 
-            font-size: 0.8rem; 
-            text-transform: uppercase; 
-            letter-spacing: 0.05em; 
-            border: 1px solid var(--border); 
-            border-radius: 50px; 
-            cursor: pointer; 
-            display: inline-flex; 
-            align-items: center; 
-            justify-content: center; 
-            text-decoration: none; 
-            background: var(--surface); 
-            color: var(--text-main); 
-            transition: all 0.2s ease; 
-            white-space: nowrap; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-        }
-        .btn:hover { 
-            border-color: var(--maroon); 
-            color: var(--maroon); 
-            transform: translateY(-2px); 
-            box-shadow: 0 8px 16px rgba(139, 21, 56, 0.1); 
-        }
+        .btn { font-family: 'Outfit', sans-serif; height: 46px; padding: 0 24px; font-weight: 800; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid var(--border); border-radius: 50px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; background: var(--surface); color: var(--text-main); transition: all 0.2s ease; white-space: nowrap; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .btn:hover { border-color: var(--maroon); color: var(--maroon); transform: translateY(-2px); box-shadow: 0 8px 16px rgba(139, 21, 56, 0.1); }
 
-        .cart-trigger.has-items { 
-            background: var(--maroon); 
-            color: white; 
-            border-color: var(--maroon); 
-            box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); 
-        }
-        .cart-trigger.has-items:hover { 
-            background: #6A0D28; 
-            border-color: #6A0D28; 
-            color: white; 
-        }
+        .cart-trigger.has-items { background: var(--maroon); color: white; border-color: var(--maroon); box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); }
+        .cart-trigger.has-items:hover { background: #6A0D28; border-color: #6A0D28; color: white; }
 
-        /* Logout Button Custom Styling */
-        .btn-logout { background: #FFF5F5; color: var(--danger); border-color: #FECACA; }
-        .btn-logout:hover { background: var(--danger); color: white; border-color: var(--danger); box-shadow: 0 8px 20px rgba(239, 68, 68, 0.2); }
+        .btn-logout { background: #FFF5F5 !important; color: var(--danger) !important; border-color: #FECACA !important; }
+        .btn-logout:hover { background: var(--danger) !important; color: white !important; border-color: var(--danger) !important; box-shadow: 0 8px 20px rgba(239, 68, 68, 0.2) !important; }
 
-        /* Grid & Cards */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; margin-bottom: 60px; }
         .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; cursor: pointer; transition: all 0.3s ease; display: flex; flex-direction: column; position: relative; overflow: hidden; }
         .card:hover { border-color: var(--maroon); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(139, 21, 56, 0.08); }
@@ -176,36 +138,9 @@ foreach ($items as $item) {
         .card-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card-price { font-size: 1.15rem; font-weight: 900; color: var(--maroon); margin-bottom: 24px; }
         
-        /* Upgraded Select Button */
-        .btn-select { 
-            margin-top: auto; 
-            width: 100%; 
-            height: 44px;
-            background: var(--surface); 
-            border: 1px solid var(--border); 
-            border-radius: 50px; 
-            color: var(--text-main); 
-            font-family: 'Outfit', sans-serif; 
-            font-weight: 800; 
-            font-size: 0.8rem; 
-            text-transform: uppercase; 
-            letter-spacing: 0.05em; 
-            cursor: pointer; 
-            transition: all 0.2s ease; 
-        }
-        .btn-select:hover { 
-            border-color: var(--maroon); 
-            color: var(--maroon); 
-            background: var(--maroon-light); 
-            transform: translateY(-2px);
-        }
-        .card.is-selected .btn-select { 
-            background: var(--maroon); 
-            color: white; 
-            border-color: var(--maroon); 
-            font-size: 0; 
-            box-shadow: 0 6px 16px rgba(139, 21, 56, 0.2);
-        }
+        .btn-select { margin-top: auto; width: 100%; height: 44px; background: var(--surface); border: 1px solid var(--border); border-radius: 50px; color: var(--text-main); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s ease; }
+        .btn-select:hover { border-color: var(--maroon); color: var(--maroon); background: var(--maroon-light); transform: translateY(-2px); }
+        .card.is-selected .btn-select { background: var(--maroon); color: white; border-color: var(--maroon); font-size: 0; box-shadow: 0 6px 16px rgba(139, 21, 56, 0.2); }
         .card.is-selected .btn-select::after { content: "SELECTED"; font-size: 0.8rem; }
 
         .pagination { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 50px; }
@@ -213,7 +148,6 @@ foreach ($items as $item) {
         .page-link:hover { border-color: var(--maroon); color: var(--maroon); background: var(--maroon-light); }
         .page-link.active { background: var(--maroon); color: white; border-color: var(--maroon); }
 
-        /* CART SLIDER */
         .cart-overlay { position: fixed; inset: 0; background: rgba(248, 246, 245, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 998; display: none; opacity: 0; transition: opacity 0.3s ease; }
         .cart-overlay.active { display: block; opacity: 1; }
         .cart-drawer { position: fixed; top: 0; right: 0; width: 400px; height: 100vh; background: var(--surface); border-left: 1px solid var(--border); z-index: 999; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
@@ -233,25 +167,13 @@ foreach ($items as $item) {
         .btn-checkout:hover { background: #5A0000; }
         .btn-checkout:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
 
-        /* PERFECTLY CENTERED MODAL */
-        .modal-overlay { 
-            position: fixed; inset: 0; background: rgba(248, 246, 245, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 1000; display: none; padding: 20px; 
-        }
-        .modal-overlay.active { 
-            display: flex; align-items: center; justify-content: center;
-        }
-        .modal-card { 
-            background: var(--surface); border: 1px solid var(--maroon); box-shadow: 0 24px 60px rgba(139, 21, 56, 0.12); border-radius: 24px; max-width: 900px; width: 100%; display: flex; text-align: left; position: relative; 
-            max-height: 90vh; 
-        }
-        .modal-img { 
-            flex: 1; padding: 40px; border-right: 1px dashed rgba(139, 21, 56, 0.3); display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #FFFFFF 0%, #FFF5F7 100%); border-radius: 24px 0 0 24px; overflow-y: auto; 
-        }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(248, 246, 245, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 1000; display: none; padding: 20px; }
+        .modal-overlay.active { display: flex; align-items: center; justify-content: center; }
+        .modal-card { background: var(--surface); border: 1px solid var(--maroon); box-shadow: 0 24px 60px rgba(139, 21, 56, 0.12); border-radius: 24px; max-width: 900px; width: 100%; display: flex; text-align: left; position: relative; max-height: 90vh; }
+        .modal-img { flex: 1; padding: 40px; border-right: 1px dashed rgba(139, 21, 56, 0.3); display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #FFFFFF 0%, #FFF5F7 100%); border-radius: 24px 0 0 24px; overflow-y: auto; }
         .modal-img img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.05)); }
         
-        .modal-details { 
-            flex: 1; padding: 50px; display: flex; flex-direction: column; position: relative; overflow-y: auto; 
-        }
+        .modal-details { flex: 1; padding: 50px; display: flex; flex-direction: column; position: relative; overflow-y: auto; }
         .modal-close-btn { position: absolute; top: 24px; right: 24px; background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); transition: all 0.2s ease; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 10; }
         .modal-close-btn:hover { color: var(--maroon); background: #FFF5F7; border-radius: 50%; }
         
@@ -320,6 +242,19 @@ foreach ($items as $item) {
                     <button class="btn cart-trigger" id="cartTrigger" onclick="openCart()">
                         Quote Cart (<span id="cartBadge">0</span>)
                     </button>
+                <?php endif; ?>
+
+                <?php if (in_array($user_role, ['sales', 'admin', 'super_admin'])): 
+                    $notifStmt = $pdo->prepare("SELECT COUNT(*) FROM sales_quotations WHERE user_id = ? AND is_notified = 1");
+                    $notifStmt->execute([$_SESSION['user_id']]);
+                    $unreadNotifs = (int)$notifStmt->fetchColumn();
+                ?>
+                    <a href="history.php" class="btn" style="position: relative;">
+                        📜 My Quotes
+                        <?php if($unreadNotifs > 0): ?>
+                            <span style="position: absolute; top: -6px; right: -6px; background: var(--danger); color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 4px 8px rgba(239,68,68,0.3);"><?= $unreadNotifs ?></span>
+                        <?php endif; ?>
+                    </a>
                 <?php endif; ?>
 
                 <a href="logout.php" class="btn btn-logout">Logout</a>
@@ -523,7 +458,7 @@ foreach ($items as $item) {
                 idleTimer = setTimeout(() => { window.location.href = 'index.php'; }, 30000);
             }
         }
-        ['mousemove', 'scroll', 'click', 'touchstart'].forEach(evt => window.addEventListener(evt, resetIdleTimer));
+        ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'].forEach(evt => window.addEventListener(evt, resetIdleTimer));
         resetIdleTimer();
 
         // 3. CART LOGIC
@@ -554,7 +489,7 @@ foreach ($items as $item) {
 
         function updateCartUI() {
             const badge = document.getElementById('cartBadge');
-            if(!badge) return;
+            if(!badge) return; // Exit if not Sales/Admin
 
             const count = cartData.length;
             badge.textContent = count;
@@ -686,7 +621,7 @@ foreach ($items as $item) {
             if (e.target === this) closeModal();
         });
 
-        // 5. ESC KEY EVENT LISTENER
+        // ESC KEY EVENT LISTENER
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeModal();

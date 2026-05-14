@@ -1,15 +1,9 @@
 <?php
 session_start();
-
-// Step out of the 'sales' folder to access the main core files
 require_once '../auth.php';
 require_login();
 require_once '../db.php';
-require_once '../functions.php'; // Required for log_activity
-require_once '../vendor/autoload.php';
-
-use Dompdf\Dompdf;
-use Dompdf\Options;
+require_once '../functions.php'; 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
@@ -18,18 +12,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $pdo->beginTransaction();
 
-        $payload_items = []; 
-        $gross_total = 0;
-
-        // ==========================================
-        // SALES QUOTATION (PER PIECE)
-        // ==========================================
         if ($quote_type === 'sales') {
-            
             $items = $_POST['items'] ?? [];
             if (empty($items)) die("No items selected. Please go back and try again.");
 
             $user_id = $_SESSION['user_id'] ?? null;
+
+            // Date comes in perfectly from the Date Picker (YYYY-MM-DD)
+            $quote_date_input = $_POST['quote_date'] ?? date('Y-m-d');
 
             $trans = [
                 'quotation_no'       => trim($_POST['quotation_no'] ?? ''),
@@ -38,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'attention_to'       => trim($_POST['attention_to'] ?? ''),
                 'client_email'       => trim($_POST['client_email'] ?? ''), 
                 'client_contact'     => trim($_POST['client_contact'] ?? ''),
-                'quote_date'         => $_POST['quote_date'] ?? date('Y-m-d'),
+                'quote_date'         => $quote_date_input, 
                 'payment_terms'      => trim($_POST['payment_terms'] ?? ''),
                 'validity_date'      => $_POST['validity_date'] ?? '',
                 'eta'                => trim($_POST['eta'] ?? ''),
@@ -51,92 +41,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Insert Quotation Data
             $stmtTrans = $pdo->prepare("
                 INSERT INTO sales_quotations 
-                (quotation_no, client_name, client_address, attention_to, client_email, client_contact, quote_date, payment_terms, validity_date, eta, proposal_purpose, corporate_discount, prepared_by) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (user_id, status, is_notified, quotation_no, client_name, client_address, attention_to, client_email, client_contact, quote_date, payment_terms, validity_date, eta, proposal_purpose, corporate_discount, prepared_by) 
+                VALUES (?, 'pending_admin', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            $dbParams = [
+            $stmtTrans->execute([
+                $user_id,
                 $trans['quotation_no'], $trans['client_name'], $trans['client_address'], 
                 $trans['attention_to'], $trans['client_email'], $trans['client_contact'], 
                 $trans['quote_date'], $trans['payment_terms'], $trans['validity_date'], 
                 $trans['eta'], $trans['proposal_purpose'], $trans['corporate_discount'], 
                 $trans['prepared_by']
-            ];
-            $stmtTrans->execute($dbParams);
+            ]);
             $quotation_id = $pdo->lastInsertId();
 
-            // Insert Machine Items
             $stmtItemInsert = $pdo->prepare("INSERT INTO sales_quotation_items (quotation_id, item_id, qty, unit_price, discount) VALUES (?, ?, ?, ?, ?)");
-            $stmtItemFetch = $pdo->prepare("SELECT brand, model_no, description, picture, selling_price FROM items WHERE id = ?");
+            $stmtItemFetch = $pdo->prepare("SELECT selling_price FROM items WHERE id = ?");
 
             foreach ($items as $item) {
                 $item_id = (int)$item['id'];
                 $qty = (int)$item['qty'];
-
                 $stmtItemFetch->execute([$item_id]);
                 $machineData = $stmtItemFetch->fetch();
 
                 if ($machineData) {
-                    $unit_price = $machineData['selling_price'];
-                    $gross_total += ($qty * $unit_price);
-                    
-                    $stmtItemInsert->execute([$quotation_id, $item_id, $qty, $unit_price, 0]);
-                    
-                    $payload_items[] = [
-                        'brand' => $machineData['brand'],
-                        'model' => $machineData['model_no'],
-                        'description' => $machineData['description'],
-                        'picture' => $machineData['picture'], 
-                        'qty' => $qty,
-                        'unit_price' => $unit_price
-                    ];
+                    $stmtItemInsert->execute([$quotation_id, $item_id, $qty, $machineData['selling_price'], 0]);
                 }
             }
-            
-            // Look for the template in the same 'sales' folder
-            $pdf_template = __DIR__ . '/sales_template.php';
-            $paper_size = 'A4';
+        } 
 
-        } else {
-            die("Invalid Quote Type.");
-        }
-
-        log_activity($pdo, 'QUOTE_CREATED', "Generated Sales Quote #{$trans['quotation_no']}");
+        log_activity($pdo, 'QUOTE_SUBMITTED', "User submitted Sales Quote #{$trans['quotation_no']} for Admin Approval.");
         $pdo->commit();
 
-        // ==========================================
-        // GENERATE AND DISPLAY PDF INSTANTLY
-        // ==========================================
-        
-        // This is the magic vacuum cleaner that fixes PDF corruption!
-        if (ob_get_length()) {
-            ob_end_clean(); 
-        }
-
-        $options = new Options();
-        $options->set('isRemoteEnabled', true); 
-        $options->set('dpi', 150); 
-        $options->set('defaultFont', 'DejaVu Sans'); 
-        
-        $dompdf = new Dompdf($options);
-        
-        ob_start();
-        include $pdf_template; 
-        $html = ob_get_clean();
-
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper($paper_size, 'portrait');
-        $dompdf->render();
-        
-        // "Attachment" => false makes it pop open in the browser instead of downloading directly
-        $dompdf->stream($trans['quotation_no'] . ".pdf", ["Attachment" => false]);
+        $_SESSION['flash_success'] = "Success! Quotation #{$trans['quotation_no']} has been submitted to the Admin for approval.";
+        header("Location: ../history.php");
         exit;
 
     } catch (Exception $e) {
         if ($pdo->inTransaction()) { $pdo->rollBack(); }
         die("System Error: " . $e->getMessage());
     }
-} else {
-    header("Location: ../index.php");
-    exit;
 }
-?>
+?>  

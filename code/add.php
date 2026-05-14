@@ -89,6 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                         $error = 'Image upload failed. Please check folder permissions.';
                     }
                 }
+            } else {
+                $error = 'Product Image is required.'; // Backup validation for image
             }
 
             // --- PDF UPLOAD ---
@@ -262,9 +264,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             white-space: nowrap;
         }
 
+        /* NEW REQUIRED FIELD STYLING */
+        label.required::after {
+            content: ' *';
+            color: var(--maroon);
+            font-weight: 900;
+            font-size: 0.8rem;
+        }
+
         .helper-text { font-size: 0.65rem; color: var(--text-muted); font-style: italic; }
 
-        /* Premium Duplicate Warning Upgrade */
         .duplicate-warning {
             position: absolute;
             top: calc(100% + 6px);
@@ -423,47 +432,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
         .alert-success { color: #166534; background: #F0FDF4; }
         .alert-warning { color: #9A6324; background: #FFF8DC; border-color: #F5DEB3; }
 
-        /* Premium Custom Dropdown Upgrade */
-        .custom-dropdown { 
-            position: absolute; 
-            top: calc(100% + 8px); 
-            left: 0; 
-            width: 100%; 
-            background: var(--surface); 
-            border: 1px solid var(--border); 
-            border-radius: 12px; 
-            max-height: 220px; 
-            overflow-y: auto; 
-            z-index: 9999; 
-            box-shadow: 0 12px 30px rgba(122, 16, 46, 0.1); 
-            display: none; 
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: opacity 0.2s ease, transform 0.2s ease;
-        }
-        .custom-dropdown.active { 
-            display: block; 
-            opacity: 1;
-            transform: translateY(0);
-        }
-        .custom-dropdown::-webkit-scrollbar { width: 6px; }
-        .custom-dropdown::-webkit-scrollbar-thumb { background: rgba(139, 21, 56, 0.2); border-radius: 10px; }
-        
-        .custom-dropdown-item { 
-            padding: 12px 16px; 
-            font-size: 0.85rem; 
-            font-weight: 600;
-            color: var(--text-main); 
-            cursor: pointer; 
-            transition: all 0.2s ease; 
-            border-bottom: 1px solid var(--maroon-light);
-        }
-        .custom-dropdown-item:last-child { border-bottom: none; }
-        .custom-dropdown-item:hover { 
-            background: var(--maroon-light); 
-            color: var(--maroon); 
-            padding-left: 22px; 
-        }
+        .custom-dropdown { position: absolute; top: calc(100% + 4px); left: 0; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; max-height: 180px; overflow-y: auto; z-index: 9999; box-shadow: 0 8px 20px rgba(122, 16, 46, 0.1); display: none; }
+        .custom-dropdown.active { display: block; }
+        .custom-dropdown-item { padding: 8px 12px; font-size: 0.8rem; color: var(--text-main); cursor: pointer; transition: all 0.2s ease; }
+        .custom-dropdown-item:hover { background: var(--maroon-light); color: var(--maroon); font-weight: 500; }
 
         .zoom-overlay { position: fixed; inset: 0; background: rgba(248, 246, 245, 0.95); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         .zoom-overlay.active { opacity: 1; pointer-events: all; }
@@ -485,7 +457,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
 <body>
 
     <div class="modal-card">
-        <button class="close-btn" onclick="window.location.href='index.php'" title="Close Dashboard">✕</button>
+        <button class="close-btn" onclick="window.location.href='index.php'" title="Close">✕</button>
         
         <div class="modal-header">
             <h2 class="modal-title">New Record</h2>
@@ -497,7 +469,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
         <?php if ($pending_msg): ?><div class="alert alert-warning">⏳ <?php echo htmlspecialchars($pending_msg, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
 
         <div class="modal-form-wrapper">
-        <form method="post" enctype="multipart/form-data" id="machineForm" autocomplete="off">
+        <form method="post" enctype="multipart/form-data" id="updateMachineForm" autocomplete="off">
             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
 
             <div class="form-grid">
@@ -508,7 +480,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                 </div>
 
                 <div class="form-group span-2">
-                    <label for="brand">Brand</label>
+                    <label for="brand" class="required">Brand</label>
                     <div style="position: relative; display: flex; flex-direction: column;">
                         <input type="text" name="brand" id="brand" autocomplete="off" required>
                         <div id="custom-brand-list" class="custom-dropdown" style="top: calc(100% + 4px);"></div>
@@ -516,14 +488,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                 </div>
 
                 <div class="form-group span-2">
-                    <label for="model_no">Model Number</label>
+                    <label for="model_no" class="required">Model Number</label>
                     <input type="text" name="model_no" id="model_no" autocomplete="off" required>
                     <div class="helper-text">*Determines the file names.</div>
                     <div id="model-warning" class="duplicate-warning"></div>
                 </div>
 
                 <div class="form-group span-4">
-                    <label for="description">Description</label>
+                    <label for="description" class="required">Description</label>
                     <textarea name="description" id="description" autocomplete="off" required></textarea>
                 </div>
 
@@ -533,7 +505,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                 </div>
 
                 <div class="form-group">
-                    <label for="buying_currency">Currency</label>
+                    <label for="buying_currency" class="required">Currency</label>
                     <select name="buying_currency" id="buying_currency" class="compact-field" required>
                         <option value="" disabled selected></option>
                         <option value="USD">USD - US Dollar</option>
@@ -542,17 +514,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                 </div>
 
                 <div class="form-group">
-                    <label for="buying_cost">Buying Cost</label>
+                    <label for="buying_cost" class="required">Buying Cost</label>
                     <input type="text" name="buying_cost" id="buying_cost" class="compact-field" autocomplete="off" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="factor">Factor</label>
+                    <label for="factor" class="required">Factor</label>
                     <input type="number" step="any" min="0.0001" name="factor" id="factor" class="compact-field" autocomplete="off" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="selling_price">Selling Price</label>
+                    <label for="selling_price" class="required">Selling Price</label>
                     <div class="price-wrapper">
                         <input type="text" name="selling_price" id="selling_price" class="input-readonly compact-field" readonly required autocomplete="off">
                     </div>
@@ -564,7 +536,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                 </div>
 
                 <div class="form-group span-2">
-                    <label for="picture">Product Image</label>
+                    <label for="picture" class="required">Product Image</label>
                     <div class="file-drop-area" id="drop-area">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                         <span class="file-msg" id="file-msg">Drop or Paste (Ctrl+V)</span>
@@ -574,7 +546,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                             <button type="button" class="remove-img-btn" id="remove-img-btn" title="Remove Image">✕</button>
                         </div>
 
-                        <input type="file" name="picture" id="picture" class="file-input" accept="image/*">
+                        <input type="file" name="picture" id="picture" class="file-input" accept="image/*" required>
                     </div>
                 </div>
 

@@ -30,7 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
         $new_status = ($action === 'approve_quote') ? 'pending_super' : 'revision';
         
         try {
-            $stmt = $pdo->prepare("UPDATE {$table} SET status = ?, admin_notes = ? WHERE id = ?");
+            // NOTIFICATION ENGINE WIRED: is_notified = 1 added to flag the user!
+            $stmt = $pdo->prepare("UPDATE {$table} SET status = ?, admin_notes = ?, is_notified = 1 WHERE id = ?");
             $stmt->execute([$new_status, $notes, $quote_id]);
             
             $action_text = ($action === 'approve_quote') ? "Approved to Super Admin" : "Requested Revision";
@@ -112,11 +113,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 // 3. FETCH DATASETS FOR TABS
 // ==========================================
 
-// A. Quotes (FIXED: Removed user_id join to prevent database crashes)
 $sales_pending = $pdo->query("SELECT * FROM sales_quotations WHERE status = 'pending_admin' ORDER BY created_at DESC")->fetchAll();
 $project_pending = $pdo->query("SELECT * FROM project_quotations WHERE status = 'pending_admin' ORDER BY created_at DESC")->fetchAll();
 
-// B. Pending Inventory
 $pending_inventory = $pdo->query("
     SELECT p.*, u.username as requested_by_name 
     FROM pending_approvals p 
@@ -125,7 +124,6 @@ $pending_inventory = $pdo->query("
     ORDER BY p.created_at ASC
 ")->fetchAll();
 
-// C. History Logs
 $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 100")->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -161,6 +159,8 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
         .header-controls { display: flex; gap: 12px; }
         .btn-nav { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
         .btn-nav:hover { border-color: var(--maroon); color: var(--maroon); transform: translateY(-2px); }
+        .btn-logout { background: #FEF2F2 !important; color: #EF4444 !important; border-color: #FECACA !important; }
+        .btn-logout:hover { background: #EF4444 !important; color: white !important; }
 
         /* ALERTS */
         .alert { padding: 14px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; animation: slideDown 0.3s ease; }
@@ -244,7 +244,7 @@ $history_logs = $pdo->query("SELECT * FROM activity_logs ORDER BY created_at DES
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                     Employee Portal
                 </a>
-                <a href="../logout.php" class="btn-nav btn-logout" style="background: #FEF2F2; color: #EF4444; border-color: #FECACA;">Logout</a>
+                <a href="../logout.php" class="btn-nav btn-logout">Logout</a>
             </div>
         </div>
 

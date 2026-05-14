@@ -222,6 +222,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             white-space: nowrap;
         }
 
+        /* NEW REQUIRED FIELD STYLING */
+        label.required::after {
+            content: ' *';
+            color: var(--maroon);
+            font-weight: 900;
+            font-size: 0.8rem;
+        }
+
         .helper-text { font-size: 0.65rem; color: var(--text-muted); font-style: italic; }
 
         input[type="text"], input[type="number"], select, textarea {
@@ -405,17 +413,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="form-group span-2">
-                    <label for="brand">Brand</label>
+                    <label for="brand" class="required">Brand</label>
                     <input type="text" name="brand" id="brand" value="<?php echo htmlspecialchars($item['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
                 </div>
 
                 <div class="form-group span-2">
-                    <label for="model_no">Model Number</label>
+                    <label for="model_no" class="required">Model Number</label>
                     <input type="text" name="model_no" id="model_no" value="<?php echo htmlspecialchars($item['model_no'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
                 </div>
 
                 <div class="form-group span-4">
-                    <label for="description">Description</label>
+                    <label for="description" class="required">Description</label>
                     <textarea name="description" id="description" required><?php echo htmlspecialchars($item['description'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
                 </div>
 
@@ -425,7 +433,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="form-group">
-                    <label for="buying_currency">Currency</label>
+                    <label for="buying_currency" class="required">Currency</label>
                     <select name="buying_currency" id="buying_currency" class="compact-field" required>
                         <option value="" disabled></option>
                         <option value="USD" <?php echo ($item['buying_currency'] === 'USD') ? 'selected' : ''; ?>>USD - US Dollar</option>
@@ -434,17 +442,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="form-group">
-                    <label for="buying_cost">Buying Cost</label>
+                    <label for="buying_cost" class="required">Buying Cost</label>
                     <input type="text" name="buying_cost" id="buying_cost" class="compact-field" value="<?php echo number_format((float)($item['buying_cost'] ?? 0), 2); ?>" autocomplete="off" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="factor">Factor</label>
+                    <label for="factor" class="required">Factor</label>
                     <input type="number" step="any" min="0.0001" name="factor" id="factor" class="compact-field" value="<?php echo htmlspecialchars($item['factor'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="selling_price">Selling Price</label>
+                    <label for="selling_price" class="required">Selling Price</label>
                     <div class="price-wrapper">
                         <input type="text" name="selling_price" id="selling_price" class="input-readonly compact-field" value="<?php echo number_format((float)($item['selling_price'] ?? 0), 2); ?>" readonly required autocomplete="off">
                     </div>
