@@ -110,18 +110,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <title>Update Machine - AM Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #F8F6F5;
+            /* Modernized Premium Palette */
+            --bg: #F4F7F9; 
             --surface: #FFFFFF;
-            --text-main: #2A0808;
-            --text-muted: #8C7373;
-            --border: #E8D8D7;
-            --maroon: #7A102E; 
-            --maroon-hover: #5A081E;
-            --maroon-light: #FAF5F6;
-            --danger: #DC2626;
+            --text-main: #0F172A; 
+            --text-muted: #64748B; 
+            --text-light: #94A3B8;
+            --border: #E2E8F0;
+            --maroon: #8B1538;
+            --maroon-hover: #700E2B;
+            --maroon-light: #FFF1F5;
+            --danger: #EF4444;
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            --shadow-lg: 0 24px 60px -10px rgba(0, 0, 0, 0.1);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -134,43 +139,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: flex;
             align-items: flex-start;
             justify-content: center;
-            padding: 24px 20px;
+            padding: 40px 20px;
         }
 
+        /* ELEVATED MODAL CARD */
         .modal-card {
             background: var(--surface);
             width: 100%;
-            max-width: 780px; 
-            border-radius: 16px;
+            max-width: 860px; 
+            border-radius: 32px;
             padding: 0;
             position: relative;
-            border: 1px solid var(--border);
-            box-shadow: 0 12px 32px rgba(122, 16, 46, 0.08);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: var(--shadow-lg);
             margin: auto;
+            overflow: hidden;
         }
 
         .modal-header {
-            background: var(--surface);
-            padding: 24px 32px 16px 32px;
-            border-radius: 16px 16px 0 0;
-            position: relative;
+            background: #F8FAFC;
+            padding: 32px 40px 24px 40px;
             border-bottom: 1px solid var(--border);
+            position: relative;
         }
 
-        .modal-form-wrapper { padding: 20px 32px 32px 32px; }
+        .modal-form-wrapper { padding: 32px 40px 40px 40px; }
 
-        /* 4-COLUMN HIGH DENSITY GRID */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 14px 16px;
+            gap: 20px 24px;
         }
         .span-2 { grid-column: span 2; }
         .span-4 { grid-column: 1 / -1; }
 
         .modal-title { 
             font-family: 'Outfit', sans-serif; 
-            font-size: 1.8rem; 
+            font-size: 2rem; 
             font-weight: 900; 
             color: var(--maroon); 
             text-transform: uppercase;
@@ -178,91 +183,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             line-height: 1;
         }
 
-        .modal-subtitle { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
+        .modal-subtitle { font-size: 0.9rem; color: var(--text-muted); margin-top: 8px; font-weight: 500; }
 
+        /* CIRCULAR ROTATING CLOSE BUTTON */
         .close-btn {
             position: absolute;
             top: 24px;
-            right: 28px;
-            background: transparent;
-            border: none;
-            font-size: 1.4rem;
-            color: var(--text-muted);
+            right: 24px;
+            background: #F4F7F9;
+            border: 1px solid var(--border);
+            font-size: 20px;
             cursor: pointer;
-            transition: color 0.2s ease;
-            z-index: 20;
+            color: var(--text-muted);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            box-shadow: var(--shadow-sm);
         }
-        .close-btn:hover { color: var(--maroon); }
+        .close-btn:hover { color: var(--surface); border-color: var(--danger); background: var(--danger); transform: rotate(90deg); }
 
         .section-label {
             grid-column: 1 / -1;
             font-family: 'Outfit', sans-serif;
             font-size: 0.85rem;
             font-weight: 800;
-            color: var(--maroon);
+            color: var(--text-main);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid var(--maroon-light);
-            padding-bottom: 4px;
-            margin-top: 10px;
-            margin-bottom: 0px; 
+            letter-spacing: 0.1em;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 8px;
+            margin-top: 16px;
+            margin-bottom: 4px; 
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
         }
+        .section-label svg { color: var(--maroon); }
 
-        .form-group { display: flex; flex-direction: column; gap: 4px; position: relative; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
 
         label {
-            font-size: 0.65rem;
-            font-weight: 700;
+            font-size: 0.7rem;
+            font-weight: 800;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
             white-space: nowrap;
         }
 
-        /* NEW REQUIRED FIELD STYLING */
         label.required::after {
             content: ' *';
             color: var(--maroon);
             font-weight: 900;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
         }
 
-        .helper-text { font-size: 0.65rem; color: var(--text-muted); font-style: italic; }
+        .helper-text { font-size: 0.7rem; color: var(--text-light); font-style: italic; font-weight: 500;}
 
+        /* PREMIUM ROUNDED INPUTS */
         input[type="text"], input[type="number"], select, textarea {
             width: 100%;
-            padding: 10px 12px;
-            border-radius: 8px;
+            padding: 14px 16px;
+            border-radius: 12px;
             border: 1px solid var(--border);
-            background: #F8F6F6;
-            font-size: 0.9rem;
+            background: #F8FAFC;
+            font-size: 0.95rem;
             font-family: 'DM Sans', sans-serif;
             color: var(--text-main);
-            transition: all 0.2s ease;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             outline: none;
         }
 
-        .compact-field { padding: 8px 10px; font-size: 0.85rem; }
+        .compact-field { padding: 12px 14px; font-size: 0.9rem; }
 
         select {
             appearance: none;
             cursor: pointer;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%237A102E' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 10px center;
-            background-size: 10px;
-            padding-right: 28px;
+            background-position: right 14px center;
+            background-size: 12px;
+            padding-right: 36px;
         }
 
-        textarea { resize: vertical; min-height: 60px; }
+        textarea { resize: vertical; min-height: 80px; }
 
         input:focus:not([readonly]), textarea:focus, select:focus {
             border-color: var(--maroon);
             background: var(--surface);
-            box-shadow: 0 4px 10px rgba(122, 16, 46, 0.08);
+            box-shadow: 0 0 0 4px var(--maroon-light);
+            transform: translateY(-1px);
         }
         
         .input-readonly {
@@ -277,75 +293,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .price-wrapper::before {
             content: "₱";
             position: absolute;
-            left: 10px;
+            left: 14px;
             font-weight: 800;
-            font-size: 0.9rem;
+            font-size: 1rem;
             color: var(--maroon);
             z-index: 1;
             pointer-events: none;
         }
-        .price-wrapper input.compact-field { padding-left: 28px !important; }
+        .price-wrapper input.compact-field { padding-left: 36px !important; }
 
+        /* SLEEK DRAG & DROP ZONES */
         .file-drop-area {
-            border: 1px dashed var(--border);
-            border-radius: 8px;
-            padding: 12px;
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 24px;
             text-align: center;
-            background: #F8F6F6;
+            background: #F8FAFC;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
             height: 100%; 
-            min-height: 80px;
+            min-height: 120px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-direction: column;
-            gap: 6px;
+            gap: 12px;
         }
 
-        .file-drop-area svg { color: #C8BDBD; transition: color 0.3s ease; width: 20px; height: 20px; }
-        .file-drop-area:hover, .file-drop-area.is-active { background: var(--maroon-light); border-color: var(--maroon); }
-        .file-drop-area:hover svg { color: var(--maroon); }
+        .file-drop-area svg { color: var(--text-light); transition: all 0.3s ease; width: 28px; height: 28px; }
+        .file-drop-area:hover, .file-drop-area.is-active { background: var(--maroon-light); border-color: var(--maroon); border-style: solid;}
+        .file-drop-area:hover svg { color: var(--maroon); transform: scale(1.1); }
 
         .file-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 1; }
-        .file-msg { font-size: 0.75rem; color: var(--text-muted); position: relative; z-index: 1; transition: color 0.2s; font-weight: 500; }
-        .file-drop-area.is-active .file-msg { color: var(--maroon); font-weight: 700; }
+        .file-msg { font-size: 0.8rem; color: var(--text-muted); position: relative; z-index: 1; transition: color 0.2s; font-weight: 600; }
+        .file-drop-area.is-active .file-msg { color: var(--maroon); font-weight: 800; }
 
-        .preview-container { position: absolute; inset: 0; z-index: 10; display: none; background: var(--surface); padding: 4px; border-radius: 8px; }
-        .preview-img { width: 100%; height: 100%; border-radius: 4px; cursor: zoom-in; object-fit: contain; transition: transform 0.2s ease; }
-        .remove-img-btn { position: absolute; top: 4px; right: 4px; background: var(--surface); color: var(--maroon); border: 1px solid var(--border); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: all 0.2s ease; }
-        .remove-img-btn:hover { background: var(--maroon); color: var(--surface); transform: scale(1.1); }
+        .preview-container { position: absolute; inset: 0; z-index: 10; display: none; background: var(--surface); padding: 8px; border-radius: 14px; }
+        .preview-img { width: 100%; height: 100%; border-radius: 8px; cursor: zoom-in; object-fit: contain; transition: transform 0.2s ease; }
+        .remove-img-btn { position: absolute; top: 8px; right: 8px; background: var(--surface); color: var(--danger); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; font-size: 0.9rem; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); transition: all 0.2s ease; }
+        .remove-img-btn:hover { background: var(--danger); color: var(--surface); transform: scale(1.1); border-color: var(--danger); }
 
-        .action-buttons { display: flex; gap: 12px; margin-top: 24px; }
+        /* ACTION BUTTONS */
+        .action-buttons { display: flex; gap: 16px; margin-top: 32px; }
         
         .btn-submit {
             flex: 1;
-            background: var(--maroon);
+            background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%);
             color: white;
-            height: 48px;
+            height: 56px;
             border: none;
-            border-radius: 12px;
-            font-size: 0.9rem;
+            border-radius: 16px;
+            font-size: 0.95rem;
             font-family: 'Outfit', sans-serif;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 6px 16px rgba(122, 16, 46, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 20px rgba(139, 21, 56, 0.25);
         }
-        .btn-submit:hover { background: var(--maroon-hover); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(122, 16, 46, 0.3); }
+        .btn-submit:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 12px 25px rgba(139, 21, 56, 0.35); }
 
         .btn-cancel {
             flex: 1;
-            background: #F8F6F6;
-            color: var(--text-muted);
-            height: 48px;
+            background: var(--surface);
+            color: var(--text-main);
+            height: 56px;
             border: 1px solid var(--border);
-            border-radius: 12px;
-            font-size: 0.9rem;
+            border-radius: 16px;
+            font-size: 0.95rem;
             font-family: 'Outfit', sans-serif;
             font-weight: 800;
             text-transform: uppercase;
@@ -357,33 +375,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             align-items: center;
             justify-content: center;
             transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
         }
-        .btn-cancel:hover { background: var(--border); color: var(--text-main); }
+        .btn-cancel:hover { background: #F8FAFC; border-color: var(--text-muted); transform: translateY(-2px); box-shadow: var(--shadow-md); }
 
-        .alert { padding: 12px 24px; margin: 0; font-size: 0.85rem; font-weight: 700; border-bottom: 1px solid var(--border); }
-        .alert-error { color: var(--maroon); background: var(--maroon-light); }
-        .alert-success { color: #166534; background: #F0FDF4; }
-        .alert-warning { color: #9A6324; background: #FFF8DC; border-color: #F5DEB3; }
+        .alert { padding: 16px 24px; margin: 0 0 20px 0; font-size: 0.9rem; font-weight: 700; border-radius: 12px; }
+        .alert-error { color: var(--maroon); background: var(--maroon-light); border-left: 4px solid var(--maroon); }
+        .alert-success { color: #059669; background: #ECFDF5; border-left: 4px solid #10B981; }
+        .alert-warning { color: #D97706; background: #FFFBEB; border-left: 4px solid #F59E0B; }
 
-        .custom-dropdown { position: absolute; top: calc(100% + 4px); left: 0; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; max-height: 180px; overflow-y: auto; z-index: 9999; box-shadow: 0 8px 20px rgba(122, 16, 46, 0.1); display: none; }
-        .custom-dropdown.active { display: block; }
-        .custom-dropdown-item { padding: 8px 12px; font-size: 0.8rem; color: var(--text-main); cursor: pointer; transition: all 0.2s ease; }
-        .custom-dropdown-item:hover { background: var(--maroon-light); color: var(--maroon); font-weight: 500; }
-
-        .zoom-overlay { position: fixed; inset: 0; background: rgba(248, 246, 245, 0.95); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .zoom-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         .zoom-overlay.active { opacity: 1; pointer-events: all; }
-        .zoom-overlay img { max-width: 90vw; max-height: 90vh; border-radius: 12px; box-shadow: 0 20px 40px rgba(122, 16, 46, 0.15); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .zoom-overlay img { max-width: 90vw; max-height: 90vh; border-radius: 16px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .zoom-overlay.active img { transform: scale(1); }
-        .zoom-close-btn { position: absolute; top: 24px; right: 32px; background: transparent; border: none; font-size: 1.8rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s ease; }
-        .zoom-close-btn:hover { color: var(--maroon); }
+        .zoom-close-btn { position: absolute; top: 24px; right: 32px; background: white; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s ease; width: 48px; height: 48px; border-radius: 50%; box-shadow: var(--shadow-sm); display: flex; justify-content: center; align-items: center;}
+        .zoom-close-btn:hover { color: var(--danger); transform: rotate(90deg); }
 
         @media (max-width: 768px) {
-            .form-grid { grid-template-columns: 1fr; gap: 12px; }
+            body { padding: 20px 12px; }
+            .form-grid { grid-template-columns: 1fr; gap: 16px; }
             .span-2, .span-4 { grid-column: 1 / -1; }
-            .modal-form-wrapper { padding: 20px 24px; }
-            .modal-header { padding: 20px 24px 14px 24px; }
-            .close-btn { top: 18px; right: 20px; }
-            .action-buttons { flex-direction: column; gap: 10px; }
+            .modal-card { border-radius: 24px; }
+            .modal-form-wrapper { padding: 24px 20px; }
+            .modal-header { padding: 24px 20px 16px 20px; border-radius: 24px 24px 0 0; }
+            .modal-title { font-size: 1.6rem; }
+            .close-btn { top: 20px; right: 20px; width: 36px; height: 36px; font-size: 16px; }
+            .action-buttons { flex-direction: column; gap: 12px; }
+            .btn-cancel, .btn-submit { height: 50px; }
+            .file-drop-area { min-height: 100px; padding: 16px; }
         }
     </style>
 </head>
@@ -408,7 +427,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-grid">
                 
                 <div class="section-label span-4">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                     Basic Details
                 </div>
 
@@ -428,7 +447,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="section-label span-4">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                     Pricing Data
                 </div>
 
@@ -459,20 +478,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="section-label span-4">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     Media & Documents
                 </div>
 
                 <div class="form-group span-2">
                     <label for="picture">Product Image</label>
-                    <div class="file-drop-area" id="drop-area">
+                    
+                    <?php 
+                        $existing_img = '';
+                        $show_preview = 'none';
+                        $has_image_class = '';
+                        if (!empty($item['picture']) && file_exists(__DIR__ . '/../images/machine_images/' . $item['picture'])) {
+                            $existing_img = '../images/machine_images/' . htmlspecialchars($item['picture'], ENT_QUOTES, 'UTF-8');
+                            $show_preview = 'block';
+                            $has_image_class = 'is-active';
+                        }
+                    ?>
+                    
+                    <div class="file-drop-area <?= $has_image_class ?>" id="drop-area">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                         <span class="file-msg" id="file-msg">
                             <?php echo !empty($item['picture']) ? 'Replace existing image' : 'Drop or Paste Image'; ?>
                         </span>
                         
-                        <div class="preview-container" id="preview-container">
-                            <img id="image-preview" class="preview-img" src="" alt="Preview" title="Click to zoom">
+                        <div class="preview-container" id="preview-container" style="display: <?= $show_preview ?>;">
+                            <img id="image-preview" class="preview-img" src="<?= $existing_img ?>" alt="Preview" title="Click to zoom">
                             <button type="button" class="remove-img-btn" id="remove-img-btn" title="Remove Image">✕</button>
                         </div>
 
@@ -576,7 +607,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         removeBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); resetImage(); });
-        imagePreview.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); zoomedImage.src = this.src; zoomOverlay.classList.add('active'); });
+        
+        imagePreview.addEventListener('click', function(e) { 
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            if(this.src && this.src !== window.location.href) {
+                zoomedImage.src = this.src; 
+                zoomOverlay.classList.add('active'); 
+            }
+        });
+        
         zoomClose.addEventListener('click', () => zoomOverlay.classList.remove('active'));
         zoomOverlay.addEventListener('click', function(e) { if (e.target === this) zoomOverlay.classList.remove('active'); });
 

@@ -1,13 +1,17 @@
 <?php
 // login.php
 session_start();
+
+// FORCE SYNCHRONIZED TIMEZONE
+date_default_timezone_set('Asia/Manila'); 
+
 require 'db.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 require 'vendor/autoload.php';
 
-// 1. Generate CSRF Token
+// Generate CSRF Token
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -41,26 +45,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
 
         if (!empty($username_input) && !empty($password)) {
             
-            // Fetch User AND Database Security Counters
             $stmt = $pdo->prepare("SELECT id, username, email, password, role, status, failed_attempts, locked_until FROM users WHERE username = ?");
             $stmt->execute([$username_input]);
             $user = $stmt->fetch();
 
             if ($user) {
-                // Check if account is currently locked in the database
                 if ($user['locked_until'] !== null && strtotime($user['locked_until']) > time()) {
                     $minutes_left = ceil((strtotime($user['locked_until']) - time()) / 60);
                     $error = "Account locked due to security protocols. Please try again in {$minutes_left} minute(s).";
                 } 
                 else {
-                    // Account is not locked, verify password
                     if (password_verify($password, $user['password']) && $user['status'] === 'active') {
                         
-                        // SUCCESS: Reset database counters to zero
                         $resetStmt = $pdo->prepare("UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?");
                         $resetStmt->execute([$user['id']]);
 
+                        // SECURITY UPGRADE: Prevent Session Fixation attacks
                         session_regenerate_id(true);
+                        
                         $_SESSION['user_id'] = $user['id'];
                         $_SESSION['username'] = $user['username'];
                         $_SESSION['user_role'] = $user['role'];
@@ -72,18 +74,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                         exit;
 
                     } else {
-                        // FAILED ATTEMPT: Update database counters
                         $attempts = $user['failed_attempts'] + 1;
                         
                         if ($attempts >= 5) {
-                            // Lock account for 15 minutes
                             $lockoutTime = date('Y-m-d H:i:s', strtotime('+15 minutes'));
                             $lockStmt = $pdo->prepare("UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?");
                             $lockStmt->execute([$attempts, $lockoutTime, $user['id']]);
 
-                            // Auto-Email Recovery
                             if (!empty($user['email'])) {
-                                $token = bin2hex(random_bytes(32));
+                                $token = bin2hex(random_bytes(16)); 
                                 $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
 
                                 $updateTokenStmt = $pdo->prepare("UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?");
@@ -105,14 +104,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                                     $mail->addAddress($user['email'], $user['username']);
                                     $mail->isHTML(true);
                                     $mail->Subject = 'Security Alert: Account Locked - AM Group';
-                                    $mail->Body    = "Hi {$user['username']},<br><br>Your account has been locked due to 5 failed login attempts.<br><br>Reset your password here:<br><a href='{$resetLink}'>{$resetLink}</a><br><br>Or wait 15 minutes to try again.";
+                                    
+                                    $mail->Body = <<<HTML
+                                    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F4F7F9; padding: 40px 20px; color: #0F172A;">
+                                        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+                                            <tr>
+                                                <td style="padding: 40px; text-align: center; border-bottom: 4px solid #8B1538; background-color: #FAFAFA;">
+                                                    <h2 style="margin: 0; color: #8B1538; font-size: 28px; font-weight: 900; letter-spacing: -0.5px;">AM GROUP</h2>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 40px;">
+                                                    <h1 style="margin: 0 0 20px 0; font-size: 22px; color: #DC2626;">Security Alert: Account Locked</h1>
+                                                    <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #475569;">Hi <strong>{$user['username']}</strong>,</p>
+                                                    <p style="margin: 0 0 35px 0; font-size: 16px; line-height: 1.6; color: #475569;">We noticed 5 consecutive failed login attempts on your AM Group account. As a security precaution, your account has been temporarily locked.</p>
+                                                    
+                                                    <p style="margin: 0 0 35px 0; font-size: 16px; line-height: 1.6; color: #475569;">You can wait <strong>15 minutes</strong> to try logging in again, or you can instantly unlock your account by resetting your password below:</p>
+
+                                                    <div style="text-align: center; margin-bottom: 35px;">
+                                                        <a href="{$resetLink}" style="display: inline-block; background-color: #8B1538; color: #FFFFFF; padding: 16px 32px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Unlock & Reset Password</a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+HTML;
                                     $mail->send();
                                 } catch (Exception $e) {}
                             }
                             
                             $error = "Account locked due to multiple failed attempts. A recovery link has been sent to your email.";
                         } else {
-                            // Just increment the fail counter
                             $incStmt = $pdo->prepare("UPDATE users SET failed_attempts = ? WHERE id = ?");
                             $incStmt->execute([$attempts, $user['id']]);
                             
@@ -122,7 +144,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                     }
                 }
             } else {
-                // If username doesn't exist, give generic error (Anti-Enumeration)
                 $error = "Invalid credentials. Please try again.";
             }
         } else {
@@ -140,16 +161,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
     <link rel="stylesheet" href="assets/auth_style.css">
 </head>
 <body>
-    
     <div class="auth-master-layout">
         <div class="shape-1"></div>
         <div class="shape-2"></div>
-        
         <div class="login-wrapper">
             <div class="login-card">
-                
                 <img src="../images/other_images/AMGLOGO.png" alt="AM Group Logo" class="login-logo">
-                
                 <div class="header-text anim-item">
                     <h1 class="title">System Login</h1>
                     <div class="subtitle">Corporate Quoting & Inventory Engine</div>
@@ -157,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
 
                 <?php if ($error): ?>
                     <?php 
-                        $is_success = (strpos($error, 'successfully') !== false || strpos($error, 'logout') !== false); 
+                        $is_success = (strpos($error, 'successfully') !== false || strpos($error, 'reset') !== false || strpos($error, 'logout') !== false); 
                         $alert_class = $is_success ? 'alert-success' : 'alert-error';
                         $icon = $is_success 
                             ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>'
@@ -201,13 +218,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                     </button>
                 </form>
             </div>
-            
-            <div class="footer-text">
-                &copy; <?php echo date('Y'); ?> AM Group Kitchen Equipment and Supplies, Inc.
-            </div>
+            <div class="footer-text">&copy; <?php echo date('Y'); ?> AM Group Kitchen Equipment and Supplies, Inc.</div>
         </div>
     </div>
-
     <script>
         const togglePassword = document.getElementById('togglePassword');
         const passwordField = document.getElementById('passwordField');

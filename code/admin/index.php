@@ -6,48 +6,125 @@ require_role(['admin', 'super_admin']); // Only admins & super admins access thi
 require '../db.php';
 require_once '../functions.php';
 
-// Generate CSRF Token for security actions
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// ==========================================
+// AJAX ENDPOINT: FETCH QUOTE DETAILS
+// ==========================================
+if (isset($_POST['ajax_get_quote_details'])) {
+    header('Content-Type: application/json');
+    $quote_id = (int)$_POST['quote_id'];
+    $type = $_POST['type'];
+
+    try {
+        if ($type === 'sales') {
+            $stmt = $pdo->prepare("SELECT sq.*, u.full_name, u.username FROM sales_quotations sq LEFT JOIN users u ON sq.user_id = u.id WHERE sq.id = ?");
+            $stmt->execute([$quote_id]);
+            $quote = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($quote) {
+                $itemStmt = $pdo->prepare("SELECT sqi.*, i.brand, i.model_no, i.picture FROM sales_quotation_items sqi LEFT JOIN items i ON sqi.item_id = i.id WHERE sqi.quotation_id = ?");
+                $itemStmt->execute([$quote_id]);
+                $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo json_encode(['success' => true, 'quote' => $quote, 'items' => $items]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Quote not found']);
+            }
+        } elseif ($type === 'project') {
+            $stmt = $pdo->prepare("SELECT * FROM project_quotations WHERE id = ?");
+            $stmt->execute([$quote_id]);
+            $quote = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($quote) {
+                $itemStmt = $pdo->prepare("SELECT pqi.*, i.brand, i.model_no, i.picture FROM project_quotation_items pqi LEFT JOIN items i ON pqi.item_id = i.id WHERE pqi.quotation_id = ?");
+                $itemStmt->execute([$quote_id]);
+                $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo json_encode(['success' => true, 'quote' => $quote, 'items' => $items]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Quote not found']);
+            }
+        }
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
 }
 
 $success = '';
 $error = '';
 
 // ==========================================
-// 1. PROCESS QUOTATION APPROVALS
+// 1. PROCESS MODAL QUOTATION EDITOR (SAVE / APPROVE / REJECT)
 // ==========================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['approve_quote', 'reject_quote'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'modal_quote_action') {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         $error = "Security validation failed. Please try again.";
     } else {
         $quote_id = (int)$_POST['quote_id'];
-        $action = $_POST['action']; 
-        $type = $_POST['type']; 
-        $notes = ''; // Notes removed per request
+        $type = $_POST['quote_type'];
+        $submit_type = $_POST['submit_type'];
+
+        if ($submit_type === 'decline') {
+            $new_status = 'revision';
+        } elseif ($submit_type === 'approve') {
+            $new_status = 'pending_super'; // Routes to Super Admin
+        } else {
+            $new_status = 'pending_admin'; // Just saving changes, stays with Admin
+        }
         
-        $table = ($type === 'project') ? 'project_quotations' : 'sales_quotations';
-        $new_status = ($action === 'approve_quote') ? 'pending_super' : 'revision';
-        
+        $discount = isset($_POST['corporate_discount']) ? (float)str_replace(',', '', $_POST['corporate_discount']) : 0;
+        $is_notified = ($submit_type !== 'save') ? 1 : 0; // Only notify if approved or declined
+
         try {
-            $stmt = $pdo->prepare("UPDATE {$table} SET status = ?, admin_notes = ?, is_notified = 1 WHERE id = ?");
-            $stmt->execute([$new_status, $notes, $quote_id]);
-            
-            // AUTO-SYNC PRICE ENGINE (Updates Master Inventory)
-            if ($action === 'approve_quote' && $type === 'sales') {
-                $stmtFetchItems = $pdo->prepare("SELECT item_id, unit_price FROM sales_quotation_items WHERE quotation_id = ?");
-                $stmtFetchItems->execute([$quote_id]);
-                $quoteItems = $stmtFetchItems->fetchAll();
-                
-                $stmtUpdateMasterPrice = $pdo->prepare("UPDATE items SET selling_price = ? WHERE id = ?");
-                foreach ($quoteItems as $qi) {
-                    $stmtUpdateMasterPrice->execute([$qi['unit_price'], $qi['item_id']]);
+            $pdo->beginTransaction();
+
+            if ($type === 'sales') {
+                $upd = $pdo->prepare("UPDATE sales_quotations SET client_name=?, client_address=?, attention_to=?, client_email=?, client_contact=?, proposal_purpose=?, payment_terms=?, validity_date=?, eta=?, corporate_discount=?, status=?, is_notified=? WHERE id=?");
+                $upd->execute([
+                    $_POST['client_name'], $_POST['client_address'], $_POST['attention_to'], $_POST['client_email'], $_POST['client_contact'], $_POST['proposal_purpose'], $_POST['payment_terms'], $_POST['validity_date'], $_POST['eta'], $discount, $new_status, $is_notified, $quote_id
+                ]);
+
+                if (isset($_POST['items'])) {
+                    foreach ($_POST['items'] as $itemId => $itemData) {
+                        $uPrice = (float)str_replace(',', '', $itemData['price']);
+                        $qty = (int)$itemData['qty'];
+                        $pdo->prepare("UPDATE sales_quotation_items SET unit_price=?, qty=? WHERE quotation_id=? AND item_id=?")->execute([$uPrice, $qty, $quote_id, $itemId]);
+
+                        // Sync to master inventory only if approved
+                        if ($submit_type === 'approve') {
+                            $pdo->prepare("UPDATE items SET selling_price=? WHERE id=?")->execute([$uPrice, $itemId]);
+                        }
+                    }
+                }
+            } else {
+                $upd = $pdo->prepare("UPDATE project_quotations SET project_name=?, project_location=?, attention_to=?, client_email=?, client_contact=?, proposal_purpose=?, payment_terms=?, validity_date=?, eta=?, corporate_discount=?, status=?, is_notified=? WHERE id=?");
+                $upd->execute([
+                    $_POST['client_name'], $_POST['client_address'], $_POST['attention_to'], $_POST['client_email'], $_POST['client_contact'], $_POST['proposal_purpose'], $_POST['payment_terms'], $_POST['validity_date'], $_POST['eta'], $discount, $new_status, $is_notified, $quote_id
+                ]);
+
+                if (isset($_POST['items'])) {
+                    foreach ($_POST['items'] as $itemId => $itemData) {
+                        $uPrice = (float)str_replace(',', '', $itemData['price']);
+                        $qty = (int)$itemData['qty'];
+                        $pdo->prepare("UPDATE project_quotation_items SET price=?, qty=? WHERE quotation_id=? AND item_id=?")->execute([$uPrice, $qty, $quote_id, $itemId]);
+                    }
                 }
             }
+
+            $pdo->commit();
             
-            $success = "Quotation successfully processed.";
+            // Custom success messages based on the button clicked
+            if ($submit_type === 'save') $success = "Changes successfully saved.";
+            elseif ($submit_type === 'approve') $success = "Quotation approved and sent to Super Admin.";
+            else $success = "Quotation declined and returned for revision.";
+            
         } catch (Exception $e) {
-            $error = "Database error processing quotation.";
+            $pdo->rollBack();
+            $error = "Failed to process quotation: " . $e->getMessage();
         }
     }
 }
@@ -57,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 // ==========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['approve_inv', 'reject_inv'])) {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        $error = "Security validation failed. Please try again.";
+        $error = "Security validation failed.";
     } else {
         $approval_id = $_POST['approval_id'] ?? null;
         $action = $_POST['action']; 
@@ -71,7 +148,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                 if ($action === 'approve_inv') {
                     try {
                         $pdo->beginTransaction();
-
                         if ($pending['action_type'] === 'add') {
                             $insertStmt = $pdo->prepare("INSERT INTO items (brand, model_no, description, picture, buying_currency, buying_cost, factor, selling_price, pdf_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
                             $insertStmt->execute([
@@ -91,24 +167,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                             ]);
                             $success = "Machine #{$pending['item_id']} updated in live inventory.";
                         }
-
-                        $statusStmt = $pdo->prepare("UPDATE pending_approvals SET status = 'approved' WHERE id = ?");
-                        $statusStmt->execute([$approval_id]);
-                        
+                        $pdo->prepare("UPDATE pending_approvals SET status = 'approved' WHERE id = ?")->execute([$approval_id]);
                         $pdo->commit();
                     } catch (Exception $e) {
                         $pdo->rollBack();
-                        $error = "Database error during approval process.";
+                        $error = "Database error during approval.";
                     }
                 } 
                 elseif ($action === 'reject_inv') {
-                    $rejectStmt = $pdo->prepare("UPDATE pending_approvals SET status = 'rejected' WHERE id = ?");
-                    if ($rejectStmt->execute([$approval_id])) {
-                        $success = "Inventory request has been rejected and discarded.";
+                    if ($pdo->prepare("UPDATE pending_approvals SET status = 'rejected' WHERE id = ?")->execute([$approval_id])) {
+                        $success = "Inventory request has been rejected.";
                     }
                 }
             } else {
-                $error = "This inventory request no longer exists or was already processed.";
+                $error = "This inventory request no longer exists.";
             }
         }
     }
@@ -117,19 +189,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 // ==========================================
 // 3. FETCH DATASETS & COUNTS
 // ==========================================
-// Fetch Pending Sales + Username
-$sales_pending = $pdo->query("SELECT sq.*, u.username FROM sales_quotations sq LEFT JOIN users u ON sq.user_id = u.id WHERE sq.status = 'pending_admin' ORDER BY sq.created_at DESC")->fetchAll();
+$sales_pending = $pdo->query("SELECT sq.*, u.username, u.full_name FROM sales_quotations sq LEFT JOIN users u ON sq.user_id = u.id WHERE sq.status = 'pending_admin' ORDER BY sq.created_at DESC")->fetchAll();
 $sales_count = count($sales_pending);
 
-// Fetch Pending Projects 
 $project_pending = $pdo->query("SELECT * FROM project_quotations WHERE status = 'pending_admin' ORDER BY created_at DESC")->fetchAll();
 $project_count = count($project_pending);
 
-// Fetch Pending Inventory
-$pending_inventory = $pdo->query("SELECT p.*, u.username as requested_by_name FROM pending_approvals p JOIN users u ON p.requested_by = u.id WHERE p.status = 'pending' ORDER BY p.created_at ASC")->fetchAll();
+$pending_inventory = $pdo->query("SELECT p.*, u.username as requested_by_name, u.full_name as requested_by_fullname FROM pending_approvals p JOIN users u ON p.requested_by = u.id WHERE p.status = 'pending' ORDER BY p.created_at ASC")->fetchAll();
 $inv_count = count($pending_inventory);
 
-// Fetch Quotation History (Fixed: Using created_at instead of updated_at)
 $history_stmt = $pdo->query("
     SELECT 'Sales' as quote_type, quotation_no, client_name as reference_name, status, created_at 
     FROM sales_quotations 
@@ -149,130 +217,210 @@ $quote_history = $history_stmt->fetchAll();
     <meta charset="UTF-8">
     <title>Admin Command Center - AM Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { 
-            --bg: #FAFAFA; 
-            --surface: #FFFFFF; 
-            --text-main: #18181B; 
-            --text-muted: #71717A; 
-            --text-light: #A1A1AA; 
-            --border: #E4E4E7; 
-            --maroon: #8B1538; 
-            --maroon-hover: #6A0D28;
-            --maroon-light: #FFF5F7; 
-            --input-bg: #F4F4F5;
-            --success: #10B981;
+        :root {
+            --bg: #F4F7F9; 
+            --surface: #FFFFFF;
+            --text-main: #0F172A; 
+            --text-muted: #64748B; 
+            --text-light: #94A3B8;
+            --border: #E2E8F0;
+            --maroon: #8B1538;
+            --maroon-hover: #700E2B;
+            --maroon-light: #FFF1F5;
             --danger: #EF4444;
-            --warning: #F59E0B;
+            --success: #059669;
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            --shadow-lg: 0 24px 60px -10px rgba(0, 0, 0, 0.1);
         }
         
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); padding: 30px 20px; min-height: 100vh; }
-        .container { max-width: 1400px; margin: 0 auto; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); min-height: 100vh; overflow-x: hidden; }
+        .container { max-width: 1500px; margin: 0 auto; padding: 0 30px; padding-bottom: 60px; }
         
-        /* HEADER */
-        .header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 20px; flex-wrap: wrap; gap: 20px; }
-        .header h1 { font-family: 'Outfit', sans-serif; font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1; color: var(--text-main); }
+        .top-bar-wrapper { position: sticky; top: 0; z-index: 900; background: rgba(244, 247, 249, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 24px 0; margin-bottom: 30px; border-bottom: 1px solid rgba(226, 232, 240, 0.6); }
+        .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .header h1 { font-family: 'Outfit', sans-serif; font-size: clamp(1.8rem, 4vw, 2.5rem); font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1; margin: 0; }
         .header h1 span { color: var(--maroon); }
         
-        .header-controls { display: flex; gap: 10px; flex-wrap: wrap; }
-        .btn-nav { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 50px; color: var(--text-main); text-decoration: none; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.02); white-space: nowrap; }
-        .btn-nav:hover { border-color: var(--maroon); color: var(--maroon); transform: translateY(-2px); box-shadow: 0 8px 15px rgba(139, 21, 56, 0.08); }
-        .btn-logout { background: #FEF2F2 !important; color: #EF4444 !important; border-color: #FECACA !important; }
-        .btn-logout:hover { background: #EF4444 !important; color: white !important; box-shadow: 0 8px 15px rgba(239, 68, 68, 0.2); }
+        .header-controls { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn-nav { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 9999px; color: var(--text-main); text-decoration: none; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; transition: all 0.3s ease; box-shadow: var(--shadow-sm); }
+        .btn-nav:hover { border-color: var(--maroon); color: var(--maroon); transform: translateY(-2px); box-shadow: 0 8px 16px rgba(139, 21, 56, 0.1); }
+        .btn-logout { background: #FFF5F5 !important; color: var(--danger) !important; border-color: #FECACA !important; }
+        .btn-logout:hover { background: var(--danger) !important; color: white !important; box-shadow: 0 8px 20px rgba(239, 68, 68, 0.2) !important; }
 
-        /* ALERTS */
-        .alert { padding: 14px 20px; border-radius: 12px; font-size: 0.9rem; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; animation: slideDown 0.3s ease; }
+        .alert { padding: 16px 24px; border-radius: 16px; font-size: 0.95rem; font-weight: 700; margin-bottom: 30px; display: flex; align-items: center; gap: 12px; animation: slideDown 0.3s ease; box-shadow: var(--shadow-sm); }
         @keyframes slideDown { from{ opacity:0; transform: translateY(-10px); } to{ opacity:1; transform: translateY(0); } }
         .alert-success { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
         .alert-error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
 
-        /* TABS NAVIGATION */
-        .tabs-nav { display: flex; gap: 8px; margin-bottom: 30px; overflow-x: auto; padding-bottom: 4px; border-bottom: 1px solid var(--border); -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .tabs-nav::-webkit-scrollbar { display: none; }
-        .tab-btn {
-            background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--text-muted);
-            padding: 12px 16px; font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
-            cursor: pointer; transition: all 0.3s ease; white-space: nowrap; border-radius: 0; display: flex; align-items: center; gap: 8px;
-        }
-        .tab-btn:hover { color: var(--maroon); }
-        .tab-btn.active { color: var(--maroon); border-bottom-color: var(--maroon); }
+        .tabs-container { margin-bottom: 30px; display: flex; overflow-x: auto; scrollbar-width: none; padding-bottom: 10px; }
+        .tabs-container::-webkit-scrollbar { display: none; }
+        .tabs-nav { display: inline-flex; gap: 8px; background: var(--surface); padding: 8px; border-radius: 9999px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
+        .tab-btn { background: transparent; border: none; color: var(--text-muted); padding: 12px 24px; font-family: 'Outfit', sans-serif; font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; white-space: nowrap; border-radius: 9999px; display: flex; align-items: center; gap: 8px; }
+        .tab-btn:hover { color: var(--text-main); }
+        .tab-btn.active { background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%); color: white; box-shadow: 0 8px 20px rgba(139, 21, 56, 0.25); }
         
-        .badge-count { background: var(--danger); color: white; padding: 2px 8px; border-radius: 50px; font-size: 0.75rem; font-weight: 900; line-height: 1; }
+        @keyframes pulse-red { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .badge-count { background: var(--danger); color: white; padding: 4px 8px; border-radius: 50px; font-size: 0.75rem; font-weight: 900; line-height: 1; animation: pulse-red 2s infinite; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 2px solid white; }
 
         .tab-content { display: none; animation: fadeIn 0.4s ease; }
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* CARDS */
-        .card { background: var(--surface); border-radius: 20px; padding: 30px; margin-bottom: 32px; border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 10px 40px rgba(0,0,0,0.03); overflow: hidden; }
-        .card h2 { font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 800; margin-bottom: 24px; border-bottom: 2px solid var(--border); padding-bottom: 16px; color: var(--text-main); }
+        .card { background: var(--surface); border-radius: 32px; padding: 40px; margin-bottom: 32px; border: 1px solid rgba(226, 232, 240, 0.8); box-shadow: var(--shadow-md); overflow: hidden; }
+        .card h2 { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 900; margin-bottom: 24px; color: var(--text-main); letter-spacing: -0.02em; }
         
-        /* TABLES */
-        .table-responsive { overflow-x: auto; margin: 0 -10px; padding: 0 10px; -webkit-overflow-scrolling: touch; }
-        table { width: 100%; border-collapse: collapse; min-width: 800px; }
-        th, td { padding: 16px 14px; text-align: left; border-bottom: 1px solid var(--border); }
-        th { font-size: 0.75rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; background: #FAFAF9; border-radius: 8px 8px 0 0; }
-        td { font-size: 0.95rem; font-weight: 500; vertical-align: middle; }
-        tr:hover td { background: #FAFAF9; }
-
-        /* CONTROLS */
-        .quote-form { display: flex; align-items: center; gap: 10px; margin: 0; }
+        .table-responsive { overflow-x: auto; margin: 0 -10px; padding: 0 10px; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 800px; }
+        th, td { padding: 20px 16px; border-bottom: 1px dashed var(--border); vertical-align: middle; }
+        th { font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; background: transparent; padding-bottom: 24px;}
+        td { font-size: 0.95rem; font-weight: 600; transition: background 0.2s ease; }
+        tr:last-child td { border-bottom: none; } 
         
-        /* BUTTONS */
-        .btn { padding: 10px 16px; font-weight: 800; border: none; border-radius: 50px; cursor: pointer; font-size: 0.8rem; transition: all 0.3s ease; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
-        .btn-pdf { background: #FFF5F7; color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.2); }
-        .btn-pdf:hover { background: var(--maroon); color: white; border-color: var(--maroon); }
-        .btn-approve { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
-        .btn-approve:hover { background: #047857; color: white; border-color: #047857; }
-        .btn-reject { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
-        .btn-reject:hover { background: #B91C1C; color: white; border-color: #B91C1C; }
+        .interactive-row { transition: all 0.2s ease; cursor: pointer; position: relative;}
+        .interactive-row:hover td { background: #F8FAFC; }
+        .interactive-row::after { content: "✏️ Click to Review & Edit"; position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; font-weight: 800; color: var(--maroon); opacity: 0; transition: opacity 0.2s ease; text-transform: uppercase; letter-spacing: 0.05em; background: var(--maroon-light); padding: 8px 16px; border-radius: 50px;}
+        .interactive-row:hover::after { opacity: 1; }
 
-        /* BADGES */
-        .badge { padding: 6px 12px; border-radius: 50px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; display: inline-block; }
-        .badge-add { background: #FFF5F7; color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.2); }
-        .badge-edit { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
-        .b-super { background: #EEF2FF; color: #1D4ED8; border: 1px solid #C7D2FE; }
-        .b-rev { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
-        .b-app { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        
+        .btn { padding: 10px 16px; font-weight: 800; border: none; border-radius: 9999px; cursor: pointer; font-size: 0.75rem; transition: all 0.3s ease; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: var(--shadow-sm); }
+        .btn-pdf { background: var(--maroon-light); color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.15); }
+        .btn-pdf:hover { background: var(--maroon); color: white; border-color: var(--maroon); box-shadow: 0 8px 16px rgba(139, 21, 56, 0.2); transform: translateY(-2px); }
+        .btn-approve { background: linear-gradient(135deg, #10B981 0%, #047857 100%); color: white; }
+        .btn-approve:hover { filter: brightness(1.1); box-shadow: 0 8px 16px rgba(4, 120, 87, 0.25); transform: translateY(-2px); }
+        .btn-reject { background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%); color: white; }
+        .btn-reject:hover { filter: brightness(1.1); box-shadow: 0 8px 16px rgba(185, 28, 28, 0.25); transform: translateY(-2px); }
 
-        /* INVENTORY APPROVAL CARDS */
-        .request-card { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.02); margin-bottom: 24px; overflow: hidden; transition: all 0.3s ease; }
-        .card-header { background: #FAFAF9; padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .badge { padding: 6px 14px; border-radius: 50px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; display: inline-block; }
+        .badge-add { background: var(--maroon-light); color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.2); }
+        .badge-edit { background: #FFFBEB; color: #D97706; border: 1px solid #FEF3C7; }
+        .b-super { background: #EEF2FF; color: #4F46E5; border: 1px solid #C7D2FE; }
+        .b-rev { background: #FEF2F2; color: #DC2626; border: 1px solid #FEE2E2; }
+        .b-app { background: #ECFDF5; color: #059669; border: 1px solid #D1FAE5; }
+
+        .request-card { background: var(--surface); border-radius: 24px; border: 1px solid rgba(226, 232, 240, 0.8); box-shadow: var(--shadow-sm); margin-bottom: 24px; overflow: hidden; transition: all 0.4s ease; }
+        .request-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: rgba(139, 21, 56, 0.15); }
+        .card-header { background: #F8FAFC; padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .request-meta { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
         .request-meta strong { color: var(--text-main); font-weight: 800; }
         .card-body { padding: 24px; }
-        .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
         .span-2 { grid-column: span 2; }
         .span-4 { grid-column: 1 / -1; }
         .data-group { display: flex; flex-direction: column; gap: 6px; }
         .data-label { font-size: 0.65rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; }
-        .data-value { font-size: 1rem; font-weight: 700; color: var(--text-main); background: #FAFAF9; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); word-break: break-word; }
+        .data-value { font-size: 1rem; font-weight: 600; color: var(--text-main); background: var(--bg); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); word-break: break-word; }
         .data-value.price { color: var(--maroon); font-weight: 900; background: var(--maroon-light); border-color: rgba(139, 21, 56, 0.2); }
-        .media-link { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 800; color: var(--maroon); text-decoration: none; padding: 8px 14px; border-radius: 50px; background: var(--maroon-light); border: 1px solid rgba(139, 21, 56, 0.2); text-transform: uppercase; }
-        .card-footer { padding: 16px 24px; border-top: 1px dashed var(--border); display: flex; justify-content: flex-end; gap: 12px; background: #FAFAF9; flex-wrap: wrap; }
+        .media-link { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 800; color: var(--maroon); text-decoration: none; padding: 10px 20px; border-radius: 9999px; background: var(--maroon-light); border: 1px solid rgba(139, 21, 56, 0.2); text-transform: uppercase; transition: all 0.3s ease;}
+        .media-link:hover { background: var(--maroon); color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2); }
+        .card-footer { padding: 20px 24px; border-top: 1px dashed var(--border); display: flex; justify-content: flex-end; gap: 12px; background: #F8FAFC; flex-wrap: wrap; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; border: 2px dashed var(--border); border-radius: 24px; background: #F8FAFC; font-size: 1rem; }
 
-        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; border: 2px dashed var(--border); border-radius: 16px; background: #FAFAF9; font-size: 1rem; }
+        /* ==========================================
+           PREMIUM AJAX EDITOR MODAL
+           ========================================== */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9998; display: none; opacity: 0; transition: opacity 0.3s ease; align-items: center; justify-content: center; padding: 20px; }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        
+        .modal-card { background: var(--surface); box-shadow: var(--shadow-lg); border-radius: 32px; max-width: 1100px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); border: 1px solid rgba(226, 232, 240, 0.8); }
+        .modal-overlay.active .modal-card { transform: translateY(0); }
+        
+        .modal-header { padding: 30px 40px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; position: relative; flex-shrink: 0; }
+        .modal-header h2 { font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 12px;}
+        .modal-type-badge { font-size: 0.75rem; padding: 6px 12px; border-radius: 50px; background: var(--maroon-light); color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.2); letter-spacing: 0.1em; text-transform: uppercase;}
+        
+        .btn-close-modal { background: white; border: 1px solid var(--border); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); transition: all 0.3s ease; box-shadow: var(--shadow-sm); }
+        .btn-close-modal:hover { color: var(--danger); border-color: var(--danger); transform: rotate(90deg); }
+        
+        .modal-body { padding: 40px; overflow-y: auto; flex: 1; background: var(--surface); }
+        
+        .m-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin-bottom: 40px; }
+        .m-box { background: #F8FAFC; padding: 24px; border-radius: 20px; border: 1px dashed var(--border); }
+        .m-box-title { font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+        .m-row { display: flex; flex-direction: column; margin-bottom: 12px; }
+        .m-label { font-size: 0.65rem; text-transform: uppercase; font-weight: 800; color: var(--text-light); }
+        
+        .m-input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: #FFFFFF; font-size: 0.95rem; font-family: 'DM Sans', sans-serif; color: var(--text-main); font-weight: 500; transition: all 0.3s ease; outline: none; margin-top: 4px; }
+        .m-input:focus { border-color: var(--maroon); box-shadow: 0 0 0 3px var(--maroon-light); }
+        textarea.m-input { min-height: 60px; resize: vertical; }
+
+        .m-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .m-table th { background: #F8FAFC; padding: 12px 16px; font-size: 0.7rem; color: var(--text-muted); border-radius: 8px; border: none; }
+        .m-table td { padding: 12px 16px; border-bottom: 1px dashed var(--border); font-size: 0.95rem; font-weight: 600; vertical-align: middle;}
+        .m-table tr:last-child td { border-bottom: none; }
+        .item-img { width: 48px; height: 48px; border-radius: 8px; object-fit: contain; background: #F8FAFC; padding: 4px; border: 1px solid var(--border); }
+        
+        .m-totals { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; margin-top: 30px; padding-top: 20px; border-top: 2px dashed var(--border); }
+        .m-tot-row { display: flex; justify-content: space-between; align-items: center; width: 320px; font-size: 1rem; font-weight: 700; color: var(--text-muted); }
+        .m-tot-net { display: flex; justify-content: space-between; align-items: center; width: 320px; font-size: 1.6rem; font-family: 'Outfit', sans-serif; font-weight: 900; color: var(--maroon); margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;}
+
+        .modal-footer { padding: 20px 40px; background: #F8FAFC; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; flex-shrink: 0; flex-wrap: wrap;}
+
+        /* ==========================================
+           CUSTOM PREMIUM CONFIRMATION MODAL
+           ========================================== */
+        .confirm-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 10000; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; padding: 20px; }
+        .confirm-overlay.active { display: flex; opacity: 1; }
+        .confirm-card { background: var(--surface); border-radius: 24px; padding: 32px; max-width: 420px; width: 100%; box-shadow: 0 24px 60px rgba(0,0,0,0.2); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; }
+        .confirm-overlay.active .confirm-card { transform: scale(1); }
+        
+        .confirm-icon { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 2rem; transition: all 0.3s ease; }
+        .confirm-title { font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 900; color: var(--text-main); margin-bottom: 12px; }
+        .confirm-msg { font-size: 1rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 30px; font-weight: 500; }
+        .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+        
+        .btn-confirm-cancel { flex: 1; background: #F8FAFC; color: var(--text-main); border: 1px solid var(--border); padding: 12px 20px; border-radius: 12px; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s ease; }
+        .btn-confirm-cancel:hover { background: #E2E8F0; }
+        
+        .btn-confirm-proceed { flex: 1; color: white; border: none; padding: 12px 20px; border-radius: 12px; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; }
+        .btn-confirm-proceed:hover { transform: translateY(-2px); }
+
+        /* Confirm Modal Themes */
+        .btn-confirm-proceed.approve-theme { background: linear-gradient(135deg, #10B981 0%, #047857 100%); box-shadow: 0 8px 16px rgba(4, 120, 87, 0.2); }
+        .btn-confirm-proceed.reject-theme { background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%); box-shadow: 0 8px 16px rgba(185, 28, 28, 0.2); }
+        .btn-confirm-proceed.save-theme { background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%); box-shadow: 0 8px 16px rgba(79, 70, 229, 0.2); }
+        
+        .confirm-icon.approve-theme { background: #ECFDF5; color: #059669; }
+        .confirm-icon.reject-theme { background: #FEF2F2; color: #DC2626; }
+        .confirm-icon.save-theme { background: #EEF2FF; color: #4F46E5; }
 
         @media (max-width: 768px) {
             .data-grid { grid-template-columns: 1fr; }
             .span-2, .span-4 { grid-column: 1 / -1; }
+            .tabs-nav { width: 100%; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; }
+            .top-bar-wrapper { padding: 16px 0; margin-bottom: 20px; }
+            .header { flex-direction: column; align-items: stretch; }
+            .header-controls { justify-content: flex-start; }
+            .card { padding: 24px; border-radius: 24px; }
+            .m-grid { grid-template-columns: 1fr; gap: 20px; }
+            .modal-header { padding: 20px 24px; }
+            .modal-body { padding: 20px 24px; }
+            .m-tot-row, .m-tot-net { width: 100%; }
+            .modal-footer { padding: 20px 24px; flex-direction: column; gap: 10px;}
+            .modal-footer .btn { width: 100%; margin: 0 !important; }
+            .confirm-actions { flex-direction: column; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        
-        <div class="header">
-            <h1>Admin <span class="accent">Command Center</span></h1>
-            <div class="header-controls">
-                <a href="../index.php" class="btn-nav">Employee Portal</a>
-                <a href="../logout.php" class="btn-nav btn-logout">Logout</a>
+    <div class="top-bar-wrapper">
+        <div class="container" style="padding-bottom: 0;">
+            <div class="header">
+                <h1>Admin <span class="accent">Command Center</span></h1>
+                <div class="header-controls">
+                    <a href="../index.php" class="btn-nav">Employee Portal</a>
+                    <a href="../logout.php" class="btn-nav btn-logout">Logout</a>
+                </div>
             </div>
         </div>
+    </div>
 
+    <div class="container">
         <?php if ($success): ?>
             <div class="alert alert-success">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -286,19 +434,21 @@ $quote_history = $history_stmt->fetchAll();
             </div>
         <?php endif; ?>
 
-        <div class="tabs-nav">
-            <button class="tab-btn active" onclick="openTab('tab-sales', this)">
-                Sales Quotes <?php if($sales_count > 0) echo "<span class='badge-count'>$sales_count</span>"; ?>
-            </button>
-            <button class="tab-btn" onclick="openTab('tab-project', this)">
-                Project Quotes <?php if($project_count > 0) echo "<span class='badge-count'>$project_count</span>"; ?>
-            </button>
-            <button class="tab-btn" onclick="openTab('tab-inventory', this)">
-                Inventory Approvals <?php if($inv_count > 0) echo "<span class='badge-count'>$inv_count</span>"; ?>
-            </button>
-            <button class="tab-btn" onclick="openTab('tab-history', this)">
-                Quotation History
-            </button>
+        <div class="tabs-container">
+            <div class="tabs-nav">
+                <button class="tab-btn active" onclick="openTab('tab-sales', this)">
+                    Sales Quotes <?php if($sales_count > 0) echo "<span class='badge-count'>$sales_count</span>"; ?>
+                </button>
+                <button class="tab-btn" onclick="openTab('tab-project', this)">
+                    Project Quotes <?php if($project_count > 0) echo "<span class='badge-count'>$project_count</span>"; ?>
+                </button>
+                <button class="tab-btn" onclick="openTab('tab-inventory', this)">
+                    Inventory Approvals <?php if($inv_count > 0) echo "<span class='badge-count'>$inv_count</span>"; ?>
+                </button>
+                <button class="tab-btn" onclick="openTab('tab-history', this)">
+                    Quotation History
+                </button>
+            </div>
         </div>
 
         <div id="tab-sales" class="tab-content active">
@@ -310,31 +460,25 @@ $quote_history = $history_stmt->fetchAll();
                     <div class="table-responsive">
                         <table>
                             <tr>
-                                <th>Quote No</th>
-                                <th>Client / Submitter</th>
-                                <th>Date Submitted</th>
-                                <th>Controls</th>
+                                <th class="text-center">Quote No</th>
+                                <th class="text-left">Client / Submitter</th>
+                                <th class="text-center">Date Submitted</th>
                             </tr>
-                            <?php foreach($sales_pending as $q): ?>
-                            <tr>
-                                <td><strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: var(--maroon);"><?php echo htmlspecialchars($q['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
-                                <td>
+                            <?php foreach($sales_pending as $q): 
+                                $submitterName = !empty($q['full_name']) ? $q['full_name'] : ($q['username'] ?? 'Unknown');
+                            ?>
+                            <tr class="interactive-row" onclick="loadQuoteDetails(<?php echo $q['id']; ?>, 'sales')">
+                                <td class="text-center">
+                                    <strong style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; color: var(--maroon);"><?php echo htmlspecialchars($q['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                                </td>
+                                <td class="text-left">
                                     <div style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;"><?php echo htmlspecialchars($q['client_name'], ENT_QUOTES, 'UTF-8'); ?></div>
                                     <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-top: 4px;">
-                                        Prepared By: <?php echo htmlspecialchars(ucfirst($q['username'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8'); ?> (Sales Team)
+                                        Prepared By: <?php echo htmlspecialchars(ucwords(strtolower($submitterName)), ENT_QUOTES, 'UTF-8'); ?>
                                     </div>
                                 </td>
-                                <td><div style="font-weight: 700; color: var(--text-main);"><?php echo date('M d, Y', strtotime($q['quote_date'])); ?></div></td>
-                                <td>
-                                    <form method="POST" class="quote-form">
-                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
-                                        <input type="hidden" name="quote_id" value="<?php echo $q['id']; ?>">
-                                        <input type="hidden" name="type" value="sales">
-                                        
-                                        <a href="../generate_pdf.php?id=<?php echo $q['id']; ?>&type=sales" target="_blank" class="btn btn-pdf">View PDF</a>
-                                        <button type="submit" name="action" value="approve_quote" class="btn btn-approve" onclick="return confirm('Approve quote? Note: This will sync the custom prices to the master inventory database.');">Approve</button>
-                                        <button type="submit" name="action" value="reject_quote" class="btn btn-reject" onclick="return confirm('Reject and request revision?');">Decline</button>
-                                    </form>
+                                <td class="text-center">
+                                    <div style="font-weight: 700; color: var(--text-main);"><?php echo date('M d, Y', strtotime($q['quote_date'])); ?></div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -353,31 +497,25 @@ $quote_history = $history_stmt->fetchAll();
                     <div class="table-responsive">
                         <table>
                             <tr>
-                                <th>Quote No</th>
-                                <th>Project / Submitter</th>
-                                <th>Date Submitted</th>
-                                <th>Controls</th>
+                                <th class="text-center">Quote No</th>
+                                <th class="text-left">Project / Submitter</th>
+                                <th class="text-center">Date Submitted</th>
                             </tr>
-                            <?php foreach($project_pending as $p): ?>
-                            <tr>
-                                <td><strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: var(--maroon);"><?php echo htmlspecialchars($p['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
-                                <td>
+                            <?php foreach($project_pending as $p): 
+                                 $submitterName = !empty($p['prepared_by']) ? $p['prepared_by'] : 'Unknown';
+                            ?>
+                            <tr class="interactive-row" onclick="loadQuoteDetails(<?php echo $p['id']; ?>, 'project')">
+                                <td class="text-center">
+                                    <strong style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; color: var(--maroon);"><?php echo htmlspecialchars($p['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                                </td>
+                                <td class="text-left">
                                     <div style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;"><?php echo htmlspecialchars($p['project_name'] ?? 'Project', ENT_QUOTES, 'UTF-8'); ?></div>
                                     <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-top: 4px;">
-                                        Prepared By: <?php echo htmlspecialchars(ucfirst($p['prepared_by'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8'); ?> (Project Team)
+                                        Prepared By: <?php echo htmlspecialchars(ucwords(strtolower($submitterName)), ENT_QUOTES, 'UTF-8'); ?>
                                     </div>
                                 </td>
-                                <td><div style="font-weight: 700; color: var(--text-main);"><?php echo date('M d, Y', strtotime($p['quote_date'])); ?></div></td>
-                                <td>
-                                    <form method="POST" class="quote-form">
-                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
-                                        <input type="hidden" name="quote_id" value="<?php echo $p['id']; ?>">
-                                        <input type="hidden" name="type" value="project">
-                                        
-                                        <a href="../generate_pdf.php?id=<?php echo $p['id']; ?>&type=project" target="_blank" class="btn btn-pdf">View PDF</a>
-                                        <button type="submit" name="action" value="approve_quote" class="btn btn-approve" onclick="return confirm('Send to Super Admin for final check?');">Approve</button>
-                                        <button type="submit" name="action" value="reject_quote" class="btn btn-reject" onclick="return confirm('Reject and request revision?');">Decline</button>
-                                    </form>
+                                <td class="text-center">
+                                    <div style="font-weight: 700; color: var(--text-main);"><?php echo date('M d, Y', strtotime($p['quote_date'])); ?></div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -390,11 +528,14 @@ $quote_history = $history_stmt->fetchAll();
         <div id="tab-inventory" class="tab-content">
             <?php if (empty($pending_inventory)): ?>
                 <div class="empty-state">
+                    <span style="font-size: 1.2rem; display: block; margin-bottom: 8px;">🎉</span>
                     You are all caught up!<br>
                     <span style="font-size: 0.9rem; font-weight: 500;">There are currently no new machines or price updates waiting for approval.</span>
                 </div>
             <?php else: ?>
-                <?php foreach ($pending_inventory as $req): ?>
+                <?php foreach ($pending_inventory as $req): 
+                    $reqName = !empty($req['requested_by_fullname']) ? $req['requested_by_fullname'] : ($req['requested_by_name'] ?? 'Unknown');
+                ?>
                     <div class="request-card">
                         <div class="card-header">
                             <div>
@@ -405,8 +546,8 @@ $quote_history = $history_stmt->fetchAll();
                                 <?php endif; ?>
                             </div>
                             <div class="request-meta">
-                                Requested by <strong><?php echo htmlspecialchars(ucfirst($req['requested_by_name']), ENT_QUOTES, 'UTF-8'); ?></strong> 
-                                on <?php echo date('M d, Y - h:i A', strtotime($req['created_at'])); ?>
+                                Requested by <strong><?php echo htmlspecialchars(ucwords(strtolower($reqName)), ENT_QUOTES, 'UTF-8'); ?></strong> 
+                                on <?php echo date('M d, Y – h:i A', strtotime($req['created_at'])); ?>
                             </div>
                         </div>
                         <div class="card-body">
@@ -421,7 +562,7 @@ $quote_history = $history_stmt->fetchAll();
                                 </div>
                                 <div class="data-group span-4">
                                     <span class="data-label">Description</span>
-                                    <div class="data-value" style="white-space: pre-line; line-height: 1.5; font-size: 0.95rem;"><?php echo htmlspecialchars($req['description'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <div class="data-value" style="white-space: pre-line; line-height: 1.6; font-size: 0.95rem;"><?php echo htmlspecialchars($req['description'], ENT_QUOTES, 'UTF-8'); ?></div>
                                 </div>
                                 <div class="data-group">
                                     <span class="data-label">Currency</span>
@@ -439,29 +580,21 @@ $quote_history = $history_stmt->fetchAll();
                                     <span class="data-label">Proposed Selling Price</span>
                                     <div class="data-value price">₱ <?php echo number_format($req['selling_price'], 2); ?></div>
                                 </div>
-
-                                <?php if (!empty($req['picture']) || !empty($req['pdf_path'])): ?>
-                                    <div class="data-group span-4" style="flex-direction: row; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border);">
-                                        <?php if (!empty($req['picture'])): ?>
-                                            <a href="../../images/machine_images/<?php echo htmlspecialchars($req['picture'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="media-link">🖼️ View Image</a>
-                                        <?php endif; ?>
-                                        <?php if (!empty($req['pdf_path'])): ?>
-                                            <a href="../../pdfs/machine_pdfs/<?php echo htmlspecialchars($req['pdf_path'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="media-link">📄 View PDF</a>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endif; ?>
                             </div>
                         </div>
                         <div class="card-footer">
-                            <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to REJECT and delete this request?');">
+                            <a href="edit_inventory_request.php?id=<?php echo $req['id']; ?>" class="btn btn-pdf" style="margin-right: auto;">Edit Data</a>
+                            
+                            <form method="POST" style="display:inline;" id="inv-form-reject-<?php echo $req['id']; ?>">
                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
                                 <input type="hidden" name="approval_id" value="<?php echo $req['id']; ?>">
-                                <button type="submit" name="action" value="reject_inv" class="btn btn-reject">Reject Request</button>
+                                <button type="button" class="btn btn-reject" onclick="confirmFormSubmission(this, 'reject_inv', 'Are you sure you want to REJECT and delete this request?', 'reject')">Reject Request</button>
                             </form>
-                            <form method="POST" style="display:inline;" onsubmit="return confirm('Approve this request? This will instantly update the live inventory.');">
+                            
+                            <form method="POST" style="display:inline;" id="inv-form-approve-<?php echo $req['id']; ?>">
                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
                                 <input type="hidden" name="approval_id" value="<?php echo $req['id']; ?>">
-                                <button type="submit" name="action" value="approve_inv" class="btn btn-approve">Approve & Publish</button>
+                                <button type="button" class="btn btn-approve" onclick="confirmFormSubmission(this, 'approve_inv', 'Approve this request? This will instantly update the live inventory.', 'approve')">Approve & Publish</button>
                             </form>
                         </div>
                     </div>
@@ -478,27 +611,27 @@ $quote_history = $history_stmt->fetchAll();
                     <div class="table-responsive">
                         <table>
                             <tr>
-                                <th>Department</th>
-                                <th>Quote No.</th>
-                                <th>Client / Project</th>
-                                <th>Last Updated</th>
-                                <th>Status</th>
+                                <th class="text-center">Department</th>
+                                <th class="text-center">Quote No.</th>
+                                <th class="text-left">Client / Project</th>
+                                <th class="text-center">Last Updated</th>
+                                <th class="text-center">Status</th>
                             </tr>
                             <?php foreach($quote_history as $log): ?>
                             <tr>
-                                <td><span class="badge" style="background:#F4F4F5; color:var(--text-main); border:1px solid var(--border);"><?php echo htmlspecialchars($log['quote_type'], ENT_QUOTES, 'UTF-8'); ?></span></td>
-                                <td><strong style="font-family: 'Outfit', sans-serif; font-size: 1.05rem;"><?php echo htmlspecialchars($log['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
-                                <td style="font-weight: 700; color: var(--text-main);"><?php echo htmlspecialchars($log['reference_name'], ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">
-                                    <?php echo date('M d, Y - h:i A', strtotime($log['created_at'])); ?>
+                                <td class="text-center"><span class="badge" style="background:var(--bg); color:var(--text-main); border:1px solid var(--border);"><?php echo htmlspecialchars($log['quote_type'], ENT_QUOTES, 'UTF-8'); ?></span></td>
+                                <td class="text-center"><strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: var(--text-main);"><?php echo htmlspecialchars($log['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
+                                <td class="text-left" style="font-weight: 800; color: var(--text-main);"><?php echo htmlspecialchars($log['reference_name'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td class="text-center" style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">
+                                    <?php echo date('M d, Y – h:i A', strtotime($log['created_at'])); ?>
                                 </td>
-                                <td>
+                                <td class="text-center">
                                     <?php 
                                         if ($log['status'] === 'pending_super') echo '<span class="badge b-super">Sent to Super Admin</span>';
                                         elseif ($log['status'] === 'revision') echo '<span class="badge b-rev">Declined / Revision</span>';
                                         elseif ($log['status'] === 'approved') echo '<span class="badge b-app">Approved (Final)</span>';
                                         elseif ($log['status'] === 'rejected') echo '<span class="badge b-rev">Rejected (Final)</span>';
-                                        else echo '<span class="badge" style="background:#E4E4E7; color:#3F3F46;">' . htmlspecialchars($log['status']) . '</span>';
+                                        else echo '<span class="badge" style="background:#E2E8F0; color:#0F172A;">' . htmlspecialchars($log['status']) . '</span>';
                                     ?>
                                 </td>
                             </tr>
@@ -509,6 +642,106 @@ $quote_history = $history_stmt->fetchAll();
             </div>
         </div>
 
+    </div>
+
+    <div class="modal-overlay" id="quoteModal">
+        <form class="modal-card" id="modalEditForm" method="POST" action="index.php" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
+            <input type="hidden" name="action" value="modal_quote_action">
+            <input type="hidden" name="quote_id" id="mq-quote-id">
+            <input type="hidden" name="quote_type" id="mq-quote-type">
+
+            <div class="modal-header">
+                <h2><span id="mq-num">Quote No</span> <span class="modal-type-badge" id="mq-type">TYPE</span></h2>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <a href="#" id="mq-pdf-btn" target="_blank" class="btn btn-pdf">Preview PDF</a>
+                    <button type="button" class="btn-close-modal" onclick="closeQuoteModal()">✕</button>
+                </div>
+            </div>
+            
+            <div class="modal-body">
+                <div class="m-grid">
+                    <div class="m-box">
+                        <div class="m-box-title">Client / Project Details</div>
+                        <div class="m-row">
+                            <span class="m-label">Name / Project Name</span>
+                            <input type="text" name="client_name" id="mq-client" class="m-input" required>
+                        </div>
+                        <div class="m-row">
+                            <span class="m-label">Address / Location</span>
+                            <textarea name="client_address" id="mq-address" class="m-input" required></textarea>
+                        </div>
+                        <div class="m-row">
+                            <span class="m-label">Attention To</span>
+                            <input type="text" name="attention_to" id="mq-attn" class="m-input">
+                        </div>
+                        <div class="m-row" style="flex-direction:row; gap:16px;">
+                            <div style="flex:1;"><span class="m-label">Email</span><input type="email" name="client_email" id="mq-email" class="m-input"></div>
+                            <div style="flex:1;"><span class="m-label">Contact</span><input type="text" name="client_contact" id="mq-contact" class="m-input"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="m-box">
+                        <div class="m-box-title">Transaction Details</div>
+                        <div class="m-row"><span class="m-label">Purpose</span><input type="text" name="proposal_purpose" id="mq-purp" class="m-input"></div>
+                        <div class="m-row" style="flex-direction:row; gap:16px;">
+                            <div style="flex:1;"><span class="m-label">Validity</span><input type="text" name="validity_date" id="mq-val" class="m-input"></div>
+                            <div style="flex:1;"><span class="m-label">ETA</span><input type="text" name="eta" id="mq-eta" class="m-input"></div>
+                        </div>
+                        <div class="m-row">
+                            <span class="m-label">Terms</span>
+                            <textarea name="payment_terms" id="mq-terms" class="m-input"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="m-box-title">Requested Machines</div>
+                <div class="table-responsive">
+                    <table class="m-table">
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th style="text-align:left;">Brand & Model</th>
+                                <th style="text-align:center;">Qty</th>
+                                <th style="text-align:right;">Unit Price (₱)</th>
+                                <th style="text-align:right;">Line Total (₱)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mq-items-tbody">
+                            </tbody>
+                    </table>
+                </div>
+
+                <div class="m-totals">
+                    <div class="m-tot-row"><span>Subtotal:</span> <span id="mq-sub">₱0.00</span></div>
+                    <div class="m-tot-row" style="color:var(--danger);">
+                        <span style="padding-top:10px;">Corporate Discount:</span> 
+                        <input type="text" name="corporate_discount" id="mq-discount" class="m-input text-right calc-input" style="width: 140px; color:var(--danger); font-weight: 800;" value="0.00">
+                    </div>
+                    <div class="m-tot-net"><span>Net Total:</span> <span id="mq-net">₱0.00</span></div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-pdf" style="margin-right: auto;" onclick="confirmModalAction('modalEditForm', 'save', 'Just save changes to database without approving?', 'save')">Save Changes Only</button>
+                <button type="button" class="btn btn-reject" onclick="confirmModalAction('modalEditForm', 'decline', 'Decline this quotation and send back for revision?', 'reject')">Decline & Revision</button>
+                <button type="button" class="btn btn-approve" onclick="confirmModalAction('modalEditForm', 'approve', 'Save changes and submit this quotation to the Super Admin for final approval?', 'approve')">Approve & Send to Super Admin</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="confirm-overlay" id="customConfirmModal">
+        <div class="confirm-card">
+            <div class="confirm-icon" id="confirmIconWrap">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            </div>
+            <h3 class="confirm-title">Are you sure?</h3>
+            <p class="confirm-msg" id="confirmMessage">Please confirm your action.</p>
+            <div class="confirm-actions">
+                <button class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn-confirm-proceed" id="confirmProceedBtn">Yes, Proceed</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -522,6 +755,214 @@ $quote_history = $history_stmt->fetchAll();
             document.getElementById(tabId).classList.add('active');
             btnElement.classList.add('active');
         }
+
+        // ==========================================
+        // CUSTOM CONFIRMATION LOGIC
+        // ==========================================
+        let confirmActionCallback = null;
+
+        function showConfirm(message, type, callback) {
+            document.getElementById('confirmMessage').textContent = message;
+            
+            const btn = document.getElementById('confirmProceedBtn');
+            const iconWrap = document.getElementById('confirmIconWrap');
+            
+            // Reset theme classes
+            btn.className = 'btn-confirm-proceed';
+            iconWrap.className = 'confirm-icon';
+            
+            if(type === 'approve') {
+                btn.classList.add('approve-theme');
+                iconWrap.classList.add('approve-theme');
+            } else if (type === 'reject') {
+                btn.classList.add('reject-theme');
+                iconWrap.classList.add('reject-theme');
+            } else {
+                btn.classList.add('save-theme');
+                iconWrap.classList.add('save-theme');
+            }
+            
+            confirmActionCallback = callback;
+            document.getElementById('customConfirmModal').classList.add('active');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('customConfirmModal').classList.remove('active');
+            confirmActionCallback = null;
+        }
+
+        document.getElementById('confirmProceedBtn').addEventListener('click', function() {
+            if (confirmActionCallback) confirmActionCallback();
+            closeConfirmModal();
+        });
+
+        // specific handler for the Editor Modal buttons
+        function confirmModalAction(formId, submitType, message, themeType) {
+            showConfirm(message, themeType, function() {
+                const form = document.getElementById(formId);
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'submit_type';
+                input.value = submitType;
+                form.appendChild(input);
+                form.submit();
+            });
+        }
+
+        // specific handler for the Inventory Approval distinct forms
+        function confirmFormSubmission(buttonElement, actionValue, message, themeType) {
+            showConfirm(message, themeType, function() {
+                const form = buttonElement.closest('form');
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'action';
+                input.value = actionValue;
+                form.appendChild(input);
+                form.submit();
+            });
+        }
+
+        // ==========================================
+        // AJAX MODAL EDITOR LOGIC
+        // ==========================================
+        const modal = document.getElementById('quoteModal');
+        
+        function formatMoney(amount) {
+            return parseFloat(amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+        function unformatMoney(val) {
+            return parseFloat(val.toString().replace(/,/g, '')) || 0;
+        }
+
+        function loadQuoteDetails(quoteId, type) {
+            const formData = new FormData();
+            formData.append('ajax_get_quote_details', '1');
+            formData.append('quote_id', quoteId);
+            formData.append('type', type);
+
+            fetch('index.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    populateModal(data.quote, data.items, type);
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden'; 
+                } else {
+                    alert('Error loading details: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Network error loading details.');
+            });
+        }
+
+        function populateModal(quote, items, type) {
+            document.getElementById('mq-quote-id').value = quote.id;
+            document.getElementById('mq-quote-type').value = type;
+            
+            document.getElementById('mq-num').textContent = quote.quotation_no;
+            document.getElementById('mq-type').textContent = type.toUpperCase() + ' QUOTE';
+            document.getElementById('mq-pdf-btn').href = `../generate_pdf.php?id=${quote.id}&type=${type}`;
+
+            document.getElementById('mq-client').value = (type === 'sales') ? quote.client_name : quote.project_name;
+            document.getElementById('mq-address').value = (type === 'sales') ? quote.client_address : (quote.project_location || '');
+            document.getElementById('mq-attn').value = quote.attention_to || '';
+            document.getElementById('mq-email').value = quote.client_email || '';
+            document.getElementById('mq-contact').value = quote.client_contact || '';
+            
+            document.getElementById('mq-purp').value = quote.proposal_purpose || '';
+            document.getElementById('mq-val').value = quote.validity_date || '';
+            document.getElementById('mq-eta').value = quote.eta || '';
+            document.getElementById('mq-terms').value = quote.payment_terms || '';
+            
+            document.getElementById('mq-discount').value = formatMoney(quote.corporate_discount || 0);
+
+            const tbody = document.getElementById('mq-items-tbody');
+            tbody.innerHTML = '';
+            
+            items.forEach((item, index) => {
+                const imgPath = item.picture ? `../../images/machine_images/${item.picture}` : '';
+                const imgTag = item.picture ? `<img src="${imgPath}" class="item-img">` : `<div class="item-img" style="display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-light);font-weight:bold;">NO IMG</div>`;
+                
+                const unitPrice = parseFloat(item.unit_price || item.price || 0);
+                const qty = parseInt(item.qty || 1);
+                const itemId = item.item_id;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="width: 60px;">${imgTag}</td>
+                    <td>
+                        <div style="font-size: 0.65rem; color: var(--maroon); font-weight: 800; text-transform: uppercase;">${item.brand || 'N/A'}</div>
+                        <div style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); font-size: 1.05rem;">${item.model_no || 'N/A'}</div>
+                    </td>
+                    <td style="text-align:center; width: 100px;">
+                        <input type="number" name="items[${itemId}][qty]" class="m-input text-center calc-input" style="text-align:center;" value="${qty}" min="1" required>
+                    </td>
+                    <td style="text-align:right; width: 160px;">
+                        <input type="text" name="items[${itemId}][price]" class="m-input calc-input" style="text-align:right; color:var(--maroon); font-weight:800;" value="${formatMoney(unitPrice)}" required>
+                    </td>
+                    <td style="text-align:right; color:var(--maroon); font-weight:800; vertical-align: middle;" id="line-total-${index}">
+                        ₱${formatMoney(unitPrice * qty)}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.querySelectorAll('.calc-input').forEach(el => {
+                el.addEventListener('input', recalcModalTotals);
+                el.addEventListener('blur', function() {
+                    if(this.id === 'mq-discount' || this.name.includes('[price]')) {
+                        this.value = formatMoney(unformatMoney(this.value));
+                    }
+                    recalcModalTotals();
+                });
+            });
+
+            recalcModalTotals();
+        }
+
+        function recalcModalTotals() {
+            let subtotal = 0;
+            const tbody = document.getElementById('mq-items-tbody');
+            const rows = tbody.querySelectorAll('tr');
+            
+            rows.forEach((row, idx) => {
+                const qtyInput = row.querySelector('input[type="number"]');
+                const priceInput = row.querySelector('input[type="text"]');
+                if (qtyInput && priceInput) {
+                    const qty = unformatMoney(qtyInput.value);
+                    const price = unformatMoney(priceInput.value);
+                    const lineTotal = qty * price;
+                    subtotal += lineTotal;
+                    document.getElementById(`line-total-${idx}`).textContent = '₱' + formatMoney(lineTotal);
+                }
+            });
+
+            const discount = unformatMoney(document.getElementById('mq-discount').value);
+            const net = Math.max(0, subtotal - discount);
+
+            document.getElementById('mq-sub').textContent = '₱' + formatMoney(subtotal);
+            document.getElementById('mq-net').textContent = '₱' + formatMoney(net);
+        }
+
+        function closeQuoteModal() {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto'; 
+        }
+
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) closeQuoteModal();
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeQuoteModal();
+                closeConfirmModal();
+            }
+        });
     </script>
 </body>
 </html>

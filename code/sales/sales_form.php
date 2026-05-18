@@ -37,68 +37,209 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
 <head>
     <title>Sales Quotation Builder - AM Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #FAFAFA; --surface: #FFFFFF; --text-main: #18181B; --text-muted: #71717A; --text-light: #A1A1AA; --border: #E4E4E7; --maroon: #8B1538; --maroon-light: #FFF5F7; --input-bg: #F4F4F5; }
+        :root {
+            /* Modernized Premium Palette */
+            --bg: #F4F7F9; 
+            --surface: #FFFFFF;
+            --text-main: #0F172A; 
+            --text-muted: #64748B; 
+            --text-light: #94A3B8;
+            --border: #E2E8F0;
+            --maroon: #8B1538;
+            --maroon-hover: #700E2B;
+            --maroon-light: #FFF1F5;
+            --danger: #EF4444;
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            --shadow-lg: 0 24px 60px -10px rgba(0, 0, 0, 0.1);
+        }
+        
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); padding: 40px 30px; min-height: 100vh; }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
-        .page-title { font-family: 'Outfit', sans-serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); padding: 40px 20px; min-height: 100vh; overflow-x: hidden; }
+        .container { max-width: 1500px; margin: 0 auto; padding: 0 20px; }
+        
+        /* FLUID HEADER */
+        .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 40px; border-bottom: 1px solid rgba(226, 232, 240, 0.8); padding-bottom: 24px; }
+        .page-title { font-family: 'Outfit', sans-serif; font-size: clamp(2rem, 4vw, 2.5rem); font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1; margin: 0; }
         .page-title .accent { color: var(--maroon); }
-        .btn-back { color: var(--text-muted); text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: 0.2s ease; display: inline-block; }
-        .btn-back:hover { color: var(--maroon); }
+        
+        /* PREMIUM ANIMATED BACK BUTTON */
+        .btn-back { 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px; 
+            padding: 12px 24px; 
+            background: var(--surface); 
+            border: 1px solid rgba(139, 21, 56, 0.2); 
+            border-radius: 50px; 
+            color: var(--maroon); 
+            text-decoration: none; 
+            font-family: 'Outfit', sans-serif; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+            font-size: 0.85rem; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            box-shadow: var(--shadow-sm); 
+        }
+        .btn-back svg { transition: transform 0.3s ease; }
+        .btn-back:hover { 
+            background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%); 
+            color: #FFFFFF; 
+            transform: translateX(-4px); 
+            box-shadow: 0 8px 20px rgba(139, 21, 56, 0.25); 
+            border-color: transparent;
+        }
+        .btn-back:hover svg { transform: translateX(-3px); }
+
         .layout-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: start; }
-        .left-col { display: flex; flex-direction: column; gap: 32px; }
-        .right-col { position: sticky; top: 40px; }
-        .card { background: var(--surface); border-radius: 20px; padding: 40px; border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 10px 40px rgba(0,0,0,0.03); }
-        .card-title { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 800; margin-bottom: 32px; border-bottom: 2px solid var(--border); padding-bottom: 16px; color: var(--text-main); }
+        .left-col { display: flex; flex-direction: column; gap: 32px; min-width: 0; }
+        .right-col { position: sticky; top: 40px; min-width: 0; }
+        
+        /* PREMIUM CARDS */
+        .card { 
+            background: var(--surface); 
+            border-radius: 32px; 
+            padding: 40px; 
+            border: 1px solid rgba(226, 232, 240, 0.8); 
+            box-shadow: var(--shadow-md); 
+        }
+        .card-title { font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 900; margin-bottom: 32px; color: var(--text-main); letter-spacing: -0.02em; }
+        
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
         .full-width { grid-column: 1 / -1; }
         .form-group { display: flex; flex-direction: column; gap: 8px; }
-        label { font-size: 0.65rem; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; }
-        input[type="text"], input[type="date"], input[type="email"], input[type="tel"], input[type="number"], textarea { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid transparent; background: var(--input-bg); font-size: 0.95rem; font-family: 'DM Sans', sans-serif; font-weight: 500; color: var(--text-main); outline: none; transition: all 0.3s ease; }
-        input:focus, textarea:focus { background: var(--surface); border-color: var(--maroon); box-shadow: 0 0 0 4px var(--maroon-light); }
-        textarea { resize: vertical; min-height: 80px; }
-        .readonly-input { background: transparent !important; border: 1px solid var(--border) !important; color: var(--text-muted) !important; pointer-events: none; font-weight: 800; letter-spacing: 1px; }
-        label.required::after { content: ' *'; color: var(--maroon); font-weight: 900; font-size: 0.8rem; }
         
-        .machine-items-container { display: flex; flex-direction: column; gap: 12px; max-height: 50vh; overflow-y: auto; padding-right: 8px; margin-bottom: 24px; }
+        label { font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        label.required::after { content: ' *'; color: var(--maroon); font-weight: 900; font-size: 0.9rem; }
+
+        /* PREMIUM INPUTS */
+        input[type="text"], input[type="date"], input[type="email"], input[type="tel"], input[type="number"], textarea { 
+            width: 100%; 
+            padding: 14px 18px; 
+            border-radius: 16px; 
+            border: 1px solid var(--border); 
+            background: #F8FAFC; 
+            font-size: 0.95rem; 
+            font-family: 'DM Sans', sans-serif; 
+            font-weight: 500; 
+            color: var(--text-main); 
+            outline: none; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        input:focus, textarea:focus { background: var(--surface); border-color: var(--maroon); box-shadow: 0 0 0 4px var(--maroon-light); transform: translateY(-1px); }
+        textarea { resize: vertical; min-height: 100px; }
+        .readonly-input { background: transparent !important; border: 1px dashed var(--border) !important; color: var(--text-muted) !important; pointer-events: none; font-weight: 800; letter-spacing: 1px; }
         
-        .machine-item { display: grid; grid-template-columns: 64px 1fr 120px 80px; gap: 16px; align-items: center; padding: 16px 20px; border: 1px solid var(--border); border-radius: 16px; }
+        /* MACHINE ITEMS LIST */
+        .machine-items-container { display: flex; flex-direction: column; gap: 16px; max-height: 55vh; overflow-y: auto; padding-right: 8px; margin-bottom: 32px; }
+        .machine-item { display: grid; grid-template-columns: 80px 1fr 130px 90px; gap: 20px; align-items: center; padding: 20px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); transition: all 0.3s ease; }
+        .machine-item:hover { border-color: rgba(139, 21, 56, 0.2); box-shadow: var(--shadow-sm); }
         
-        .machine-img { width: 64px; height: 64px; border-radius: 10px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; padding: 4px; background: #FAFAF9; }
-        .machine-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        /* FIXED: Added pointer-events: none to the overlay */
+        .machine-img { width: 80px; height: 80px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; padding: 8px; background: #F8FAFC; position: relative; overflow: hidden; cursor: zoom-in; }
+        .machine-img img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.3s ease; }
+        .machine-img:hover img { transform: scale(1.1); }
+        .machine-img::after { content: "🔍"; position: absolute; inset: 0; background: rgba(139, 21, 56, 0.1); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; font-size: 1.2rem; pointer-events: none; }
+        .machine-img:hover::after { opacity: 1; }
+        
         .machine-info { flex: 1; min-width: 0; }
-        .m-brand { font-size: 0.65rem; font-weight: 800; color: var(--maroon); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
-        .m-model { font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
-        .control-group { display: flex; flex-direction: column; gap: 6px; }
+        .m-brand { font-size: 0.65rem; font-weight: 800; color: var(--maroon); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 4px; display: inline-block; background: var(--maroon-light); padding: 4px 10px; border-radius: 50px; }
+        .m-model { font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; color: var(--text-main); margin-top: 6px; }
         
-        .input-qty-edit { width: 100%; text-align: center; padding: 10px 4px !important; background: #FAFAF9 !important; border: 1px solid var(--border) !important; border-radius: 8px !important; font-size: 1.05rem !important; font-weight: 700 !important; color: var(--text-main) !important; margin: 0; }
-        .input-price-edit { width: 100%; text-align: right; padding: 10px 8px !important; background: #FAFAF9 !important; border: 1px solid var(--border) !important; border-radius: 8px !important; font-size: 0.95rem !important; font-weight: 700 !important; color: var(--maroon) !important; margin: 0; }
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        
+        .input-qty-edit { width: 100%; text-align: center; padding: 12px 8px !important; background: #F8FAFC !important; border: 1px solid var(--border) !important; border-radius: 12px !important; font-size: 1.1rem !important; font-weight: 800 !important; color: var(--text-main) !important; margin: 0; }
+        .input-price-edit { width: 100%; text-align: right; padding: 12px 12px !important; background: #FFF1F5 !important; border: 1px solid rgba(139, 21, 56, 0.2) !important; border-radius: 12px !important; font-size: 1rem !important; font-weight: 800 !important; color: var(--maroon) !important; margin: 0; }
 
-        .financial-summary-block { background: #FAFAF9; padding: 24px; border-radius: 16px; border: 1px dashed var(--border); margin-bottom: 24px; }
-        .summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .summary-row.total-row { border-top: 2px dashed var(--border); padding-top: 16px; margin-top: 16px; margin-bottom: 0; }
-        .summary-label { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-        .summary-value { font-family: 'DM Sans', sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--text-main); }
-        .summary-total { font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--maroon); }
+        /* FINANCIAL SUMMARY */
+        .financial-summary-block { background: #F8FAFC; padding: 32px; border-radius: 24px; border: 1px dashed var(--border); margin-bottom: 32px; }
+        .summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .summary-row.total-row { border-top: 2px dashed var(--border); padding-top: 24px; margin-top: 24px; margin-bottom: 0; }
+        .summary-label { font-size: 0.85rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .summary-value { font-family: 'DM Sans', sans-serif; font-size: 1.2rem; font-weight: 800; color: var(--text-main); }
+        .summary-total { font-family: 'Outfit', sans-serif; font-size: 2.2rem; font-weight: 900; color: var(--maroon); letter-spacing: -0.02em; }
         
+        /* PREMIUM ACTION BUTTONS */
         .action-buttons { display: flex; gap: 16px; margin-top: 20px; }
-        .btn-preview { flex: 1; background: #FFF5F7; color: var(--maroon); height: 60px; border: 1px solid rgba(139, 21, 56, 0.2); border-radius: 50px; font-size: 0.95rem; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; }
-        .btn-preview:hover { background: var(--maroon); color: white; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); }
-        .btn-submit { flex: 1; background: var(--maroon); color: white; height: 60px; border: none; border-radius: 50px; font-size: 0.95rem; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(139, 21, 56, 0.2); }
-        .btn-submit:hover { background: #6A0D28; transform: translateY(-2px); box-shadow: 0 12px 24px rgba(139, 21, 56, 0.3); }
+        .btn-preview { flex: 1; background: var(--maroon-light); color: var(--maroon); height: 60px; border: 1px solid rgba(139, 21, 56, 0.2); border-radius: 16px; font-size: 0.95rem; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-preview:hover { background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%); color: white; border-color: transparent; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(139, 21, 56, 0.25); }
+        
+        .btn-submit { flex: 1; background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%); color: white; height: 60px; border: none; border-radius: 16px; font-size: 0.95rem; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 8px 20px rgba(139, 21, 56, 0.25); }
+        .btn-submit:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 12px 25px rgba(139, 21, 56, 0.35); }
 
-        @media (max-width: 1024px) { .layout-grid { grid-template-columns: 1fr; gap: 32px; } .right-col { position: static; } }
+        /* FULL SCREEN ZOOM MODAL */
+        .zoom-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .zoom-overlay.active { opacity: 1; pointer-events: all; }
+        .zoom-overlay img { max-width: 90vw; max-height: 90vh; border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); background: white; padding: 10px;}
+        .zoom-overlay.active img { transform: scale(1); }
+        .zoom-close-btn { position: absolute; top: 24px; right: 32px; background: white; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s ease; width: 48px; height: 48px; border-radius: 50%; box-shadow: var(--shadow-sm); display: flex; justify-content: center; align-items: center; z-index: 100000;}
+        .zoom-close-btn:hover { color: var(--danger); transform: rotate(90deg); }
+
+        /* TABLET RESPONSIVENESS */
+        @media (max-width: 1024px) { 
+            .layout-grid { grid-template-columns: 1fr; gap: 32px; } 
+            .right-col { position: static; } 
+        }
+
+        /* EXACT MOBILE RESPONSIVENESS FIXES */
+        @media (max-width: 600px) {
+            body { padding: 15px 0; }
+            .container { padding: 0 16px; }
+            .header { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: none; }
+            .page-title { font-size: 2.2rem; text-align: center; width: 100%; margin-bottom: 10px; }
+            .btn-back { width: 100%; justify-content: center; height: 50px; font-size: 0.9rem; border-radius: 12px; }
+            
+            .card { padding: 24px 20px; border-radius: 24px; }
+            .form-grid { grid-template-columns: 1fr; gap: 16px; }
+            
+            /* Smart Stacking for the Machine List */
+            .machine-item { 
+                grid-template-columns: 70px 1fr; 
+                gap: 16px; 
+                padding: 16px; 
+            }
+            .machine-info { grid-column: 2; }
+            
+            /* The QTY and Price inputs wrap underneath nicely */
+            .control-group { 
+                grid-column: 1 / -1; 
+                display: flex; 
+                flex-direction: row; 
+                justify-content: space-between; 
+                align-items: center; 
+                background: #F8FAFC; 
+                padding: 12px 16px; 
+                border-radius: 16px;
+            }
+            .control-group label { margin-bottom: 0; }
+            .input-qty-edit { width: 80px !important; padding: 10px !important; }
+            .input-price-edit { width: 140px !important; padding: 10px !important; }
+
+            .financial-summary-block { padding: 24px 20px; border-radius: 20px; }
+            .summary-total { font-size: 1.8rem; }
+
+            .action-buttons { flex-direction: column; gap: 12px; }
+            .btn-preview, .btn-submit { width: 100%; flex: none; height: 56px; border-radius: 16px; }
+
+            .zoom-close-btn { top: 16px; right: 16px; width: 40px; height: 40px; font-size: 1.2rem;}
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="header">
-            <h1 class="page-title">Generate <span class="accent">Quotation</span></h1>
-            <a href="../index.php" class="btn-back">← Back to Inventory</a>
+            <h1 class="page-title">Sales <span class="accent">Quotation</span></h1>
+            <a href="../index.php" class="btn-back">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Back to Inventory
+            </a>
         </div>
 
         <form method="POST" autocomplete="off" id="salesQuoteForm">
@@ -165,9 +306,9 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                                 <input type="text" name="eta" placeholder="e.g. 120 Days" autocomplete="off" required>
                             </div>
                             
-                            <div class="form-group full-width" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border);">
+                            <div class="form-group full-width" style="margin-top: 16px; padding-top: 24px; border-top: 1px dashed var(--border);">
                                 <label style="color: var(--maroon);">Special Corporate Discount (₱) - Applied to Grand Total</label>
-                                <input type="text" name="corporate_discount" id="corporate_discount" value="0.00" autocomplete="off" required style="font-size: 1.15rem; font-weight: 700; color: var(--maroon);">
+                                <input type="text" name="corporate_discount" id="corporate_discount" value="0.00" autocomplete="off" required style="font-size: 1.25rem; font-weight: 800; color: var(--maroon); background: #FFF1F5; border-color: rgba(139, 21, 56, 0.2);">
                             </div>
                             
                             <div class="form-group full-width">
@@ -188,9 +329,15 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                             ?>
                                 <div class="machine-item">
                                     <input type="hidden" name="items[<?=$index?>][id]" value="<?=$machine['id']?>">
+                                    
                                     <div class="machine-img">
-                                        <?php if ($machine['picture']): ?><img src="<?=$imgPath?>"><?php else: ?><span style="font-size:0.6rem; font-weight: 700; color: var(--text-light);">NO IMG</span><?php endif; ?>
+                                        <?php if ($machine['picture']): ?>
+                                            <img src="<?=$imgPath?>" class="preview-zoom" alt="Product Image">
+                                        <?php else: ?>
+                                            <span style="font-size:0.6rem; font-weight: 800; color: var(--text-light);">NO IMG</span>
+                                        <?php endif; ?>
                                     </div>
+
                                     <div class="machine-info">
                                         <div class="m-brand"><?=htmlspecialchars($machine['brand'])?></div>
                                         <div class="m-model" title="<?=htmlspecialchars($machine['model_no'])?>"><?=htmlspecialchars($machine['model_no'])?></div>
@@ -216,7 +363,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                             </div>
                             <div class="summary-row">
                                 <span class="summary-label">Discount</span>
-                                <span class="summary-value" id="live-discount" style="color: var(--maroon);">- ₱0.00</span>
+                                <span class="summary-value" id="live-discount" style="color: var(--danger);">- ₱0.00</span>
                             </div>
                             <div class="summary-row total-row">
                                 <span class="summary-label" style="color: var(--text-main);">Net Total</span>
@@ -235,8 +382,14 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         </form>
     </div>
 
+    <div class="zoom-overlay" id="zoom-overlay">
+        <button type="button" class="zoom-close-btn" id="zoom-close">✕</button>
+        <img id="zoomed-image" src="" alt="Zoomed Product">
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // --- Live Financial Calculations ---
             const qtyInputs = document.querySelectorAll('.calc-qty');
             const priceInputs = document.querySelectorAll('.calc-price');
             const discountInput = document.getElementById('corporate_discount');
@@ -280,6 +433,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                 });
             });
 
+            // --- Auto Quotation Number Generator ---
             const dateInput = document.getElementById('quote_date');
             const quoteNoInput = document.getElementById('quotation_no');
             const nextIdStr = "<?= $paddedId ?>";
@@ -295,8 +449,39 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                     }
                 }
             });
+
+            // --- FIXED IMAGE ZOOM LOGIC ---
+            const zoomOverlay = document.getElementById('zoom-overlay');
+            const zoomedImage = document.getElementById('zoomed-image');
+            const zoomClose = document.getElementById('zoom-close');
+
+            // Attach click listener to the entire box, so the invisible overlay doesn't block it
+            document.querySelectorAll('.machine-img').forEach(container => {
+                container.addEventListener('click', function(e) {
+                    const img = this.querySelector('img');
+                    if (img) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        zoomedImage.src = img.src;
+                        zoomOverlay.classList.add('active');
+                    }
+                });
+            });
+
+            zoomClose.addEventListener('click', () => zoomOverlay.classList.remove('active'));
+            zoomOverlay.addEventListener('click', function(e) { 
+                if (e.target === this) zoomOverlay.classList.remove('active'); 
+            });
+
+            // Ensure pressing ESC closes the zoom modal
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    zoomOverlay.classList.remove('active');
+                }
+            });
         });
 
+        // --- Form Submissions ---
         function reviewPDF() {
             const form = document.getElementById('salesQuoteForm');
             if (form.reportValidity()) {
