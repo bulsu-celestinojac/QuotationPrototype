@@ -21,6 +21,9 @@ $quotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <title>Quotation History - AM Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <style>
         :root {
             /* Modernized Premium Palette */
@@ -114,6 +117,10 @@ $quotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .btn-view { padding: 10px 20px; background: var(--maroon-light); border: 1px solid rgba(139, 21, 56, 0.15); color: var(--maroon); font-family: 'Outfit', sans-serif; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 50px; text-decoration: none; transition: all 0.3s ease; display: inline-block; white-space: nowrap; box-shadow: var(--shadow-sm); }
         .btn-view:hover { background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%); color: white; transform: translateY(-2px); box-shadow: 0 8px 16px rgba(139, 21, 56, 0.2); border-color: transparent; }
 
+        /* SweetAlert Font overrides */
+        .swal-title-custom { font-family: 'Outfit', sans-serif !important; font-weight: 800 !important; color: var(--maroon) !important; }
+        .swal-popup-custom { font-family: 'DM Sans', sans-serif !important; border-radius: 24px !important; }
+
         /* MOBILE RESPONSIVENESS */
         @media (max-width: 600px) {
             body { padding: 20px 16px; }
@@ -185,5 +192,40 @@ $quotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php endif; ?>
         </div>
     </div>
+
+    <script>
+        // ==========================================
+        // SWEETALERT2 LOGOUT CONFIRMATION (STANDBY)
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault(); 
+                    const logoutUrl = this.getAttribute('href');
+
+                    Swal.fire({
+                        title: 'Ready to head out?',
+                        text: "You will be securely logged out of the system.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#8B1538', 
+                        cancelButtonColor: '#64748B',  
+                        confirmButtonText: 'Yes, log me out',
+                        cancelButtonText: 'Cancel',
+                        borderRadius: '24px',
+                        customClass: {
+                            title: 'swal-title-custom',
+                            popup: 'swal-popup-custom'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = logoutUrl;
+                        }
+                    });
+                });
+            }
+        });
+    </script>
 </body>
 </html>

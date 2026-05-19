@@ -111,6 +111,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Update Machine - AM Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <style>
         :root {
             /* Modernized Premium Palette */
@@ -391,6 +394,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .zoom-close-btn { position: absolute; top: 24px; right: 32px; background: white; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s ease; width: 48px; height: 48px; border-radius: 50%; box-shadow: var(--shadow-sm); display: flex; justify-content: center; align-items: center;}
         .zoom-close-btn:hover { color: var(--danger); transform: rotate(90deg); }
 
+        /* SweetAlert Font overrides */
+        .swal-title-custom { font-family: 'Outfit', sans-serif !important; font-weight: 800 !important; color: var(--maroon) !important; }
+        .swal-popup-custom { font-family: 'DM Sans', sans-serif !important; border-radius: 24px !important; }
+
         @media (max-width: 768px) {
             body { padding: 20px 12px; }
             .form-grid { grid-template-columns: 1fr; gap: 16px; }
@@ -528,7 +535,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div class="action-buttons">
                 <a href="index.php" class="btn-cancel">Cancel</a>
-                <button type="submit" class="btn-submit">
+                <button type="button" class="btn-submit" onclick="submitEditForm()">
                     <?php echo in_array($user_role, ['admin', 'super_admin']) ? 'Save Updates' : 'Submit Update for Approval'; ?>
                 </button>
             </div>
@@ -542,6 +549,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
    <script>
+        // ==========================================
+        // SWEETALERT2 SUBMISSION LOGIC
+        // ==========================================
+        function submitEditForm() {
+            const form = document.getElementById('updateMachineForm');
+            // Check HTML5 validity first (required fields)
+            if (form.reportValidity()) {
+                const isAdmin = <?php echo in_array($user_role, ['admin', 'super_admin']) ? 'true' : 'false'; ?>;
+                const msg = isAdmin 
+                    ? 'Are you sure you want to save these changes directly to the Live Inventory?' 
+                    : 'Submit these changes to the Admin for approval?';
+                
+                Swal.fire({
+                    title: 'Save Changes?',
+                    text: msg,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#8B1538',
+                    cancelButtonColor: '#64748B',
+                    confirmButtonText: 'Yes, save it!',
+                    cancelButtonText: 'Cancel',
+                    borderRadius: '24px',
+                    customClass: {
+                        title: 'swal-title-custom',
+                        popup: 'swal-popup-custom'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            }
+        }
+
         const costInput = document.getElementById('buying_cost');
         const factorInput = document.getElementById('factor');
         const priceInput = document.getElementById('selling_price');

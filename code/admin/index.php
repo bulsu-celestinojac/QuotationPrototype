@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
         
         $discount = isset($_POST['corporate_discount']) ? (float)str_replace(',', '', $_POST['corporate_discount']) : 0;
-        $is_notified = ($submit_type !== 'save') ? 1 : 0; // Only notify if approved or declined
+        $is_notified = ($submit_type !== 'save') ? 1 : 0;
 
         try {
             $pdo->beginTransaction();
@@ -94,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         $qty = (int)$itemData['qty'];
                         $pdo->prepare("UPDATE sales_quotation_items SET unit_price=?, qty=? WHERE quotation_id=? AND item_id=?")->execute([$uPrice, $qty, $quote_id, $itemId]);
 
-                        // Sync to master inventory only if approved
                         if ($submit_type === 'approve') {
                             $pdo->prepare("UPDATE items SET selling_price=? WHERE id=?")->execute([$uPrice, $itemId]);
                         }
@@ -117,7 +116,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
             $pdo->commit();
             
-            // Custom success messages based on the button clicked
             if ($submit_type === 'save') $success = "Changes successfully saved.";
             elseif ($submit_type === 'approve') $success = "Quotation approved and sent to Super Admin.";
             else $success = "Quotation declined and returned for revision.";
@@ -238,7 +236,7 @@ $quote_history = $history_stmt->fetchAll();
         
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); min-height: 100vh; overflow-x: hidden; }
-        .container { max-width: 1500px; margin: 0 auto; padding: 0 30px; padding-bottom: 60px; }
+        .container { max-width: 1300px; margin: 0 auto; padding: 0 30px; padding-bottom: 60px; }
         
         .top-bar-wrapper { position: sticky; top: 0; z-index: 900; background: rgba(244, 247, 249, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 24px 0; margin-bottom: 30px; border-bottom: 1px solid rgba(226, 232, 240, 0.6); }
         .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
@@ -256,58 +254,81 @@ $quote_history = $history_stmt->fetchAll();
         .alert-success { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
         .alert-error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
 
+        /* PREMIUM TABS */
         .tabs-container { margin-bottom: 30px; display: flex; overflow-x: auto; scrollbar-width: none; padding-bottom: 10px; }
         .tabs-container::-webkit-scrollbar { display: none; }
         .tabs-nav { display: inline-flex; gap: 8px; background: var(--surface); padding: 8px; border-radius: 9999px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
         .tab-btn { background: transparent; border: none; color: var(--text-muted); padding: 12px 24px; font-family: 'Outfit', sans-serif; font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; white-space: nowrap; border-radius: 9999px; display: flex; align-items: center; gap: 8px; }
+        .tab-btn svg { width: 18px; height: 18px; opacity: 0.7; transition: opacity 0.3s ease; }
         .tab-btn:hover { color: var(--text-main); }
+        .tab-btn:hover svg { opacity: 1; }
         .tab-btn.active { background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%); color: white; box-shadow: 0 8px 20px rgba(139, 21, 56, 0.25); }
+        .tab-btn.active svg { opacity: 1; }
         
         @keyframes pulse-red { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-        .badge-count { background: var(--danger); color: white; padding: 4px 8px; border-radius: 50px; font-size: 0.75rem; font-weight: 900; line-height: 1; animation: pulse-red 2s infinite; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 2px solid white; }
+        .badge-count { background: var(--danger); color: white; padding: 4px 8px; border-radius: 50px; font-size: 0.75rem; font-weight: 900; line-height: 1; animation: pulse-red 2s infinite; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 2px solid white; margin-left: 4px;}
 
-        .tab-content { display: none; animation: fadeIn 0.4s ease; }
+        .tab-content { display: none; animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .card { background: var(--surface); border-radius: 32px; padding: 40px; margin-bottom: 32px; border: 1px solid rgba(226, 232, 240, 0.8); box-shadow: var(--shadow-md); overflow: hidden; }
-        .card h2 { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 900; margin-bottom: 24px; color: var(--text-main); letter-spacing: -0.02em; }
-        
-        .table-responsive { overflow-x: auto; margin: 0 -10px; padding: 0 10px; }
-        table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 800px; }
-        th, td { padding: 20px 16px; border-bottom: 1px dashed var(--border); vertical-align: middle; }
-        th { font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; background: transparent; padding-bottom: 24px;}
-        td { font-size: 0.95rem; font-weight: 600; transition: background 0.2s ease; }
-        tr:last-child td { border-bottom: none; } 
-        
-        .interactive-row { transition: all 0.2s ease; cursor: pointer; position: relative;}
-        .interactive-row:hover td { background: #F8FAFC; }
-        .interactive-row::after { content: "✏️ Click to Review & Edit"; position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; font-weight: 800; color: var(--maroon); opacity: 0; transition: opacity 0.2s ease; text-transform: uppercase; letter-spacing: 0.05em; background: var(--maroon-light); padding: 8px 16px; border-radius: 50px;}
-        .interactive-row:hover::after { opacity: 1; }
+        .section-title { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 900; margin-bottom: 24px; color: var(--text-main); letter-spacing: -0.02em; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; border: 2px dashed var(--border); border-radius: 24px; background: var(--surface); font-size: 1rem; }
 
-        .text-center { text-align: center; }
-        .text-left { text-align: left; }
+        /* ==========================================
+           PREMIUM INTERACTIVE DATA ROWS
+           ========================================== */
+        .quote-list { display: flex; flex-direction: column; gap: 14px; }
         
-        .btn { padding: 10px 16px; font-weight: 800; border: none; border-radius: 9999px; cursor: pointer; font-size: 0.75rem; transition: all 0.3s ease; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: var(--shadow-sm); }
-        .btn-pdf { background: var(--maroon-light); color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.15); }
-        .btn-pdf:hover { background: var(--maroon); color: white; border-color: var(--maroon); box-shadow: 0 8px 16px rgba(139, 21, 56, 0.2); transform: translateY(-2px); }
-        .btn-approve { background: linear-gradient(135deg, #10B981 0%, #047857 100%); color: white; }
-        .btn-approve:hover { filter: brightness(1.1); box-shadow: 0 8px 16px rgba(4, 120, 87, 0.25); transform: translateY(-2px); }
-        .btn-reject { background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%); color: white; }
-        .btn-reject:hover { filter: brightness(1.1); box-shadow: 0 8px 16px rgba(185, 28, 28, 0.25); transform: translateY(-2px); }
+        .quote-row { 
+            display: flex; align-items: center; justify-content: space-between; 
+            padding: 24px; background: var(--surface); border: 1px solid var(--border); 
+            border-radius: 20px; cursor: pointer; box-shadow: var(--shadow-sm); 
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+        }
+        .quote-row:hover { 
+            border-color: rgba(139, 21, 56, 0.3); box-shadow: 0 12px 24px rgba(139, 21, 56, 0.08); 
+            transform: translateY(-3px); 
+        }
 
-        .badge { padding: 6px 14px; border-radius: 50px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; display: inline-block; }
-        .badge-add { background: var(--maroon-light); color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.2); }
-        .badge-edit { background: #FFFBEB; color: #D97706; border: 1px solid #FEF3C7; }
+        .q-meta { display: flex; flex-direction: column; gap: 6px; width: 200px; flex-shrink: 0; }
+        .q-num { font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 900; color: var(--maroon); letter-spacing: 0.02em;}
+        .q-date { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 4px;}
+        .q-date svg { width: 14px; height: 14px; opacity: 0.7;}
+
+        .q-details { display: flex; flex-direction: column; gap: 6px; flex: 1; padding: 0 20px; border-left: 1px solid var(--border); margin-left: 10px; padding-left: 30px;}
+        .q-client { font-size: 1.1rem; font-weight: 800; color: var(--text-main); }
+        .q-prep { font-size: 0.85rem; font-weight: 600; color: var(--text-light); }
+
+        .q-action { display: flex; align-items: center; justify-content: flex-end; width: 160px; flex-shrink: 0; }
+        .q-btn { 
+            font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; 
+            color: var(--maroon); background: var(--maroon-light); border: 1px solid rgba(139, 21, 56, 0.1);
+            padding: 10px 20px; border-radius: 50px; transition: all 0.3s ease; 
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .quote-row:hover .q-btn { background: var(--maroon); color: white; border-color: var(--maroon); box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2); }
+        .q-btn svg { transition: transform 0.3s ease; }
+        .quote-row:hover .q-btn svg { transform: translateX(4px); }
+
+        /* History Status Columns */
+        .q-type { width: 120px; display: flex; align-items: center; }
+        .type-badge { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; background: var(--bg); color: var(--text-muted); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .q-status { width: 180px; display: flex; align-items: center; justify-content: flex-end; }
+        
+        .badge { padding: 8px 16px; border-radius: 50px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; display: inline-flex; align-items: center; gap: 6px; text-align: center; justify-content: center;}
         .b-super { background: #EEF2FF; color: #4F46E5; border: 1px solid #C7D2FE; }
         .b-rev { background: #FEF2F2; color: #DC2626; border: 1px solid #FEE2E2; }
         .b-app { background: #ECFDF5; color: #059669; border: 1px solid #D1FAE5; }
 
+        /* Inventory Cards (Retained and Polished) */
         .request-card { background: var(--surface); border-radius: 24px; border: 1px solid rgba(226, 232, 240, 0.8); box-shadow: var(--shadow-sm); margin-bottom: 24px; overflow: hidden; transition: all 0.4s ease; }
         .request-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: rgba(139, 21, 56, 0.15); }
         .card-header { background: #F8FAFC; padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .request-meta { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
         .request-meta strong { color: var(--text-main); font-weight: 800; }
+        .badge-add { background: var(--maroon-light); color: var(--maroon); border: 1px solid rgba(139, 21, 56, 0.2); }
+        .badge-edit { background: #FFFBEB; color: #D97706; border: 1px solid #FEF3C7; }
         .card-body { padding: 24px; }
         .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
         .span-2 { grid-column: span 2; }
@@ -318,8 +339,15 @@ $quote_history = $history_stmt->fetchAll();
         .data-value.price { color: var(--maroon); font-weight: 900; background: var(--maroon-light); border-color: rgba(139, 21, 56, 0.2); }
         .media-link { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 800; color: var(--maroon); text-decoration: none; padding: 10px 20px; border-radius: 9999px; background: var(--maroon-light); border: 1px solid rgba(139, 21, 56, 0.2); text-transform: uppercase; transition: all 0.3s ease;}
         .media-link:hover { background: var(--maroon); color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(139, 21, 56, 0.2); }
+        
         .card-footer { padding: 20px 24px; border-top: 1px dashed var(--border); display: flex; justify-content: flex-end; gap: 12px; background: #F8FAFC; flex-wrap: wrap; }
-        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; border: 2px dashed var(--border); border-radius: 24px; background: #F8FAFC; font-size: 1rem; }
+        .btn { padding: 12px 20px; font-weight: 800; border: none; border-radius: 12px; cursor: pointer; font-size: 0.75rem; transition: all 0.3s ease; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: var(--shadow-sm); }
+        .btn-pdf { background: var(--surface); color: var(--text-main); border: 1px solid var(--border); }
+        .btn-pdf:hover { background: #E2E8F0; transform: translateY(-2px); }
+        .btn-approve { background: linear-gradient(135deg, #10B981 0%, #047857 100%); color: white; }
+        .btn-approve:hover { filter: brightness(1.1); box-shadow: 0 8px 16px rgba(4, 120, 87, 0.25); transform: translateY(-2px); }
+        .btn-reject { background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%); color: white; }
+        .btn-reject:hover { filter: brightness(1.1); box-shadow: 0 8px 16px rgba(185, 28, 28, 0.25); transform: translateY(-2px); }
 
         /* ==========================================
            PREMIUM AJAX EDITOR MODAL
@@ -350,7 +378,7 @@ $quote_history = $history_stmt->fetchAll();
         textarea.m-input { min-height: 60px; resize: vertical; }
 
         .m-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .m-table th { background: #F8FAFC; padding: 12px 16px; font-size: 0.7rem; color: var(--text-muted); border-radius: 8px; border: none; }
+        .m-table th { background: #F8FAFC; padding: 12px 16px; font-size: 0.7rem; color: var(--text-muted); border-radius: 8px; border: none; text-align: left; }
         .m-table td { padding: 12px 16px; border-bottom: 1px dashed var(--border); font-size: 0.95rem; font-weight: 600; vertical-align: middle;}
         .m-table tr:last-child td { border-bottom: none; }
         .item-img { width: 48px; height: 48px; border-radius: 8px; object-fit: contain; background: #F8FAFC; padding: 4px; border: 1px solid var(--border); }
@@ -380,7 +408,6 @@ $quote_history = $history_stmt->fetchAll();
         .btn-confirm-proceed { flex: 1; color: white; border: none; padding: 12px 20px; border-radius: 12px; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; }
         .btn-confirm-proceed:hover { transform: translateY(-2px); }
 
-        /* Confirm Modal Themes */
         .btn-confirm-proceed.approve-theme { background: linear-gradient(135deg, #10B981 0%, #047857 100%); box-shadow: 0 8px 16px rgba(4, 120, 87, 0.2); }
         .btn-confirm-proceed.reject-theme { background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%); box-shadow: 0 8px 16px rgba(185, 28, 28, 0.2); }
         .btn-confirm-proceed.save-theme { background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%); box-shadow: 0 8px 16px rgba(79, 70, 229, 0.2); }
@@ -389,6 +416,13 @@ $quote_history = $history_stmt->fetchAll();
         .confirm-icon.reject-theme { background: #FEF2F2; color: #DC2626; }
         .confirm-icon.save-theme { background: #EEF2FF; color: #4F46E5; }
 
+        @media (max-width: 900px) {
+            .quote-row { flex-direction: column; align-items: flex-start; gap: 16px; }
+            .q-meta, .q-details, .q-action { width: 100%; border-left: none; margin-left: 0; padding-left: 0; justify-content: flex-start;}
+            .q-action { justify-content: flex-start; }
+            .q-status { justify-content: flex-start; margin-top: 10px; }
+        }
+
         @media (max-width: 768px) {
             .data-grid { grid-template-columns: 1fr; }
             .span-2, .span-4 { grid-column: 1 / -1; }
@@ -396,7 +430,6 @@ $quote_history = $history_stmt->fetchAll();
             .top-bar-wrapper { padding: 16px 0; margin-bottom: 20px; }
             .header { flex-direction: column; align-items: stretch; }
             .header-controls { justify-content: flex-start; }
-            .card { padding: 24px; border-radius: 24px; }
             .m-grid { grid-template-columns: 1fr; gap: 20px; }
             .modal-header { padding: 20px 24px; }
             .modal-body { padding: 20px 24px; }
@@ -437,95 +470,92 @@ $quote_history = $history_stmt->fetchAll();
         <div class="tabs-container">
             <div class="tabs-nav">
                 <button class="tab-btn active" onclick="openTab('tab-sales', this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
                     Sales Quotes <?php if($sales_count > 0) echo "<span class='badge-count'>$sales_count</span>"; ?>
                 </button>
                 <button class="tab-btn" onclick="openTab('tab-project', this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
                     Project Quotes <?php if($project_count > 0) echo "<span class='badge-count'>$project_count</span>"; ?>
                 </button>
                 <button class="tab-btn" onclick="openTab('tab-inventory', this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
                     Inventory Approvals <?php if($inv_count > 0) echo "<span class='badge-count'>$inv_count</span>"; ?>
                 </button>
                 <button class="tab-btn" onclick="openTab('tab-history', this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     Quotation History
                 </button>
             </div>
         </div>
 
         <div id="tab-sales" class="tab-content active">
-            <div class="card">
-                <h2>Sales Quotations (Pending Review)</h2>
-                <?php if (empty($sales_pending)): ?>
-                    <div class="empty-state">No pending sales quotations require approval right now.</div>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table>
-                            <tr>
-                                <th class="text-center">Quote No</th>
-                                <th class="text-left">Client / Submitter</th>
-                                <th class="text-center">Date Submitted</th>
-                            </tr>
-                            <?php foreach($sales_pending as $q): 
-                                $submitterName = !empty($q['full_name']) ? $q['full_name'] : ($q['username'] ?? 'Unknown');
-                            ?>
-                            <tr class="interactive-row" onclick="loadQuoteDetails(<?php echo $q['id']; ?>, 'sales')">
-                                <td class="text-center">
-                                    <strong style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; color: var(--maroon);"><?php echo htmlspecialchars($q['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong>
-                                </td>
-                                <td class="text-left">
-                                    <div style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;"><?php echo htmlspecialchars($q['client_name'], ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-top: 4px;">
-                                        Prepared By: <?php echo htmlspecialchars(ucwords(strtolower($submitterName)), ENT_QUOTES, 'UTF-8'); ?>
-                                    </div>
-                                </td>
-                                <td class="text-center">
-                                    <div style="font-weight: 700; color: var(--text-main);"><?php echo date('M d, Y', strtotime($q['quote_date'])); ?></div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </table>
+            <h2 class="section-title">Sales Quotations (Pending Review)</h2>
+            <?php if (empty($sales_pending)): ?>
+                <div class="empty-state">No pending sales quotations require approval right now.</div>
+            <?php else: ?>
+                <div class="quote-list">
+                    <?php foreach($sales_pending as $q): 
+                        $submitterName = !empty($q['full_name']) ? $q['full_name'] : ($q['username'] ?? 'Unknown');
+                    ?>
+                    <div class="quote-row" onclick="loadQuoteDetails(<?php echo $q['id']; ?>, 'sales')">
+                        <div class="q-meta">
+                            <span class="q-num"><?php echo htmlspecialchars($q['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="q-date">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                <?php echo date('M d, Y', strtotime($q['quote_date'])); ?>
+                            </span>
+                        </div>
+                        <div class="q-details">
+                            <span class="q-client"><?php echo htmlspecialchars($q['client_name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="q-prep">Prepared By: <?php echo htmlspecialchars(ucwords(strtolower($submitterName)), ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
+                        <div class="q-action">
+                            <span class="q-btn">
+                                Review & Edit
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                            </span>
+                        </div>
                     </div>
-                <?php endif; ?>
-            </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div id="tab-project" class="tab-content">
-            <div class="card">
-                <h2>Project Quotations (Pending Review)</h2>
-                <?php if (empty($project_pending)): ?>
-                    <div class="empty-state">No pending project quotations require approval right now.</div>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table>
-                            <tr>
-                                <th class="text-center">Quote No</th>
-                                <th class="text-left">Project / Submitter</th>
-                                <th class="text-center">Date Submitted</th>
-                            </tr>
-                            <?php foreach($project_pending as $p): 
-                                 $submitterName = !empty($p['prepared_by']) ? $p['prepared_by'] : 'Unknown';
-                            ?>
-                            <tr class="interactive-row" onclick="loadQuoteDetails(<?php echo $p['id']; ?>, 'project')">
-                                <td class="text-center">
-                                    <strong style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; color: var(--maroon);"><?php echo htmlspecialchars($p['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong>
-                                </td>
-                                <td class="text-left">
-                                    <div style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;"><?php echo htmlspecialchars($p['project_name'] ?? 'Project', ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-top: 4px;">
-                                        Prepared By: <?php echo htmlspecialchars(ucwords(strtolower($submitterName)), ENT_QUOTES, 'UTF-8'); ?>
-                                    </div>
-                                </td>
-                                <td class="text-center">
-                                    <div style="font-weight: 700; color: var(--text-main);"><?php echo date('M d, Y', strtotime($p['quote_date'])); ?></div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </table>
+            <h2 class="section-title">Project Quotations (Pending Review)</h2>
+            <?php if (empty($project_pending)): ?>
+                <div class="empty-state">No pending project quotations require approval right now.</div>
+            <?php else: ?>
+                <div class="quote-list">
+                    <?php foreach($project_pending as $p): 
+                            $submitterName = !empty($p['prepared_by']) ? $p['prepared_by'] : 'Unknown';
+                    ?>
+                    <div class="quote-row" onclick="loadQuoteDetails(<?php echo $p['id']; ?>, 'project')">
+                        <div class="q-meta">
+                            <span class="q-num"><?php echo htmlspecialchars($p['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="q-date">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                <?php echo date('M d, Y', strtotime($p['quote_date'])); ?>
+                            </span>
+                        </div>
+                        <div class="q-details">
+                            <span class="q-client"><?php echo htmlspecialchars($p['project_name'] ?? 'Project', ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="q-prep">Prepared By: <?php echo htmlspecialchars(ucwords(strtolower($submitterName)), ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
+                        <div class="q-action">
+                            <span class="q-btn">
+                                Review & Edit
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                            </span>
+                        </div>
                     </div>
-                <?php endif; ?>
-            </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div id="tab-inventory" class="tab-content">
+            <h2 class="section-title">Inventory Approvals</h2>
             <?php if (empty($pending_inventory)): ?>
                 <div class="empty-state">
                     <span style="font-size: 1.2rem; display: block; margin-bottom: 8px;">🎉</span>
@@ -603,43 +633,39 @@ $quote_history = $history_stmt->fetchAll();
         </div>
 
         <div id="tab-history" class="tab-content">
-            <div class="card">
-                <h2>Quotation History Log</h2>
-                <?php if (empty($quote_history)): ?>
-                    <div class="empty-state">No processed quotations found in history.</div>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table>
-                            <tr>
-                                <th class="text-center">Department</th>
-                                <th class="text-center">Quote No.</th>
-                                <th class="text-left">Client / Project</th>
-                                <th class="text-center">Last Updated</th>
-                                <th class="text-center">Status</th>
-                            </tr>
-                            <?php foreach($quote_history as $log): ?>
-                            <tr>
-                                <td class="text-center"><span class="badge" style="background:var(--bg); color:var(--text-main); border:1px solid var(--border);"><?php echo htmlspecialchars($log['quote_type'], ENT_QUOTES, 'UTF-8'); ?></span></td>
-                                <td class="text-center"><strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: var(--text-main);"><?php echo htmlspecialchars($log['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
-                                <td class="text-left" style="font-weight: 800; color: var(--text-main);"><?php echo htmlspecialchars($log['reference_name'], ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td class="text-center" style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">
-                                    <?php echo date('M d, Y – h:i A', strtotime($log['created_at'])); ?>
-                                </td>
-                                <td class="text-center">
-                                    <?php 
-                                        if ($log['status'] === 'pending_super') echo '<span class="badge b-super">Sent to Super Admin</span>';
-                                        elseif ($log['status'] === 'revision') echo '<span class="badge b-rev">Declined / Revision</span>';
-                                        elseif ($log['status'] === 'approved') echo '<span class="badge b-app">Approved (Final)</span>';
-                                        elseif ($log['status'] === 'rejected') echo '<span class="badge b-rev">Rejected (Final)</span>';
-                                        else echo '<span class="badge" style="background:#E2E8F0; color:#0F172A;">' . htmlspecialchars($log['status']) . '</span>';
-                                    ?>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </table>
+            <h2 class="section-title">Quotation History Log</h2>
+            <?php if (empty($quote_history)): ?>
+                <div class="empty-state">No processed quotations found in history.</div>
+            <?php else: ?>
+                <div class="quote-list">
+                    <?php foreach($quote_history as $log): ?>
+                    <div class="quote-row" style="cursor: default;">
+                        <div class="q-type">
+                            <span class="type-badge"><?php echo htmlspecialchars($log['quote_type'], ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
+                        <div class="q-meta">
+                            <span class="q-num" style="color: var(--text-main);"><?php echo htmlspecialchars($log['quotation_no'], ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="q-date">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                <?php echo date('M d, Y – h:i A', strtotime($log['created_at'])); ?>
+                            </span>
+                        </div>
+                        <div class="q-details" style="border-left: none; margin-left: 0; padding-left: 0;">
+                            <span class="q-client"><?php echo htmlspecialchars($log['reference_name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
+                        <div class="q-status">
+                            <?php 
+                                if ($log['status'] === 'pending_super') echo '<span class="badge b-super"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Sent to Super Admin</span>';
+                                elseif ($log['status'] === 'revision') echo '<span class="badge b-rev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> Declined / Revision</span>';
+                                elseif ($log['status'] === 'approved') echo '<span class="badge b-app"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Approved (Final)</span>';
+                                elseif ($log['status'] === 'rejected') echo '<span class="badge b-rev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Rejected (Final)</span>';
+                                else echo '<span class="badge" style="background:#E2E8F0; color:#0F172A;">' . htmlspecialchars($log['status']) . '</span>';
+                            ?>
+                        </div>
                     </div>
-                <?php endif; ?>
-            </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
 
     </div>
@@ -701,7 +727,7 @@ $quote_history = $history_stmt->fetchAll();
                         <thead>
                             <tr>
                                 <th>Image</th>
-                                <th style="text-align:left;">Brand & Model</th>
+                                <th>Brand & Model</th>
                                 <th style="text-align:center;">Qty</th>
                                 <th style="text-align:right;">Unit Price (₱)</th>
                                 <th style="text-align:right;">Line Total (₱)</th>
@@ -767,7 +793,6 @@ $quote_history = $history_stmt->fetchAll();
             const btn = document.getElementById('confirmProceedBtn');
             const iconWrap = document.getElementById('confirmIconWrap');
             
-            // Reset theme classes
             btn.className = 'btn-confirm-proceed';
             iconWrap.className = 'confirm-icon';
             
@@ -796,7 +821,6 @@ $quote_history = $history_stmt->fetchAll();
             closeConfirmModal();
         });
 
-        // specific handler for the Editor Modal buttons
         function confirmModalAction(formId, submitType, message, themeType) {
             showConfirm(message, themeType, function() {
                 const form = document.getElementById(formId);
@@ -809,7 +833,6 @@ $quote_history = $history_stmt->fetchAll();
             });
         }
 
-        // specific handler for the Inventory Approval distinct forms
         function confirmFormSubmission(buttonElement, actionValue, message, themeType) {
             showConfirm(message, themeType, function() {
                 const form = buttonElement.closest('form');

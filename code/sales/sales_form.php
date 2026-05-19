@@ -38,6 +38,9 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
     <title>Sales Quotation Builder - AM Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <style>
         :root {
             /* Modernized Premium Palette */
@@ -177,6 +180,10 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         .zoom-overlay.active img { transform: scale(1); }
         .zoom-close-btn { position: absolute; top: 24px; right: 32px; background: white; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s ease; width: 48px; height: 48px; border-radius: 50%; box-shadow: var(--shadow-sm); display: flex; justify-content: center; align-items: center; z-index: 100000;}
         .zoom-close-btn:hover { color: var(--danger); transform: rotate(90deg); }
+
+        /* SweetAlert Custom Overrides */
+        .swal-title-custom { font-family: 'Outfit', sans-serif !important; font-weight: 800 !important; color: var(--maroon) !important; }
+        .swal-popup-custom { font-family: 'DM Sans', sans-serif !important; border-radius: 24px !important; }
 
         /* TABLET RESPONSIVENESS */
         @media (max-width: 1024px) { 
@@ -491,15 +498,34 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
             }
         }
 
+        // ==========================================
+        // SWEETALERT2 SUBMIT CONFIRMATION
+        // ==========================================
         function submitToAdmin() {
             const form = document.getElementById('salesQuoteForm');
             if (form.reportValidity()) {
-                if(confirm("Are you sure you want to finalize this quote and submit it to the Admin for approval?")) {
-                    form.action = 'sales_process.php';
-                    form.target = '_self';
-                    sessionStorage.removeItem('quoteCartData');
-                    form.submit();
-                }
+                Swal.fire({
+                    title: 'Finalize Quote?',
+                    text: "Are you sure you want to finalize this quote and submit it to the Admin for approval?",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#8B1538',
+                    cancelButtonColor: '#64748B',
+                    confirmButtonText: 'Yes, submit it!',
+                    cancelButtonText: 'Cancel',
+                    borderRadius: '24px',
+                    customClass: {
+                        title: 'swal-title-custom',
+                        popup: 'swal-popup-custom'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.action = 'sales_process.php';
+                        form.target = '_self';
+                        sessionStorage.removeItem('quoteCartData');
+                        form.submit();
+                    }
+                });
             }
         }
     </script>

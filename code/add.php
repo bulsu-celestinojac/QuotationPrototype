@@ -154,6 +154,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
     <title>Add Machine - AM Group</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <style>
         :root {
             /* Modernized Premium Palette */
@@ -279,7 +282,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             white-space: nowrap;
         }
 
-        /* NEW REQUIRED FIELD STYLING */
         label.required::after {
             content: ' *';
             color: var(--maroon);
@@ -314,7 +316,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             to { opacity: 1; transform: translateY(0); } 
         }
 
-        /* PREMIUM ROUNDED INPUTS */
         input[type="text"], input[type="number"], select, textarea {
             width: 100%;
             padding: 14px 16px;
@@ -371,7 +372,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
         }
         .price-wrapper input.compact-field { padding-left: 36px !important; }
 
-        /* SLEEK DRAG & DROP ZONES */
         .file-drop-area {
             border: 2px dashed var(--border);
             border-radius: 16px;
@@ -404,7 +404,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
         .remove-img-btn { position: absolute; top: 8px; right: 8px; background: var(--surface); color: var(--danger); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; font-size: 0.9rem; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); transition: all 0.2s ease; }
         .remove-img-btn:hover { background: var(--danger); color: var(--surface); transform: scale(1.1); border-color: var(--danger); }
 
-        /* ACTION BUTTONS */
         .action-buttons { display: flex; gap: 16px; margin-top: 32px; }
         
         .btn-submit {
@@ -464,6 +463,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
         .zoom-overlay.active img { transform: scale(1); }
         .zoom-close-btn { position: absolute; top: 24px; right: 32px; background: white; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s ease; width: 48px; height: 48px; border-radius: 50%; box-shadow: var(--shadow-sm); display: flex; justify-content: center; align-items: center;}
         .zoom-close-btn:hover { color: var(--danger); transform: rotate(90deg); }
+
+        /* SweetAlert Font overrides */
+        .swal-title-custom { font-family: 'Outfit', sans-serif !important; font-weight: 800 !important; color: var(--maroon) !important; }
+        .swal-popup-custom { font-family: 'DM Sans', sans-serif !important; border-radius: 24px !important; }
 
         @media (max-width: 768px) {
             body { padding: 20px 12px; }
@@ -589,7 +592,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
 
             <div class="action-buttons">
                 <a href="index.php" class="btn-cancel">Cancel</a>
-                <button type="submit" class="btn-submit">
+                <button type="button" class="btn-submit" onclick="submitAddForm()">
                     <?php echo in_array($user_role, ['admin', 'super_admin']) ? 'Save to Live Inventory' : 'Submit for Approval'; ?>
                 </button>
             </div>
@@ -603,6 +606,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
     </div>
 
    <script>
+        // ==========================================
+        // SWEETALERT2 SUBMISSION LOGIC
+        // ==========================================
+        function submitAddForm() {
+            const form = document.getElementById('updateMachineForm');
+            // Check HTML5 validity first (required fields)
+            if (form.reportValidity()) {
+                const isAdmin = <?php echo in_array($user_role, ['admin', 'super_admin']) ? 'true' : 'false'; ?>;
+                const msg = isAdmin 
+                    ? 'Are you sure you want to add this machine directly to the Live Inventory?' 
+                    : 'Submit this new machine data to the Admin for approval?';
+                
+                Swal.fire({
+                    title: 'Confirm Addition',
+                    text: msg,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#8B1538',
+                    cancelButtonColor: '#64748B',
+                    confirmButtonText: 'Yes, proceed!',
+                    cancelButtonText: 'Cancel',
+                    borderRadius: '24px',
+                    customClass: {
+                        title: 'swal-title-custom',
+                        popup: 'swal-popup-custom'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            }
+        }
+
+        // ==========================================
+        // MODEL DUPLICATE CHECKER
+        // ==========================================
         const modelInput = document.getElementById('model_no');
         const modelWarning = document.getElementById('model-warning');
         let duplicateDebounceTimer;
@@ -619,7 +659,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                         body: 'ajax_check_model=1&model_no=' + encodeURIComponent(val)
                     }).then(res => res.json()).then(data => {
                         if (data.exists) {
-                            // Premium SVG Icon added to warning
                             modelWarning.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Exists under brand: ' + data.brands.join(', ');
                             modelWarning.style.display = 'flex';
                         }
@@ -628,6 +667,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             }
         });
 
+        // ==========================================
+        // PRICING CALCULATIONS
+        // ==========================================
         const costInput = document.getElementById('buying_cost');
         const factorInput = document.getElementById('factor');
         const priceInput = document.getElementById('selling_price');
@@ -674,6 +716,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             });
         });
 
+        // ==========================================
+        // DRAG & DROP FILE HANDLERS
+        // ==========================================
         const fileInput = document.getElementById('picture');
         const fileMsg = document.getElementById('file-msg');
         const dropArea = document.getElementById('drop-area');
@@ -743,6 +788,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             }
         });
 
+        // ==========================================
+        // AUTOCOMPLETE BRAND SUGGESTIONS
+        // ==========================================
         let allBrands = [];
         const brandInput = document.getElementById('brand');
         const customDropdown = document.getElementById('custom-brand-list');
@@ -752,12 +800,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             catch (error) { console.log('Could not load brand suggestions'); }
         }
 
-        // Updated: Require 2 characters to show suggestions
         function showBrands(filterText = '') {
             customDropdown.innerHTML = '';
             const val = filterText.trim().toLowerCase();
             
-            // This forces the user to type at least 2 letters before the dropdown appears
             if (val.length < 2) {
                 customDropdown.classList.remove('active');
                 return;
@@ -783,10 +829,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
             }
         }
 
-        // Check as user types
         brandInput.addEventListener('input', function() { showBrands(this.value); });
         
-        // Hide dropdown if clicked outside
         document.addEventListener('click', function(e) { 
             if (e.target !== brandInput && e.target !== customDropdown) {
                 customDropdown.classList.remove('active'); 

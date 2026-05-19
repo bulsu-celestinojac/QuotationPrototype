@@ -78,6 +78,8 @@ foreach ($items as $item) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <style>
         :root {
             /* Modernized Premium Palette */
@@ -354,6 +356,10 @@ foreach ($items as $item) {
             .modal-close-btn { top: 16px; right: 16px; }
             .info-grid { grid-template-columns: 1fr; gap: 16px; }
         }
+
+        /* SweetAlert Custom Overrides */
+        .swal-title-custom { font-family: 'Outfit', sans-serif !important; font-weight: 800 !important; color: var(--maroon) !important; }
+        .swal-popup-custom { font-family: 'DM Sans', sans-serif !important; border-radius: 24px !important; }
     </style>
 </head>
 <body>
@@ -408,7 +414,7 @@ foreach ($items as $item) {
                         </a>
                     <?php endif; ?>
 
-                    <a href="logout.php" class="btn btn-logout">Logout</a>
+                    <a href="logout.php" id="logoutBtn" class="btn btn-logout">Logout</a>
                 </div>
             </div>
         </div>
@@ -805,6 +811,39 @@ foreach ($items as $item) {
         });
 
         document.addEventListener('DOMContentLoaded', updateCartUI);
+
+        // ==========================================
+        // SWEETALERT2 LOGOUT CONFIRMATION
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault(); 
+                    const logoutUrl = this.getAttribute('href');
+
+                    Swal.fire({
+                        title: 'Ready to head out?',
+                        text: "You will be securely logged out of the system.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#8B1538', 
+                        cancelButtonColor: '#64748B',  
+                        confirmButtonText: 'Yes, log me out',
+                        cancelButtonText: 'Cancel',
+                        borderRadius: '24px',
+                        customClass: {
+                            title: 'swal-title-custom',
+                            popup: 'swal-popup-custom'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = logoutUrl;
+                        }
+                    });
+                });
+            }
+        });
     </script>
 </body>
 </html>
