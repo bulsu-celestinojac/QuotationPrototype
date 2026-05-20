@@ -133,6 +133,28 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         input:focus, textarea:focus { background: var(--surface); border-color: var(--maroon); box-shadow: 0 0 0 4px var(--maroon-light); transform: translateY(-1px); }
         textarea { resize: vertical; min-height: 100px; }
         .readonly-input { background: transparent !important; border: 1px dashed var(--border) !important; color: var(--text-muted) !important; pointer-events: none; font-weight: 800; letter-spacing: 1px; }
+
+        /* VALIDATION FEEDBACK */
+        input:invalid:not(:placeholder-shown):not(:focus):not(.readonly-input),
+        textarea:invalid:not(:placeholder-shown):not(:focus) {
+            border-color: var(--danger);
+            background: #FEF2F2;
+        }
+        .validation-hint {
+            display: none;
+            font-size: 0.7rem;
+            color: var(--danger);
+            font-weight: 600;
+            margin-top: 4px;
+            letter-spacing: 0.02em;
+        }
+        input:invalid:not(:placeholder-shown):not(:focus):not(.readonly-input) ~ .validation-hint,
+        textarea:invalid:not(:placeholder-shown):not(:focus) ~ .validation-hint {
+            display: block;
+        }
+        input:valid:not(.readonly-input):not([type="date"]) {
+            border-color: #22C55E20;
+        }
         
         /* MACHINE ITEMS LIST */
         .machine-items-container { display: flex; flex-direction: column; gap: 16px; max-height: 55vh; overflow-y: auto; padding-right: 8px; margin-bottom: 32px; }
@@ -255,23 +277,28 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                         <div class="form-grid">
                             <div class="form-group full-width">
                                 <label class="required">Client Name</label>
-                                <input type="text" name="client_name" placeholder="Enter client or company name" autocomplete="off" required style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase();">
+                                <input type="text" name="client_name" placeholder="Enter client or company name" autocomplete="off" required style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase().replace(/[0-9]/g, '');" pattern="[A-Za-z\s\-\.,'&()]+" title="Letters only — no numbers allowed">
+                                <span class="validation-hint">Letters only — numbers are not allowed</span>
                             </div>
                             <div class="form-group full-width">
                                 <label class="required">Client Address</label>
-                                <textarea name="client_address" placeholder="Enter complete billing/delivery address" autocomplete="off" required></textarea>
+                                <textarea name="client_address" placeholder="Enter complete billing/delivery address" autocomplete="off" required minlength="5" title="Enter the complete address (minimum 5 characters)"></textarea>
+                                <span class="validation-hint">Please enter a complete address (at least 5 characters)</span>
                             </div>
                             <div class="form-group full-width">
                                 <label class="required">Attention To</label>
-                                <input type="text" name="attention_to" placeholder="Full name of contact person" autocomplete="off" required>
+                                <input type="text" name="attention_to" placeholder="Full name of contact person" autocomplete="off" required oninput="this.value = this.value.replace(/[0-9]/g, '');" pattern="[A-Za-z\s\-\.,' ]+" title="Letters only — no numbers allowed">
+                                <span class="validation-hint">Letters only — numbers are not allowed</span>
                             </div>
                             <div class="form-group">
                                 <label class="required">Client Email Address</label>
-                                <input type="email" name="client_email" placeholder="example@domain.com" autocomplete="off" required>
+                                <input type="email" name="client_email" placeholder="example@domain.com" autocomplete="off" required pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}" title="Enter a valid email address (e.g. name@domain.com)">
+                                <span class="validation-hint">Enter a valid email (e.g. name@domain.com)</span>
                             </div>
                             <div class="form-group">
                                 <label class="required">Contact Number</label>
-                                <input type="tel" name="client_contact" placeholder="e.g. 09171234567" autocomplete="off" required oninput="this.value = this.value.replace(/[^0-9]/g, '');">
+                                <input type="tel" name="client_contact" placeholder="e.g. 09171234567" autocomplete="off" required oninput="this.value = this.value.replace(/[^0-9]/g, '');" minlength="7" maxlength="15" pattern="[0-9]{7,15}" title="Enter a valid phone number (7-15 digits)">
+                                <span class="validation-hint">Enter 7 to 15 digits only</span>
                             </div>
                         </div>
                     </div>
@@ -289,11 +316,13 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                             </div>
                             <div class="form-group full-width">
                                 <label class="required">Proposal Purpose</label>
-                                <input type="text" name="proposal_purpose" placeholder="e.g. MACHINE EQUIPMENT" autocomplete="off" required style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase();">
+                                <input type="text" name="proposal_purpose" placeholder="e.g. MACHINE EQUIPMENT" autocomplete="off" required style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase().replace(/[0-9]/g, '');" pattern="[A-Za-z\s\-\.,'&()/]+" title="Letters only — no numbers allowed">
+                                <span class="validation-hint">Letters only — numbers are not allowed</span>
                             </div>
                             <div class="form-group full-width">
                                 <label class="required">Payment Terms</label>
-                                <textarea name="payment_terms" placeholder="50% Down payment upon confirmation...&#10;50% Before shipment..." autocomplete="off" required></textarea>
+                                <textarea name="payment_terms" placeholder="50% Down payment upon confirmation...&#10;50% Before shipment..." autocomplete="off" required minlength="3" title="Enter the payment terms (minimum 3 characters)"></textarea>
+                                <span class="validation-hint">Please enter the payment terms (at least 3 characters)</span>
                             </div>
                             <div class="form-group full-width">
                                 <label>Inclusions</label>
@@ -301,11 +330,11 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                             </div>
                             <div class="form-group">
                                 <label class="required">Validity Offer Date</label>
-                                <input type="text" name="validity_date" placeholder="e.g. 30 Days" autocomplete="off" required>
+                                <input type="text" name="validity_date" placeholder="e.g. 30 Days" autocomplete="off" required minlength="1" title="Enter validity period (e.g. 30 Days)">
                             </div>
                             <div class="form-group">
                                 <label class="required">ETA</label>
-                                <input type="text" name="eta" placeholder="e.g. 120 Days" autocomplete="off" required>
+                                <input type="text" name="eta" placeholder="e.g. 120 Days" autocomplete="off" required minlength="1" title="Enter estimated delivery time (e.g. 120 Days)">
                             </div>
                             
                             <div class="form-group full-width" style="margin-top: 16px; padding-top: 24px; border-top: 1px dashed var(--border);">
@@ -494,12 +523,85 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                     closeConfirmModal();
                 }
             });
+
+            // --- Prevent number keys on text-only fields ---
+            document.querySelectorAll('[name="client_name"], [name="attention_to"], [name="proposal_purpose"]').forEach(function(field) {
+                field.addEventListener('keydown', function(e) {
+                    // Allow: backspace, delete, tab, escape, enter, arrows, home, end
+                    if ([8, 9, 13, 27, 35, 36, 37, 38, 39, 40, 46].indexOf(e.keyCode) !== -1) return;
+                    // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
+                    if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88, 90].indexOf(e.keyCode) !== -1) return;
+                    // Block number keys (0-9) from both main keyboard and numpad
+                    if ((e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105)) {
+                        e.preventDefault();
+                    }
+                });
+            });
+
+            // --- Prevent non-numeric keys on contact number ---
+            document.querySelector('[name="client_contact"]').addEventListener('keydown', function(e) {
+                // Allow: backspace, delete, tab, escape, enter, arrows, home, end
+                if ([8, 9, 13, 27, 35, 36, 37, 38, 39, 40, 46].indexOf(e.keyCode) !== -1) return;
+                // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
+                if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88, 90].indexOf(e.keyCode) !== -1) return;
+                // Allow number keys only
+                if ((e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105)) return;
+                // Block everything else
+                e.preventDefault();
+            });
         });
+
+        // --- Form Validation Helper ---
+        function validateForm() {
+            const form = document.getElementById('salesQuoteForm');
+
+            // Text-only fields: strip any numbers that might have been pasted
+            const textOnlyFields = form.querySelectorAll('[name="client_name"], [name="attention_to"], [name="proposal_purpose"]');
+            let hasTextError = false;
+            textOnlyFields.forEach(function(field) {
+                field.value = field.value.replace(/[0-9]/g, '');
+                if (field.value.trim() === '') {
+                    field.focus();
+                    hasTextError = true;
+                }
+            });
+            if (hasTextError) {
+                form.reportValidity();
+                return false;
+            }
+
+            // Contact number: strip non-digits and check length
+            const contactField = form.querySelector('[name="client_contact"]');
+            if (contactField) {
+                contactField.value = contactField.value.replace(/[^0-9]/g, '');
+                if (contactField.value.length < 7 || contactField.value.length > 15) {
+                    contactField.focus();
+                    contactField.reportValidity();
+                    return false;
+                }
+            }
+
+            // Email: pattern check
+            const emailField = form.querySelector('[name="client_email"]');
+            if (emailField) {
+                const emailPattern = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+                if (!emailPattern.test(emailField.value.trim())) {
+                    emailField.focus();
+                    emailField.reportValidity();
+                    return false;
+                }
+            }
+
+            // Check all required fields are filled via built-in validation
+            if (!form.reportValidity()) return false;
+
+            return true;
+        }
 
         // --- Form Submissions ---
         function reviewPDF() {
-            const form = document.getElementById('salesQuoteForm');
-            if (form.reportValidity()) {
+            if (validateForm()) {
+                const form = document.getElementById('salesQuoteForm');
                 form.action = 'sales_preview.php';
                 form.target = '_blank';
                 form.submit();
@@ -528,9 +630,9 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         });
 
         function submitToAdmin() {
-            const form = document.getElementById('salesQuoteForm');
-            if (form.reportValidity()) {
+            if (validateForm()) {
                 showConfirm("Are you sure you want to finalize this quote and submit it to the Admin for approval?", function() {
+                    const form = document.getElementById('salesQuoteForm');
                     form.action = 'sales_process.php';
                     form.target = '_self';
                     sessionStorage.removeItem('quoteCartData');
