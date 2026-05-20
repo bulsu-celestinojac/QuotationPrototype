@@ -39,8 +39,6 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <style>
         :root {
             /* Modernized Premium Palette */
@@ -141,7 +139,6 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         .machine-item { display: grid; grid-template-columns: 80px 1fr 130px 90px; gap: 20px; align-items: center; padding: 20px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); transition: all 0.3s ease; }
         .machine-item:hover { border-color: rgba(139, 21, 56, 0.2); box-shadow: var(--shadow-sm); }
         
-        /* FIXED: Added pointer-events: none to the overlay */
         .machine-img { width: 80px; height: 80px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; padding: 8px; background: #F8FAFC; position: relative; overflow: hidden; cursor: zoom-in; }
         .machine-img img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.3s ease; }
         .machine-img:hover img { transform: scale(1.1); }
@@ -181,9 +178,21 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         .zoom-close-btn { position: absolute; top: 24px; right: 32px; background: white; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s ease; width: 48px; height: 48px; border-radius: 50%; box-shadow: var(--shadow-sm); display: flex; justify-content: center; align-items: center; z-index: 100000;}
         .zoom-close-btn:hover { color: var(--danger); transform: rotate(90deg); }
 
-        /* SweetAlert Custom Overrides */
-        .swal-title-custom { font-family: 'Outfit', sans-serif !important; font-weight: 800 !important; color: var(--maroon) !important; }
-        .swal-popup-custom { font-family: 'DM Sans', sans-serif !important; border-radius: 24px !important; }
+        /* ==========================================
+           CUSTOM PREMIUM CONFIRMATION MODAL
+           ========================================== */
+        .confirm-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 100000; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; padding: 20px; }
+        .confirm-overlay.active { display: flex; opacity: 1; }
+        .confirm-card { background: var(--surface); border-radius: 24px; padding: 32px; max-width: 420px; width: 100%; box-shadow: 0 24px 60px rgba(0,0,0,0.2); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; }
+        .confirm-overlay.active .confirm-card { transform: scale(1); }
+        .confirm-icon { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; transition: all 0.3s ease; background: var(--maroon-light); color: var(--maroon); }
+        .confirm-title { font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 900; color: var(--text-main); margin-bottom: 12px; }
+        .confirm-msg { font-size: 1rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 30px; font-weight: 500; }
+        .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+        .btn-confirm-cancel { flex: 1; background: #F8FAFC; color: var(--text-main); border: 1px solid var(--border); padding: 12px 20px; border-radius: 12px; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s ease; }
+        .btn-confirm-cancel:hover { background: #E2E8F0; }
+        .btn-confirm-proceed { flex: 1; color: white; border: none; padding: 12px 20px; border-radius: 12px; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%); box-shadow: 0 8px 16px rgba(139, 21, 56, 0.2); }
+        .btn-confirm-proceed:hover { transform: translateY(-2px); filter: brightness(1.1); }
 
         /* TABLET RESPONSIVENESS */
         @media (max-width: 1024px) { 
@@ -202,25 +211,10 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
             .card { padding: 24px 20px; border-radius: 24px; }
             .form-grid { grid-template-columns: 1fr; gap: 16px; }
             
-            /* Smart Stacking for the Machine List */
-            .machine-item { 
-                grid-template-columns: 70px 1fr; 
-                gap: 16px; 
-                padding: 16px; 
-            }
+            .machine-item { grid-template-columns: 70px 1fr; gap: 16px; padding: 16px; }
             .machine-info { grid-column: 2; }
             
-            /* The QTY and Price inputs wrap underneath nicely */
-            .control-group { 
-                grid-column: 1 / -1; 
-                display: flex; 
-                flex-direction: row; 
-                justify-content: space-between; 
-                align-items: center; 
-                background: #F8FAFC; 
-                padding: 12px 16px; 
-                border-radius: 16px;
-            }
+            .control-group { grid-column: 1 / -1; display: flex; flex-direction: row; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 12px 16px; border-radius: 16px; }
             .control-group label { margin-bottom: 0; }
             .input-qty-edit { width: 80px !important; padding: 10px !important; }
             .input-price-edit { width: 140px !important; padding: 10px !important; }
@@ -232,6 +226,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
             .btn-preview, .btn-submit { width: 100%; flex: none; height: 56px; border-radius: 16px; }
 
             .zoom-close-btn { top: 16px; right: 16px; width: 40px; height: 40px; font-size: 1.2rem;}
+            .confirm-actions { flex-direction: column; }
         }
     </style>
 </head>
@@ -394,6 +389,20 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         <img id="zoomed-image" src="" alt="Zoomed Product">
     </div>
 
+    <div class="confirm-overlay" id="customConfirmModal">
+        <div class="confirm-card">
+            <div class="confirm-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <h3 class="confirm-title">Finalize Quote?</h3>
+            <p class="confirm-msg" id="confirmMessage">Are you sure you want to finalize this quote and submit it to the Admin for approval?</p>
+            <div class="confirm-actions">
+                <button class="btn-confirm-cancel" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn-confirm-proceed" id="confirmProceedBtn">Yes, Submit it!</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // --- Live Financial Calculations ---
@@ -462,7 +471,6 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
             const zoomedImage = document.getElementById('zoomed-image');
             const zoomClose = document.getElementById('zoom-close');
 
-            // Attach click listener to the entire box, so the invisible overlay doesn't block it
             document.querySelectorAll('.machine-img').forEach(container => {
                 container.addEventListener('click', function(e) {
                     const img = this.querySelector('img');
@@ -480,10 +488,10 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                 if (e.target === this) zoomOverlay.classList.remove('active'); 
             });
 
-            // Ensure pressing ESC closes the zoom modal
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
                     zoomOverlay.classList.remove('active');
+                    closeConfirmModal();
                 }
             });
         });
@@ -499,32 +507,34 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         }
 
         // ==========================================
-        // SWEETALERT2 SUBMIT CONFIRMATION
+        // CUSTOM SUBMIT CONFIRMATION
         // ==========================================
+        let confirmActionCallback = null;
+
+        function showConfirm(message, callback) {
+            document.getElementById('confirmMessage').textContent = message;
+            confirmActionCallback = callback;
+            document.getElementById('customConfirmModal').classList.add('active');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('customConfirmModal').classList.remove('active');
+            confirmActionCallback = null;
+        }
+
+        document.getElementById('confirmProceedBtn').addEventListener('click', function() {
+            if (confirmActionCallback) confirmActionCallback();
+            closeConfirmModal();
+        });
+
         function submitToAdmin() {
             const form = document.getElementById('salesQuoteForm');
             if (form.reportValidity()) {
-                Swal.fire({
-                    title: 'Finalize Quote?',
-                    text: "Are you sure you want to finalize this quote and submit it to the Admin for approval?",
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#8B1538',
-                    cancelButtonColor: '#64748B',
-                    confirmButtonText: 'Yes, submit it!',
-                    cancelButtonText: 'Cancel',
-                    borderRadius: '24px',
-                    customClass: {
-                        title: 'swal-title-custom',
-                        popup: 'swal-popup-custom'
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        form.action = 'sales_process.php';
-                        form.target = '_self';
-                        sessionStorage.removeItem('quoteCartData');
-                        form.submit();
-                    }
+                showConfirm("Are you sure you want to finalize this quote and submit it to the Admin for approval?", function() {
+                    form.action = 'sales_process.php';
+                    form.target = '_self';
+                    sessionStorage.removeItem('quoteCartData');
+                    form.submit();
                 });
             }
         }

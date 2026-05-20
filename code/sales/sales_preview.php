@@ -7,6 +7,7 @@ require_once '../vendor/autoload.php';
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use setasign\Fpdi\Fpdi; // Import the new PDF Merger library
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $items = $_POST['items'] ?? [];
@@ -46,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (ob_get_length()) ob_end_clean(); 
 
+    // Generate the Quotation using Dompdf
     $options = new Options();
     $options->set('isRemoteEnabled', true); 
     $options->set('dpi', 150); 
@@ -59,7 +61,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $dompdf->setPaper('A4', 'portrait');
     $dompdf->render();
     
-    $dompdf->stream("PREVIEW_" . $trans['quotation_no'] . ".pdf", ["Attachment" => false]);
+    // =========================================================================
+    // THE MERGE LOGIC (Stitching the Quote and T&C together)
+    // =========================================================================
+    
+    // 1. Get the generated Quotation PDF as raw string data
+    $quotePdfOutput = $dompdf->output();
+    
+    // 2. Save it to a temporary system file (FPDI requires actual files to read)
+    $tempQuoteFile = tempnam(sys_get_temp_dir(), 'quote_') . '.pdf';
+    file_put_contents($tempQuoteFile, $quotePdfOutput);
+    
+    // 3. Initialize the FPDI Merger
+    $pdf = new Fpdi();
+    
+    // 4. Import and append the newly generated Quotation pages
+    $pageCount = $pdf->setSourceFile($tempQuoteFile);
+    for ($i = 1; $i <= $pageCount; $i++) {
+        $templateId = $pdf->importPage($i);
+        $size = $pdf->getTemplateSize($templateId);
+        $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+        $pdf->useTemplate($templateId);
+    }
+    
+    // 5. Locate and append the official T&C PDF (From your screenshot path)
+    $tc_path = __DIR__ . '/../../pdfs/terms&conditions/T&C.pdf';
+    if (file_exists($tc_path)) {
+        $pageCountTC = $pdf->setSourceFile($tc_path);
+        for ($i = 1; $i <= $pageCountTC; $i++) {
+            $templateIdTC = $pdf->importPage($i);
+            $sizeTC = $pdf->getTemplateSize($templateIdTC);
+            $pdf->AddPage($sizeTC['orientation'], [$sizeTC['width'], $sizeTC['height']]);
+            $pdf->useTemplate($templateIdTC);
+        }
+    }
+
+    // 6. Stream the final merged master document to the browser
+    $pdf->Output('I', "PREVIEW_" . ($trans['quotation_no'] ?? 'QUOTE') . ".pdf");
+    
+    // 7. Clean up and delete the temporary quote file from the server
+    if (file_exists($tempQuoteFile)) {
+        unlink($tempQuoteFile);
+    }
+    
     exit;
 }
-?>
+?>  
