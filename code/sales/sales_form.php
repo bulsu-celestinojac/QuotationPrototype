@@ -2,6 +2,11 @@
 session_start();
 require '../db.php';
 
+// ── Generate CSRF Token (once per session) ──
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $selected_items_json = $_POST['selected_items'] ?? '[]';
 $selected_ids = json_decode($selected_items_json, true);
 
@@ -268,6 +273,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
 
         <form method="POST" autocomplete="off" id="salesQuoteForm">
             <input type="hidden" name="quote_type" value="sales">
+            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
             
             <div class="layout-grid">
                 
@@ -527,11 +533,8 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
             // --- Prevent number keys on text-only fields ---
             document.querySelectorAll('[name="client_name"], [name="attention_to"], [name="proposal_purpose"]').forEach(function(field) {
                 field.addEventListener('keydown', function(e) {
-                    // Allow: backspace, delete, tab, escape, enter, arrows, home, end
                     if ([8, 9, 13, 27, 35, 36, 37, 38, 39, 40, 46].indexOf(e.keyCode) !== -1) return;
-                    // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
                     if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88, 90].indexOf(e.keyCode) !== -1) return;
-                    // Block number keys (0-9) from both main keyboard and numpad
                     if ((e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105)) {
                         e.preventDefault();
                     }
@@ -540,13 +543,9 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
 
             // --- Prevent non-numeric keys on contact number ---
             document.querySelector('[name="client_contact"]').addEventListener('keydown', function(e) {
-                // Allow: backspace, delete, tab, escape, enter, arrows, home, end
                 if ([8, 9, 13, 27, 35, 36, 37, 38, 39, 40, 46].indexOf(e.keyCode) !== -1) return;
-                // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
                 if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88, 90].indexOf(e.keyCode) !== -1) return;
-                // Allow number keys only
                 if ((e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105)) return;
-                // Block everything else
                 e.preventDefault();
             });
         });
@@ -555,7 +554,6 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         function validateForm() {
             const form = document.getElementById('salesQuoteForm');
 
-            // Text-only fields: strip any numbers that might have been pasted
             const textOnlyFields = form.querySelectorAll('[name="client_name"], [name="attention_to"], [name="proposal_purpose"]');
             let hasTextError = false;
             textOnlyFields.forEach(function(field) {
@@ -570,7 +568,6 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                 return false;
             }
 
-            // Contact number: strip non-digits and check length
             const contactField = form.querySelector('[name="client_contact"]');
             if (contactField) {
                 contactField.value = contactField.value.replace(/[^0-9]/g, '');
@@ -581,7 +578,6 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                 }
             }
 
-            // Email: pattern check
             const emailField = form.querySelector('[name="client_email"]');
             if (emailField) {
                 const emailPattern = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
@@ -592,7 +588,6 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                 }
             }
 
-            // Check all required fields are filled via built-in validation
             if (!form.reportValidity()) return false;
 
             return true;
