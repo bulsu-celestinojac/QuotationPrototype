@@ -57,6 +57,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
             --maroon-hover: #700E2B;
             --maroon-light: #FFF1F5;
             --danger: #EF4444;
+            --success: #10B981;
             --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
             --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
             --shadow-lg: 0 24px 60px -10px rgba(0, 0, 0, 0.1);
@@ -264,8 +265,10 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                                 <textarea name="inclusions" placeholder="Optional details (e.g. 1 Year Warranty, Free Delivery...)" autocomplete="off"></textarea>
                             </div>
                             <div class="form-group">
-                                <label class="required">Validity Offer Date</label>
-                                <input type="text" name="validity_date" placeholder="e.g. 30 Days" autocomplete="off" required minlength="1" title="Enter validity period (e.g. 30 Days)">
+                                <label class="required">Validity Offer (Days)</label>
+                                <input type="number" id="validity_days_input" placeholder="e.g. 30" autocomplete="off" required min="1" title="Enter number of days">
+                                <input type="hidden" name="validity_date" id="validity_date_hidden">
+                                <span id="validity_date_preview" style="font-size: 0.75rem; font-weight: 800; color: var(--success); margin-top: 4px;"></span>
                             </div>
                             <div class="form-group">
                                 <label class="required">ETA</label>
@@ -429,6 +432,40 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                     }
                 }
             });
+
+            // Auto-Calculate Validity Date
+            const quoteDateInput = document.getElementById('quote_date');
+            const validityDaysInput = document.getElementById('validity_days_input');
+            const validityHiddenInput = document.getElementById('validity_date_hidden');
+            const validityPreview = document.getElementById('validity_date_preview');
+
+            function updateValidityDate() {
+                const days = parseInt(validityDaysInput.value);
+                const baseDateVal = quoteDateInput.value;
+                
+                if (!isNaN(days) && days > 0 && baseDateVal) {
+                    const date = new Date(baseDateVal);
+                    // Add the typed days to the Quote Date
+                    date.setDate(date.getDate() + days);
+                    
+                    // Format to YYYY-MM-DD for the MySQL Database
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    validityHiddenInput.value = `${yyyy}-${mm}-${dd}`;
+                    
+                    // Format to a readable string for the UI preview (e.g., "June 20, 2026")
+                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    validityPreview.textContent = "Valid until: " + date.toLocaleDateString('en-US', options);
+                } else {
+                    validityHiddenInput.value = '';
+                    validityPreview.textContent = '';
+                }
+            }
+
+            // Trigger the calculation if the user changes the quote date or types a number of days
+            quoteDateInput.addEventListener('change', updateValidityDate);
+            validityDaysInput.addEventListener('input', updateValidityDate);
 
             // Image Zoom Logic
             const zoomOverlay = document.getElementById('zoom-overlay');

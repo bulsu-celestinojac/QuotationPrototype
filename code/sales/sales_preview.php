@@ -71,6 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $dompdf = new Dompdf($options);
     ob_start();
+    
+    // ENSURES WATERMARK IS ALWAYS ON FOR PREVIEWS
+    $is_draft = true; 
+    
     include $pdf_template;
     $html = ob_get_clean();
 

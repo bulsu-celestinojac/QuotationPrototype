@@ -889,7 +889,11 @@ $quote_history = $history_stmt->fetchAll();
             
             document.getElementById('mq-num').textContent = quote.quotation_no;
             document.getElementById('mq-type').textContent = type.toUpperCase() + ' QUOTE';
-            document.getElementById('mq-pdf-btn').href = `../generate_pdf.php?id=${quote.id}&type=${type}`;
+            
+            // --- UPDATED LOGIC TO HIDE TOOLBAR IF NOT APPROVED ---
+            const viewMode = (quote.status === 'approved') ? '' : '#toolbar=0';
+            document.getElementById('mq-pdf-btn').href = `../generate_pdf.php?id=${quote.id}&type=${type}${viewMode}`;
+            // -----------------------------------------------------
 
             document.getElementById('mq-client').value = (type === 'sales') ? quote.client_name : quote.project_name;
             document.getElementById('mq-address').value = (type === 'sales') ? quote.client_address : (quote.project_location || '');

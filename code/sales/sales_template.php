@@ -48,6 +48,12 @@ if (file_exists($logoPath)) {
 </head>
 <body>
 
+    <?php if (isset($is_draft) && $is_draft): ?>
+        <div style="position: fixed; top: 40%; left: 5%; font-size: 75px; color: rgba(220, 38, 38, 0.15); transform: rotate(-45deg); z-index: -999; font-weight: 900; letter-spacing: 5px; pointer-events: none;">
+            UNAPPROVED DRAFT
+        </div>
+    <?php endif; ?>
+
     <header>
         <div class="header-container">
             <?php if ($logoBase64): ?>
