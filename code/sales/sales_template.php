@@ -19,155 +19,31 @@ if (file_exists($logoPath)) {
     <meta charset="UTF-8">
     <title>Quotation PDF</title>
     <style>
-        /* =======================================================
-           PROPER PDF PAGE CONFIGURATION (MASSIVE MARGIN FIX)
-           ======================================================= */
-        @page {
-            /* Top margin is incredibly huge (460px) to clear the giant header */
-            margin: 460px 40px 60px 40px; 
-        }
-
-        header {
-            position: fixed;
-            /* Pull the header exactly up into the empty 460px margin space */
-            top: -420px; 
-            left: 0px;
-            right: 0px;
-        }
-
-        /* PDF-Safe CSS Reset & Base Sizing */
-        body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
-            color: #000;
-            margin: 0;
-            padding: 0;
-            font-size: 12px; 
-            line-height: 1.4;
-        }
-
-        /* HEADER TEXT STYLES */
-        .header-container {
-            text-align: center;
-        }
-        .header-title {
-            font-size: 26px; 
-            font-weight: bold;
-            margin: 10px 0 6px 0;
-            color: #000;
-            letter-spacing: -0.5px;
-        }
-        .header-address {
-            font-size: 13px; 
-            margin: 0 0 4px 0;
-            color: #000;
-        }
-        .header-contacts {
-            font-size: 13px; 
-            margin: 0;
-            color: #000;
-        }
-        .header-link {
-            color: #000;
-            text-decoration: underline;
-        }
-
-        /* SECTION & TABLE STYLES */
-        .section-title {
-            font-size: 13px; 
-            font-weight: bold;
-            text-transform: uppercase;
-            text-decoration: underline;
-            margin-bottom: 8px;
-            margin-top: 5px;
-        }
-        .info-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px; 
-        }
-        .info-table td {
-            padding: 4px 0;
-            vertical-align: top;
-        }
-        .info-label {
-            font-weight: bold;
-            width: 40%; 
-        }
-
-        /* PROPOSAL TITLE */
-        .proposal-title {
-            text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            margin: 10px 0 20px 0; /* Added breathing room here too */
-            text-transform: uppercase;
-        }
-
-        /* ITEMS TABLE */
-        .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px; 
-            margin-bottom: 20px;
-        }
-        .items-table th {
-            background-color: #000;
-            color: #fff;
-            padding: 8px 6px;
-            text-align: center;
-            font-weight: bold;
-            text-transform: uppercase;
-            border: 1px solid #000;
-        }
-        .items-table td {
-            border: 1px solid #000;
-            padding: 8px 6px;
-            text-align: center;
-            vertical-align: middle;
-        }
-        .item-image {
-            max-width: 120px;
-            max-height: 110px;
-            width: auto;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-        }
-
-        /* SUMMARY & BOTTOM SECTION */
-        .summary-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px; 
-            margin-top: 15px;
-        }
-        .summary-table td {
-            padding: 6px;
-            font-weight: bold;
-        }
+        @page { margin: 460px 40px 60px 40px; }
+        header { position: fixed; top: -420px; left: 0px; right: 0px; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #000; margin: 0; padding: 0; font-size: 12px; line-height: 1.4; }
+        .header-container { text-align: center; }
+        .header-title { font-size: 26px; font-weight: bold; margin: 10px 0 6px 0; color: #000; letter-spacing: -0.5px; }
+        .header-address { font-size: 13px; margin: 0 0 4px 0; color: #000; }
+        .header-contacts { font-size: 13px; margin: 0; color: #000; }
+        .header-link { color: #000; text-decoration: underline; }
+        .section-title { font-size: 13px; font-weight: bold; text-transform: uppercase; text-decoration: underline; margin-bottom: 8px; margin-top: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .info-table td { padding: 4px 0; vertical-align: top; }
+        .info-label { font-weight: bold; width: 40%; }
+        .proposal-title { text-align: center; font-size: 18px; font-weight: bold; margin: 10px 0 20px 0; text-transform: uppercase; }
+        .items-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
+        .items-table th { background-color: #000; color: #fff; padding: 8px 6px; text-align: center; font-weight: bold; text-transform: uppercase; border: 1px solid #000; }
+        .items-table td { border: 1px solid #000; padding: 8px 6px; text-align: center; vertical-align: middle; }
+        .item-image { max-width: 120px; max-height: 110px; width: auto; height: auto; display: block; margin: 0 auto; }
+        .summary-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 15px; }
+        .summary-table td { padding: 6px; font-weight: bold; }
         .text-red { color: #cc0000; }
         .border-top { border-top: 1px solid #000; }
-
-        .bottom-section {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 30px;
-            font-size: 12px;
-            page-break-inside: avoid; /* Protects signature block from splitting across pages */
-        }
-        .terms-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-        }
-        .terms-table td {
-            padding: 4px 0;
-            vertical-align: top;
-        }
-        .terms-label {
-            font-weight: bold;
-            width: 120px;
-        }
+        .bottom-section { width: 100%; border-collapse: collapse; margin-top: 30px; font-size: 12px; page-break-inside: avoid; }
+        .terms-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .terms-table td { padding: 4px 0; vertical-align: top; }
+        .terms-label { font-weight: bold; width: 120px; }
     </style>
 </head>
 <body>

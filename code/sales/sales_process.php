@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // ── CSRF Protection ──
     if (!validateCSRF($_POST)) {
-        $_SESSION['flash_error'] = "Invalid request token. Please try again.";
+        $_SESSION['flash_error'] = "Security validation failed. Please try again.";
         header("Location: ../index.php");
         exit;
     }
@@ -26,18 +26,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $quote_type = $_POST['quote_type'] ?? 'sales';
 
     try {
+        // Start strict transaction
         $pdo->beginTransaction();
 
         if ($quote_type === 'sales') {
             $items = $_POST['items'] ?? [];
-            if (empty($items)) die("No items selected. Please go back and try again.");
+            if (empty($items)) {
+                throw new Exception("No items selected for quotation.");
+            }
 
-            $user_id = $_SESSION['user_id'] ?? null;
+            $user_id = (int)($_SESSION['user_id'] ?? 0);
 
             // ── Sanitize All Input ──
             $trans = sanitizeQuotationInput($_POST);
 
-            // ── Insert Quotation (inclusions column INCLUDED) ──
+            // ── Insert Quotation Header ──
             $stmtTrans = $pdo->prepare("
                 INSERT INTO sales_quotations 
                 (user_id, status, is_notified, quotation_no, client_name, client_address, 
@@ -45,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  validity_date, eta, proposal_purpose, corporate_discount, prepared_by, inclusions) 
                 VALUES (?, 'pending_admin', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
+            
             $stmtTrans->execute([
                 $user_id,
                 $trans['quotation_no'],
@@ -73,17 +77,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $qty          = (int)$item['qty'];
                 $custom_price = (float)str_replace(',', '', $item['price'] ?? 0);
 
+                // Verify item exists before inserting
                 $stmtItemFetch->execute([$item_id]);
                 if ($stmtItemFetch->fetch()) {
                     $stmtItemInsert->execute([$quotation_id, $item_id, $qty, $custom_price, 0]);
+                } else {
+                    throw new Exception("Invalid item selected (ID: {$item_id}).");
                 }
             }
         }
 
         log_activity($pdo, 'QUOTE_SUBMITTED', "User submitted Sales Quote #{$trans['quotation_no']} for Admin Approval.");
+        
+        // Commit if everything perfectly executed
         $pdo->commit();
 
-        // Regenerate CSRF token after successful submission
+        // Regenerate CSRF token after successful state-changing action
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
         $_SESSION['flash_success'] = "Success! Quotation #{$trans['quotation_no']} has been submitted to the Admin for approval.";
@@ -91,8 +100,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
 
     } catch (Exception $e) {
-        if ($pdo->inTransaction()) { $pdo->rollBack(); }
-        die("System Error: " . $e->getMessage());
+        if ($pdo->inTransaction()) { 
+            $pdo->rollBack(); 
+        }
+        // Log the actual error internally, but show a clean error to the user
+        error_log("Quotation Submission Error: " . $e->getMessage());
+        $_SESSION['flash_error'] = "System Error: Unable to process quotation. Please try again.";
+        header("Location: ../index.php");
+        exit;
     }
 }
 ?>

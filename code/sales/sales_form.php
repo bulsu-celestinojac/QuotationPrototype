@@ -21,7 +21,7 @@ $stmt->execute($selected_ids);
 $machines = $stmt->fetchAll();
 
 // Auto-fill Prepared By (Fetches Full Name from database)
-$user_id = $_SESSION['user_id'] ?? 0;
+$user_id = (int)($_SESSION['user_id'] ?? 0);
 $stmtUser = $pdo->prepare("SELECT full_name, username FROM users WHERE id = ?");
 $stmtUser->execute([$user_id]);
 $currentUser = $stmtUser->fetch();
@@ -72,32 +72,9 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         .page-title .accent { color: var(--maroon); }
         
         /* PREMIUM ANIMATED BACK BUTTON */
-        .btn-back { 
-            display: inline-flex; 
-            align-items: center; 
-            gap: 8px; 
-            padding: 12px 24px; 
-            background: var(--surface); 
-            border: 1px solid rgba(139, 21, 56, 0.2); 
-            border-radius: 50px; 
-            color: var(--maroon); 
-            text-decoration: none; 
-            font-family: 'Outfit', sans-serif; 
-            font-weight: 800; 
-            text-transform: uppercase; 
-            letter-spacing: 0.05em; 
-            font-size: 0.85rem; 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-            box-shadow: var(--shadow-sm); 
-        }
+        .btn-back { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: var(--surface); border: 1px solid rgba(139, 21, 56, 0.2); border-radius: 50px; color: var(--maroon); text-decoration: none; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.85rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: var(--shadow-sm); }
         .btn-back svg { transition: transform 0.3s ease; }
-        .btn-back:hover { 
-            background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%); 
-            color: #FFFFFF; 
-            transform: translateX(-4px); 
-            box-shadow: 0 8px 20px rgba(139, 21, 56, 0.25); 
-            border-color: transparent;
-        }
+        .btn-back:hover { background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%); color: #FFFFFF; transform: translateX(-4px); box-shadow: 0 8px 20px rgba(139, 21, 56, 0.25); border-color: transparent; }
         .btn-back:hover svg { transform: translateX(-3px); }
 
         .layout-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: start; }
@@ -105,13 +82,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         .right-col { position: sticky; top: 40px; min-width: 0; }
         
         /* PREMIUM CARDS */
-        .card { 
-            background: var(--surface); 
-            border-radius: 32px; 
-            padding: 40px; 
-            border: 1px solid rgba(226, 232, 240, 0.8); 
-            box-shadow: var(--shadow-md); 
-        }
+        .card { background: var(--surface); border-radius: 32px; padding: 40px; border: 1px solid rgba(226, 232, 240, 0.8); box-shadow: var(--shadow-md); }
         .card-title { font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 900; margin-bottom: 32px; color: var(--text-main); letter-spacing: -0.02em; }
         
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
@@ -122,44 +93,16 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         label.required::after { content: ' *'; color: var(--maroon); font-weight: 900; font-size: 0.9rem; }
 
         /* PREMIUM INPUTS */
-        input[type="text"], input[type="date"], input[type="email"], input[type="tel"], input[type="number"], textarea { 
-            width: 100%; 
-            padding: 14px 18px; 
-            border-radius: 16px; 
-            border: 1px solid var(--border); 
-            background: #F8FAFC; 
-            font-size: 0.95rem; 
-            font-family: 'DM Sans', sans-serif; 
-            font-weight: 500; 
-            color: var(--text-main); 
-            outline: none; 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-        }
+        input[type="text"], input[type="date"], input[type="email"], input[type="tel"], input[type="number"], textarea { width: 100%; padding: 14px 18px; border-radius: 16px; border: 1px solid var(--border); background: #F8FAFC; font-size: 0.95rem; font-family: 'DM Sans', sans-serif; font-weight: 500; color: var(--text-main); outline: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         input:focus, textarea:focus { background: var(--surface); border-color: var(--maroon); box-shadow: 0 0 0 4px var(--maroon-light); transform: translateY(-1px); }
         textarea { resize: vertical; min-height: 100px; }
         .readonly-input { background: transparent !important; border: 1px dashed var(--border) !important; color: var(--text-muted) !important; pointer-events: none; font-weight: 800; letter-spacing: 1px; }
 
         /* VALIDATION FEEDBACK */
-        input:invalid:not(:placeholder-shown):not(:focus):not(.readonly-input),
-        textarea:invalid:not(:placeholder-shown):not(:focus) {
-            border-color: var(--danger);
-            background: #FEF2F2;
-        }
-        .validation-hint {
-            display: none;
-            font-size: 0.7rem;
-            color: var(--danger);
-            font-weight: 600;
-            margin-top: 4px;
-            letter-spacing: 0.02em;
-        }
-        input:invalid:not(:placeholder-shown):not(:focus):not(.readonly-input) ~ .validation-hint,
-        textarea:invalid:not(:placeholder-shown):not(:focus) ~ .validation-hint {
-            display: block;
-        }
-        input:valid:not(.readonly-input):not([type="date"]) {
-            border-color: #22C55E20;
-        }
+        input:invalid:not(:placeholder-shown):not(:focus):not(.readonly-input), textarea:invalid:not(:placeholder-shown):not(:focus) { border-color: var(--danger); background: #FEF2F2; }
+        .validation-hint { display: none; font-size: 0.7rem; color: var(--danger); font-weight: 600; margin-top: 4px; letter-spacing: 0.02em; }
+        input:invalid:not(:placeholder-shown):not(:focus):not(.readonly-input) ~ .validation-hint, textarea:invalid:not(:placeholder-shown):not(:focus) ~ .validation-hint { display: block; }
+        input:valid:not(.readonly-input):not([type="date"]) { border-color: #22C55E20; }
         
         /* MACHINE ITEMS LIST */
         .machine-items-container { display: flex; flex-direction: column; gap: 16px; max-height: 55vh; overflow-y: auto; padding-right: 8px; margin-bottom: 32px; }
@@ -177,7 +120,6 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         .m-model { font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; color: var(--text-main); margin-top: 6px; }
         
         .control-group { display: flex; flex-direction: column; gap: 8px; }
-        
         .input-qty-edit { width: 100%; text-align: center; padding: 12px 8px !important; background: #F8FAFC !important; border: 1px solid var(--border) !important; border-radius: 12px !important; font-size: 1.1rem !important; font-weight: 800 !important; color: var(--text-main) !important; margin: 0; }
         .input-price-edit { width: 100%; text-align: right; padding: 12px 12px !important; background: #FFF1F5 !important; border: 1px solid rgba(139, 21, 56, 0.2) !important; border-radius: 12px !important; font-size: 1rem !important; font-weight: 800 !important; color: var(--maroon) !important; margin: 0; }
 
@@ -205,9 +147,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         .zoom-close-btn { position: absolute; top: 24px; right: 32px; background: white; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s ease; width: 48px; height: 48px; border-radius: 50%; box-shadow: var(--shadow-sm); display: flex; justify-content: center; align-items: center; z-index: 100000;}
         .zoom-close-btn:hover { color: var(--danger); transform: rotate(90deg); }
 
-        /* ==========================================
-           CUSTOM PREMIUM CONFIRMATION MODAL
-           ========================================== */
+        /* CUSTOM PREMIUM CONFIRMATION MODAL */
         .confirm-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 100000; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; padding: 20px; }
         .confirm-overlay.active { display: flex; opacity: 1; }
         .confirm-card { background: var(--surface); border-radius: 24px; padding: 32px; max-width: 420px; width: 100%; box-shadow: 0 24px 60px rgba(0,0,0,0.2); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; }
@@ -221,37 +161,26 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
         .btn-confirm-proceed { flex: 1; color: white; border: none; padding: 12px 20px; border-radius: 12px; font-family: 'Outfit', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.3s ease; background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-hover) 100%); box-shadow: 0 8px 16px rgba(139, 21, 56, 0.2); }
         .btn-confirm-proceed:hover { transform: translateY(-2px); filter: brightness(1.1); }
 
-        /* TABLET RESPONSIVENESS */
-        @media (max-width: 1024px) { 
-            .layout-grid { grid-template-columns: 1fr; gap: 32px; } 
-            .right-col { position: static; } 
-        }
-
-        /* EXACT MOBILE RESPONSIVENESS FIXES */
+        /* RESPONSIVENESS */
+        @media (max-width: 1024px) { .layout-grid { grid-template-columns: 1fr; gap: 32px; } .right-col { position: static; } }
         @media (max-width: 600px) {
             body { padding: 15px 0; }
             .container { padding: 0 16px; }
             .header { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: none; }
             .page-title { font-size: 2.2rem; text-align: center; width: 100%; margin-bottom: 10px; }
             .btn-back { width: 100%; justify-content: center; height: 50px; font-size: 0.9rem; border-radius: 12px; }
-            
             .card { padding: 24px 20px; border-radius: 24px; }
             .form-grid { grid-template-columns: 1fr; gap: 16px; }
-            
             .machine-item { grid-template-columns: 70px 1fr; gap: 16px; padding: 16px; }
             .machine-info { grid-column: 2; }
-            
             .control-group { grid-column: 1 / -1; display: flex; flex-direction: row; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 12px 16px; border-radius: 16px; }
             .control-group label { margin-bottom: 0; }
             .input-qty-edit { width: 80px !important; padding: 10px !important; }
             .input-price-edit { width: 140px !important; padding: 10px !important; }
-
             .financial-summary-block { padding: 24px 20px; border-radius: 20px; }
             .summary-total { font-size: 1.8rem; }
-
             .action-buttons { flex-direction: column; gap: 12px; }
             .btn-preview, .btn-submit { width: 100%; flex: none; height: 56px; border-radius: 16px; }
-
             .zoom-close-btn { top: 16px; right: 16px; width: 40px; height: 40px; font-size: 1.2rem;}
             .confirm-actions { flex-direction: column; }
         }
@@ -273,7 +202,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
 
         <form method="POST" autocomplete="off" id="salesQuoteForm">
             <input type="hidden" name="quote_type" value="sales">
-            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
             
             <div class="layout-grid">
                 
@@ -314,11 +243,11 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                         <div class="form-grid">
                             <div class="form-group">
                                 <label class="required">Date</label>
-                                <input type="date" name="quote_date" id="quote_date" value="<?=date('Y-m-d')?>" required>
+                                <input type="date" name="quote_date" id="quote_date" value="<?= date('Y-m-d') ?>" required>
                             </div>
                             <div class="form-group">
                                 <label class="required">Quotation No.</label>
-                                <input type="text" name="quotation_no" id="quotation_no" class="readonly-input" value="<?=$default_quote_num?>" readonly tabindex="-1" required>
+                                <input type="text" name="quotation_no" id="quotation_no" class="readonly-input" value="<?= htmlspecialchars($default_quote_num) ?>" readonly tabindex="-1" required>
                             </div>
                             <div class="form-group full-width">
                                 <label class="required">Proposal Purpose</label>
@@ -358,36 +287,36 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
 
                 <div class="right-col">
                     <div class="card">
-                        <div class="card-title">Selected Machines (<?=count($machines)?>)</div>
+                        <div class="card-title">Selected Machines (<?= count($machines) ?>)</div>
                         
                         <div class="machine-items-container">
                             <?php foreach ($machines as $index => $machine): 
                                 $imgPath = '../../images/machine_images/' . htmlspecialchars($machine['picture']);
                             ?>
                                 <div class="machine-item">
-                                    <input type="hidden" name="items[<?=$index?>][id]" value="<?=$machine['id']?>">
+                                    <input type="hidden" name="items[<?= $index ?>][id]" value="<?= (int)$machine['id'] ?>">
                                     
                                     <div class="machine-img">
                                         <?php if ($machine['picture']): ?>
-                                            <img src="<?=$imgPath?>" class="preview-zoom" alt="Product Image">
+                                            <img src="<?= $imgPath ?>" class="preview-zoom" alt="Product Image">
                                         <?php else: ?>
                                             <span style="font-size:0.6rem; font-weight: 800; color: var(--text-light);">NO IMG</span>
                                         <?php endif; ?>
                                     </div>
 
                                     <div class="machine-info">
-                                        <div class="m-brand"><?=htmlspecialchars($machine['brand'])?></div>
-                                        <div class="m-model" title="<?=htmlspecialchars($machine['model_no'])?>"><?=htmlspecialchars($machine['model_no'])?></div>
+                                        <div class="m-brand"><?= htmlspecialchars($machine['brand']) ?></div>
+                                        <div class="m-model" title="<?= htmlspecialchars($machine['model_no']) ?>"><?= htmlspecialchars($machine['model_no']) ?></div>
                                     </div>
                                     
                                     <div class="control-group">
                                         <label style="color: var(--maroon);">Price (₱)</label>
-                                        <input type="text" name="items[<?=$index?>][price]" class="input-price-edit calc-price" value="<?= number_format((float)$machine['selling_price'], 2) ?>" autocomplete="off" required>
+                                        <input type="text" name="items[<?= $index ?>][price]" class="input-price-edit calc-price" value="<?= number_format((float)$machine['selling_price'], 2) ?>" autocomplete="off" required>
                                     </div>
 
                                     <div class="control-group">
                                         <label>QTY</label>
-                                        <input type="number" name="items[<?=$index?>][qty]" class="input-qty-edit calc-qty" value="1" min="1" autocomplete="off" required>
+                                        <input type="number" name="items[<?= $index ?>][qty]" class="input-qty-edit calc-qty" value="1" min="1" autocomplete="off" required>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -440,7 +369,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // --- Live Financial Calculations ---
+            // Live Financial Calculations
             const qtyInputs = document.querySelectorAll('.calc-qty');
             const priceInputs = document.querySelectorAll('.calc-price');
             const discountInput = document.getElementById('corporate_discount');
@@ -484,10 +413,10 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                 });
             });
 
-            // --- Auto Quotation Number Generator ---
+            // Auto Quotation Number Generator
             const dateInput = document.getElementById('quote_date');
             const quoteNoInput = document.getElementById('quotation_no');
-            const nextIdStr = "<?= $paddedId ?>";
+            const nextIdStr = "<?= htmlspecialchars($paddedId) ?>";
 
             dateInput.addEventListener('change', function() {
                 if(this.value) {
@@ -501,7 +430,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                 }
             });
 
-            // --- FIXED IMAGE ZOOM LOGIC ---
+            // Image Zoom Logic
             const zoomOverlay = document.getElementById('zoom-overlay');
             const zoomedImage = document.getElementById('zoomed-image');
             const zoomClose = document.getElementById('zoom-close');
@@ -530,7 +459,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                 }
             });
 
-            // --- Prevent number keys on text-only fields ---
+            // Prevent number keys on text-only fields
             document.querySelectorAll('[name="client_name"], [name="attention_to"], [name="proposal_purpose"]').forEach(function(field) {
                 field.addEventListener('keydown', function(e) {
                     if ([8, 9, 13, 27, 35, 36, 37, 38, 39, 40, 46].indexOf(e.keyCode) !== -1) return;
@@ -541,7 +470,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
                 });
             });
 
-            // --- Prevent non-numeric keys on contact number ---
+            // Prevent non-numeric keys on contact number
             document.querySelector('[name="client_contact"]').addEventListener('keydown', function(e) {
                 if ([8, 9, 13, 27, 35, 36, 37, 38, 39, 40, 46].indexOf(e.keyCode) !== -1) return;
                 if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88, 90].indexOf(e.keyCode) !== -1) return;
@@ -550,7 +479,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
             });
         });
 
-        // --- Form Validation Helper ---
+        // Form Validation Helper
         function validateForm() {
             const form = document.getElementById('salesQuoteForm');
 
@@ -593,7 +522,7 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
             return true;
         }
 
-        // --- Form Submissions ---
+        // Form Submissions
         function reviewPDF() {
             if (validateForm()) {
                 const form = document.getElementById('salesQuoteForm');
@@ -603,9 +532,6 @@ $default_quote_num = date('ymd') . '_AMG_' . $paddedId;
             }
         }
 
-        // ==========================================
-        // CUSTOM SUBMIT CONFIRMATION
-        // ==========================================
         let confirmActionCallback = null;
 
         function showConfirm(message, callback) {

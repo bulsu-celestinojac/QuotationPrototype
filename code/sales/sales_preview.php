@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // ── CSRF Protection ──
     if (!validateCSRF($_POST)) {
-        die("Invalid request. Please go back and try again.");
+        die("Invalid security token. Please close this window, refresh the form, and try again.");
     }
 
     // ── Server-Side Validation ──
@@ -61,7 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $pdf_template = __DIR__ . '/sales_template.php';
 
-    if (ob_get_length()) ob_end_clean();
+    // Clear any output buffers to prevent PDF corruption
+    while (ob_get_level()) ob_end_clean();
 
     // ── Generate PDF with Dompdf ──
     $options = new Options();
@@ -103,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    $pdf->Output('I', "PREVIEW_" . ($trans['quotation_no'] ?? 'QUOTE') . ".pdf");
+    $pdf->Output('I', "PREVIEW_" . htmlspecialchars($trans['quotation_no'] ?? 'QUOTE') . ".pdf");
 
     if (file_exists($tempQuoteFile)) {
         unlink($tempQuoteFile);

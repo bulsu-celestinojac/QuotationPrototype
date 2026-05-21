@@ -1,11 +1,11 @@
 <?php
 /**
  * Server-Side Validation & Sanitization for Sales Quotation
- * Include this in both sales_preview.php and sales_process.php
+ * Strictly enforces data integrity and neutralizes XSS payloads.
  */
 
 function validateCSRF($post) {
-    if (!isset($post['csrf_token']) || !isset($_SESSION['csrf_token'])) {
+    if (empty($post['csrf_token']) || empty($_SESSION['csrf_token'])) {
         return false;
     }
     return hash_equals($_SESSION['csrf_token'], $post['csrf_token']);
@@ -34,7 +34,7 @@ function validateQuotationInput($post) {
     if (empty($email)) {
         $errors[] = "Client Email Address is required.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "Client Email Address is not a valid email.";
+        $errors[] = "Client Email Address is not a valid email format.";
     }
 
     // ── Contact number (digits only, 7-15 length) ──
@@ -45,7 +45,7 @@ function validateQuotationInput($post) {
         $errors[] = "Contact Number must be between 7 and 15 digits.";
     }
 
-    // ── Required combination fields (text + numbers OK) ──
+    // ── Required combination fields ──
     $requiredFields = [
         'client_address' => 'Client Address',
         'payment_terms'  => 'Payment Terms',
@@ -78,21 +78,21 @@ function validateQuotationInput($post) {
 }
 
 function sanitizeQuotationInput($post) {
-    // Strip numbers from text-only fields
-    $post['client_name']      = strtoupper(preg_replace('/[0-9]/', '', trim($post['client_name'] ?? '')));
-    $post['attention_to']     = preg_replace('/[0-9]/', '', trim($post['attention_to'] ?? ''));
-    $post['proposal_purpose'] = strtoupper(preg_replace('/[0-9]/', '', trim($post['proposal_purpose'] ?? '')));
+    // Aggressive XSS and character stripping
+    $post['client_name']      = strtoupper(strip_tags(preg_replace('/[0-9]/', '', trim($post['client_name'] ?? ''))));
+    $post['attention_to']     = strip_tags(preg_replace('/[0-9]/', '', trim($post['attention_to'] ?? '')));
+    $post['proposal_purpose'] = strtoupper(strip_tags(preg_replace('/[0-9]/', '', trim($post['proposal_purpose'] ?? ''))));
 
     // Strip non-digits from contact
     $post['client_contact'] = preg_replace('/[^0-9]/', '', trim($post['client_contact'] ?? ''));
 
-    // Trim all string fields
+    // Trim and sanitize all string fields
     $stringFields = ['client_address', 'client_email', 'payment_terms', 'validity_date', 'eta', 'quote_date', 'quotation_no', 'prepared_by', 'inclusions'];
     foreach ($stringFields as $field) {
-        $post[$field] = trim($post[$field] ?? '');
+        $post[$field] = strip_tags(trim($post[$field] ?? ''));
     }
 
-    // Sanitize corporate discount
+    // Strict float cast for financial data
     $post['corporate_discount'] = (float)str_replace(',', '', $post['corporate_discount'] ?? 0);
 
     return $post;
