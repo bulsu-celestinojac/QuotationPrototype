@@ -1,9 +1,15 @@
 <?php
-// login.php
+// login.php - MAXIMUM SECURITY EDITION
 session_start();
 
 // FORCE SYNCHRONIZED TIMEZONE
 date_default_timezone_set('Asia/Manila'); 
+
+// ── ANTI-CACHING HEADERS ──
+// Prevents the browser from caching this page, stopping "Back Button" attacks
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
 
 require 'db.php';
 
@@ -23,12 +29,15 @@ if (empty($error)) {
     if (isset($_GET['error'])) {
         if ($_GET['error'] === 'inactive') $error = "Your account is pending approval or suspended.";
         if ($_GET['error'] === 'logout') $error = "You have been successfully logged out.";
+        if ($_GET['error'] === 'timeout') $error = "Session expired due to inactivity. Please log in again.";
+        if ($_GET['error'] === 'hijack_prevented') $error = "Security protocol triggered. Session terminated.";
     }
     if (isset($_GET['success']) && $_GET['success'] === 'reset') {
         $error = "Password successfully reset. You may now log in.";
     }
 }
 
+// Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
     if ($_SESSION['user_role'] === 'super_admin') header("Location: superadmin/index.php");
     elseif ($_SESSION['user_role'] === 'admin') header("Location: admin/index.php");
@@ -60,13 +69,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                         $resetStmt = $pdo->prepare("UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?");
                         $resetStmt->execute([$user['id']]);
 
-                        // SECURITY UPGRADE: Prevent Session Fixation attacks
+                        // ── SECURITY UPGRADE: Prevent Session Fixation attacks ──
                         session_regenerate_id(true);
                         
                         $_SESSION['user_id'] = $user['id'];
                         $_SESSION['username'] = $user['username'];
                         $_SESSION['user_role'] = $user['role'];
                         $_SESSION['user_status'] = $user['status'];
+                        $_SESSION['last_activity'] = time(); // Set initial activity timestamp
                         
                         if ($user['role'] === 'super_admin') header("Location: superadmin/index.php");
                         elseif ($user['role'] === 'admin') header("Location: admin/index.php");
@@ -81,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                             $lockStmt = $pdo->prepare("UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?");
                             $lockStmt->execute([$attempts, $lockoutTime, $user['id']]);
 
+                            // Send lock email
                             if (!empty($user['email'])) {
                                 $token = bin2hex(random_bytes(16)); 
                                 $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
@@ -105,30 +116,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                                     $mail->isHTML(true);
                                     $mail->Subject = 'Security Alert: Account Locked - AM Group';
                                     
-                                    $mail->Body = <<<HTML
-                                    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F4F7F9; padding: 40px 20px; color: #0F172A;">
-                                        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
-                                            <tr>
-                                                <td style="padding: 40px; text-align: center; border-bottom: 4px solid #8B1538; background-color: #FAFAFA;">
-                                                    <h2 style="margin: 0; color: #8B1538; font-size: 28px; font-weight: 900; letter-spacing: -0.5px;">AM GROUP</h2>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 40px;">
-                                                    <h1 style="margin: 0 0 20px 0; font-size: 22px; color: #DC2626;">Security Alert: Account Locked</h1>
-                                                    <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #475569;">Hi <strong>{$user['username']}</strong>,</p>
-                                                    <p style="margin: 0 0 35px 0; font-size: 16px; line-height: 1.6; color: #475569;">We noticed 5 consecutive failed login attempts on your AM Group account. As a security precaution, your account has been temporarily locked.</p>
-                                                    
-                                                    <p style="margin: 0 0 35px 0; font-size: 16px; line-height: 1.6; color: #475569;">You can wait <strong>15 minutes</strong> to try logging in again, or you can instantly unlock your account by resetting your password below:</p>
-
-                                                    <div style="text-align: center; margin-bottom: 35px;">
-                                                        <a href="{$resetLink}" style="display: inline-block; background-color: #8B1538; color: #FFFFFF; padding: 16px 32px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Unlock & Reset Password</a>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </div>
-HTML;
+                                    $mail->Body = "
+                                    <div style='font-family: Arial, sans-serif; padding: 40px; text-align: center;'>
+                                        <h1 style='color: #DC2626;'>Account Locked</h1>
+                                        <p>We noticed 5 consecutive failed login attempts on your account. It has been locked for 15 minutes.</p>
+                                        <p>You can wait, or unlock it immediately by resetting your password:</p>
+                                        <a href='{$resetLink}' style='display:inline-block; padding:15px 30px; background:#8B1538; color:#fff; text-decoration:none; font-weight:bold; border-radius:5px;'>Unlock & Reset Password</a>
+                                    </div>";
                                     $mail->send();
                                 } catch (Exception $e) {}
                             }
@@ -139,12 +133,13 @@ HTML;
                             $incStmt->execute([$attempts, $user['id']]);
                             
                             $attempts_left = 5 - $attempts;
-                            $error = "Invalid credentials. {$attempts_left} attempt(s) remaining.";
+                            $error = "Invalid username or password. {$attempts_left} attempt(s) remaining.";
                         }
                     }
                 }
             } else {
-                $error = "Invalid credentials. Please try again.";
+                // Keep the error generic to prevent username enumeration
+                $error = "Invalid username or password. Please try again.";
             }
         } else {
             $error = "Please fill in all fields.";
