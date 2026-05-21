@@ -526,9 +526,13 @@ foreach ($items as $item) {
                         Edit Record
                     </a>
 
-                    <a id="modalDeleteBtn" href="#" class="admin-only" style="background: #FFF5F5; color: var(--danger); border: 1px solid #FECACA; font-size: 0.8rem; font-family: 'Outfit', sans-serif; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; text-decoration: none; padding: 12px 24px; border-radius: 12px; transition: all 0.3s ease; box-shadow: var(--shadow-sm);">
-                        Delete
-                    </a>
+                    <form id="modalDeleteForm" class="admin-only" method="POST" action="delete.php" style="margin: 0;">
+                        <input type="hidden" name="id" id="modalDeleteId" value="">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                        <button type="submit" id="modalDeleteBtn" style="background: #FFF5F5; color: var(--danger); border: 1px solid #FECACA; font-size: 0.8rem; font-family: 'Outfit', sans-serif; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; text-decoration: none; padding: 12px 24px; border-radius: 12px; transition: all 0.3s ease; box-shadow: var(--shadow-sm); cursor: pointer;">
+                            Delete
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -753,9 +757,9 @@ foreach ($items as $item) {
                     const costVal = parseFloat(data.buying_cost) || 0;
                     costEl.textContent = costVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 }
-                
-                const deleteBtn = document.getElementById('modalDeleteBtn');
-                if (deleteBtn) deleteBtn.href = 'delete.php?id=' + data.id + '&token=' + csrfToken;
+
+                const deleteIdInput = document.getElementById('modalDeleteId');
+                if (deleteIdInput) deleteIdInput.value = data.id;
             }
 
             const imgElement = document.getElementById('modalImage');

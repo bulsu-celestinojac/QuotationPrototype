@@ -1,14 +1,23 @@
 <?php
 session_start();
+require_once 'auth.php';
+require_role(['admin', 'super_admin']);
+
 require 'db.php';
+require 'functions.php';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("Location: index.php");
+    exit;
+}
 
 // 1. CSRF Token Validation
-if (!isset($_GET['token']) || !isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_GET['token'])) {
+if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
     die("Security error: Invalid CSRF token.");
 }
 
-if (isset($_GET['id']) && is_numeric($_GET['id'])) {
-    $id = (int)$_GET['id'];
+if (isset($_POST['id']) && is_numeric($_POST['id'])) {
+    $id = (int)$_POST['id'];
 
     // 2. Fetch both the image and pdf filenames
     $stmt = $pdo->prepare("SELECT picture, pdf_path FROM items WHERE id = ?");

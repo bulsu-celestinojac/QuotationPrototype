@@ -1,5 +1,8 @@
 <?php
 // Look UP to root
+require_once '../auth.php';
+require_role(['project', 'admin', 'super_admin']);
+
 require '../db.php';
 
 header('Content-Type: application/json');
