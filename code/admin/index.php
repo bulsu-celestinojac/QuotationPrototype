@@ -1,6 +1,6 @@
 <?php
 // admin/index.php
-session_start();
+// Removed session_start() because auth.php safely handles it (Fixes the warning!)
 require_once '../auth.php';
 require_role(['admin', 'super_admin']); // Only admins & super admins access this layer
 require '../db.php';
@@ -10,182 +10,13 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// ==========================================
-// AJAX ENDPOINT: FETCH QUOTE DETAILS
-// ==========================================
-if (isset($_POST['ajax_get_quote_details'])) {
-    header('Content-Type: application/json');
-    $quote_id = (int)$_POST['quote_id'];
-    $type = $_POST['type'];
-
-    try {
-        if ($type === 'sales') {
-            $stmt = $pdo->prepare("SELECT sq.*, u.full_name, u.username FROM sales_quotations sq LEFT JOIN users u ON sq.user_id = u.id WHERE sq.id = ?");
-            $stmt->execute([$quote_id]);
-            $quote = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($quote) {
-                $itemStmt = $pdo->prepare("SELECT sqi.*, i.brand, i.model_no, i.picture FROM sales_quotation_items sqi LEFT JOIN items i ON sqi.item_id = i.id WHERE sqi.quotation_id = ?");
-                $itemStmt->execute([$quote_id]);
-                $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                echo json_encode(['success' => true, 'quote' => $quote, 'items' => $items]);
-            } else {
-                echo json_encode(['success' => false, 'error' => 'Quote not found']);
-            }
-        } elseif ($type === 'project') {
-            $stmt = $pdo->prepare("SELECT * FROM project_quotations WHERE id = ?");
-            $stmt->execute([$quote_id]);
-            $quote = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($quote) {
-                $itemStmt = $pdo->prepare("SELECT pqi.*, i.brand, i.model_no, i.picture FROM project_quotation_items pqi LEFT JOIN items i ON pqi.item_id = i.id WHERE pqi.quotation_id = ?");
-                $itemStmt->execute([$quote_id]);
-                $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                echo json_encode(['success' => true, 'quote' => $quote, 'items' => $items]);
-            } else {
-                echo json_encode(['success' => false, 'error' => 'Quote not found']);
-            }
-        }
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-$success = '';
-$error = '';
+// Retrieve Flash Messages
+$success = $_SESSION['flash_success'] ?? '';
+$error = $_SESSION['flash_error'] ?? '';
+unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
 // ==========================================
-// 1. PROCESS MODAL QUOTATION EDITOR (SAVE / APPROVE / REJECT)
-// ==========================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'modal_quote_action') {
-    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        $error = "Security validation failed. Please try again.";
-    } else {
-        $quote_id = (int)$_POST['quote_id'];
-        $type = $_POST['quote_type'];
-        $submit_type = $_POST['submit_type'];
-
-        if ($submit_type === 'decline') {
-            $new_status = 'revision';
-        } elseif ($submit_type === 'approve') {
-            $new_status = 'pending_super'; // Routes to Super Admin
-        } else {
-            $new_status = 'pending_admin'; // Just saving changes, stays with Admin
-        }
-        
-        $discount = isset($_POST['corporate_discount']) ? (float)str_replace(',', '', $_POST['corporate_discount']) : 0;
-        $is_notified = ($submit_type !== 'save') ? 1 : 0;
-
-        try {
-            $pdo->beginTransaction();
-
-            if ($type === 'sales') {
-                $upd = $pdo->prepare("UPDATE sales_quotations SET client_name=?, client_address=?, attention_to=?, client_email=?, client_contact=?, proposal_purpose=?, payment_terms=?, validity_date=?, eta=?, corporate_discount=?, status=?, is_notified=? WHERE id=?");
-                $upd->execute([
-                    $_POST['client_name'], $_POST['client_address'], $_POST['attention_to'], $_POST['client_email'], $_POST['client_contact'], $_POST['proposal_purpose'], $_POST['payment_terms'], $_POST['validity_date'], $_POST['eta'], $discount, $new_status, $is_notified, $quote_id
-                ]);
-
-                if (isset($_POST['items'])) {
-                    foreach ($_POST['items'] as $itemId => $itemData) {
-                        $uPrice = (float)str_replace(',', '', $itemData['price']);
-                        $qty = (int)$itemData['qty'];
-                        $pdo->prepare("UPDATE sales_quotation_items SET unit_price=?, qty=? WHERE quotation_id=? AND item_id=?")->execute([$uPrice, $qty, $quote_id, $itemId]);
-
-                        if ($submit_type === 'approve') {
-                            $pdo->prepare("UPDATE items SET selling_price=? WHERE id=?")->execute([$uPrice, $itemId]);
-                        }
-                    }
-                }
-            } else {
-                $upd = $pdo->prepare("UPDATE project_quotations SET project_name=?, project_location=?, attention_to=?, client_email=?, client_contact=?, proposal_purpose=?, payment_terms=?, validity_date=?, eta=?, corporate_discount=?, status=?, is_notified=? WHERE id=?");
-                $upd->execute([
-                    $_POST['client_name'], $_POST['client_address'], $_POST['attention_to'], $_POST['client_email'], $_POST['client_contact'], $_POST['proposal_purpose'], $_POST['payment_terms'], $_POST['validity_date'], $_POST['eta'], $discount, $new_status, $is_notified, $quote_id
-                ]);
-
-                if (isset($_POST['items'])) {
-                    foreach ($_POST['items'] as $itemId => $itemData) {
-                        $uPrice = (float)str_replace(',', '', $itemData['price']);
-                        $qty = (int)$itemData['qty'];
-                        $pdo->prepare("UPDATE project_quotation_items SET price=?, qty=? WHERE quotation_id=? AND item_id=?")->execute([$uPrice, $qty, $quote_id, $itemId]);
-                    }
-                }
-            }
-
-            $pdo->commit();
-            
-            if ($submit_type === 'save') $success = "Changes successfully saved.";
-            elseif ($submit_type === 'approve') $success = "Quotation approved and sent to Super Admin.";
-            else $success = "Quotation declined and returned for revision.";
-            
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            $error = "Failed to process quotation: " . $e->getMessage();
-        }
-    }
-}
-
-// ==========================================
-// 2. PROCESS INVENTORY APPROVALS
-// ==========================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['approve_inv', 'reject_inv'])) {
-    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        $error = "Security validation failed.";
-    } else {
-        $approval_id = $_POST['approval_id'] ?? null;
-        $action = $_POST['action']; 
-
-        if ($approval_id) {
-            $stmt = $pdo->prepare("SELECT * FROM pending_approvals WHERE id = ? AND status = 'pending'");
-            $stmt->execute([$approval_id]);
-            $pending = $stmt->fetch();
-
-            if ($pending) {
-                if ($action === 'approve_inv') {
-                    try {
-                        $pdo->beginTransaction();
-                        if ($pending['action_type'] === 'add') {
-                            $insertStmt = $pdo->prepare("INSERT INTO items (brand, model_no, description, picture, buying_currency, buying_cost, factor, selling_price, pdf_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                            $insertStmt->execute([
-                                $pending['brand'], $pending['model_no'], $pending['description'], 
-                                $pending['picture'], $pending['buying_currency'], $pending['buying_cost'], 
-                                $pending['factor'], $pending['selling_price'], $pending['pdf_path']
-                            ]);
-                            $success = "New machine added to live inventory.";
-                        } 
-                        elseif ($pending['action_type'] === 'edit') {
-                            $updateStmt = $pdo->prepare("UPDATE items SET brand = ?, model_no = ?, description = ?, buying_currency = ?, buying_cost = ?, factor = ?, selling_price = ?, picture = ?, pdf_path = ? WHERE id = ?");
-                            $updateStmt->execute([
-                                $pending['brand'], $pending['model_no'], $pending['description'], 
-                                $pending['buying_currency'], $pending['buying_cost'], $pending['factor'], 
-                                $pending['selling_price'], $pending['picture'], $pending['pdf_path'], 
-                                $pending['item_id']
-                            ]);
-                            $success = "Machine #{$pending['item_id']} updated in live inventory.";
-                        }
-                        $pdo->prepare("UPDATE pending_approvals SET status = 'approved' WHERE id = ?")->execute([$approval_id]);
-                        $pdo->commit();
-                    } catch (Exception $e) {
-                        $pdo->rollBack();
-                        $error = "Database error during approval.";
-                    }
-                } 
-                elseif ($action === 'reject_inv') {
-                    if ($pdo->prepare("UPDATE pending_approvals SET status = 'rejected' WHERE id = ?")->execute([$approval_id])) {
-                        $success = "Inventory request has been rejected.";
-                    }
-                }
-            } else {
-                $error = "This inventory request no longer exists.";
-            }
-        }
-    }
-}
-
-// ==========================================
-// 3. FETCH DATASETS & COUNTS
+// FETCH DATASETS & COUNTS
 // ==========================================
 $sales_pending = $pdo->query("SELECT sq.*, u.username, u.full_name FROM sales_quotations sq LEFT JOIN users u ON sq.user_id = u.id WHERE sq.status = 'pending_admin' ORDER BY sq.created_at DESC")->fetchAll();
 $sales_count = count($sales_pending);
@@ -615,13 +446,13 @@ $quote_history = $history_stmt->fetchAll();
                         <div class="card-footer">
                             <a href="edit_inventory_request.php?id=<?php echo $req['id']; ?>" class="btn btn-pdf" style="margin-right: auto;">Edit Data</a>
                             
-                            <form method="POST" style="display:inline;" id="inv-form-reject-<?php echo $req['id']; ?>">
+                            <form action="process_inventory.php" method="POST" style="display:inline;" id="inv-form-reject-<?php echo $req['id']; ?>">
                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
                                 <input type="hidden" name="approval_id" value="<?php echo $req['id']; ?>">
                                 <button type="button" class="btn btn-reject" onclick="confirmFormSubmission(this, 'reject_inv', 'Are you sure you want to REJECT and delete this request?', 'reject')">Reject Request</button>
                             </form>
                             
-                            <form method="POST" style="display:inline;" id="inv-form-approve-<?php echo $req['id']; ?>">
+                            <form action="process_inventory.php" method="POST" style="display:inline;" id="inv-form-approve-<?php echo $req['id']; ?>">
                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
                                 <input type="hidden" name="approval_id" value="<?php echo $req['id']; ?>">
                                 <button type="button" class="btn btn-approve" onclick="confirmFormSubmission(this, 'approve_inv', 'Approve this request? This will instantly update the live inventory.', 'approve')">Approve & Publish</button>
@@ -671,7 +502,7 @@ $quote_history = $history_stmt->fetchAll();
     </div>
 
     <div class="modal-overlay" id="quoteModal">
-        <form class="modal-card" id="modalEditForm" method="POST" action="index.php" autocomplete="off">
+        <form class="modal-card" id="modalEditForm" method="POST" action="process_quote.php" autocomplete="off">
             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
             <input type="hidden" name="action" value="modal_quote_action">
             <input type="hidden" name="quote_id" id="mq-quote-id">
@@ -863,7 +694,7 @@ $quote_history = $history_stmt->fetchAll();
             formData.append('quote_id', quoteId);
             formData.append('type', type);
 
-            fetch('index.php', {
+            fetch('ajax_get_quote.php', {
                 method: 'POST',
                 body: formData
             })
@@ -890,7 +721,7 @@ $quote_history = $history_stmt->fetchAll();
             document.getElementById('mq-num').textContent = quote.quotation_no;
             document.getElementById('mq-type').textContent = type.toUpperCase() + ' QUOTE';
             
-            // --- UPDATED LOGIC TO HIDE TOOLBAR IF NOT APPROVED ---
+            // --- LOGIC TO HIDE TOOLBAR IF NOT APPROVED ---
             const viewMode = (quote.status === 'approved') ? '' : '#toolbar=0';
             document.getElementById('mq-pdf-btn').href = `../generate_pdf.php?id=${quote.id}&type=${type}${viewMode}`;
             // -----------------------------------------------------

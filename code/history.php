@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once 'auth.php';
 require_login();
 require 'db.php';
@@ -43,7 +42,7 @@ $quotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); padding: 50px 30px; margin: 0; min-height: 100vh; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
         
         /* HEADER */
         .top-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 40px; }
@@ -89,9 +88,9 @@ $quotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
             overflow: hidden; 
         }
         
-        /* SPACIOUS TABLE */
+        /* ENHANCED SPACIOUS TABLE */
         .table-responsive { overflow-x: auto; margin: 0 -10px; padding: 0 10px; -webkit-overflow-scrolling: touch; }
-        table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 900px; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; }
         th, td { padding: 20px 16px; border-bottom: 1px dashed var(--border); vertical-align: middle; }
         
         th { font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; background: transparent; padding-bottom: 24px; }
@@ -101,6 +100,12 @@ $quotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         .text-center { text-align: center; }
         .text-left { text-align: left; }
+        
+        /* DATA FORMATTING (Fixed to prevent layout breaking) */
+        .quote-no-col { font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: var(--maroon); font-weight: 800; letter-spacing: 0.02em; }
+        .client-col { font-weight: 800; color: var(--text-main); font-size: 1.05rem; }
+        .date-col { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; line-height: 1.4; }
+        .date-col .time { font-size: 0.75rem; font-weight: 800; color: var(--text-light); display: block; margin-top: 4px; }
 
         /* MODERN PILL BADGES */
         .badge { padding: 8px 16px; border-radius: 50px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -109,7 +114,7 @@ $quotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .badge-approved { background: #ECFDF5; color: #059669; border: 1px solid #D1FAE5; }
         .badge-super { background: #EEF2FF; color: #4F46E5; border: 1px solid #C7D2FE; }
 
-        .admin-note { font-size: 0.8rem; color: #DC2626; font-weight: 600; margin-top: 10px; background: #FEF2F2; padding: 10px 14px; border-radius: 12px; border-left: 3px solid #EF4444; }
+        .admin-note { font-size: 0.8rem; color: #DC2626; font-weight: 600; margin-top: 10px; background: #FEF2F2; padding: 10px 14px; border-radius: 12px; border-left: 3px solid #EF4444; display: inline-block; text-align: left; max-width: 300px; }
         
         .alert { padding: 16px 24px; border-radius: 16px; font-size: 0.95rem; font-weight: 700; margin-bottom: 30px; background: #ECFDF5; color: #059669; border: 1px solid #D1FAE5; box-shadow: var(--shadow-sm); }
 
@@ -163,14 +168,34 @@ $quotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <th class="text-center">Quote No</th>
                             <th class="text-left">Client</th>
                             <th class="text-center">Date Submitted</th>
+                            <th class="text-center">Resolution Date</th>
                             <th class="text-center">Current Status</th>
                             <th class="text-center">Action</th>
                         </tr>
                         <?php foreach($quotes as $q): ?>
                         <tr>
-                            <td class="text-center"><strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: var(--maroon);"><?= htmlspecialchars($q['quotation_no']) ?></strong></td>
-                            <td class="text-left" style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;"><?= htmlspecialchars($q['client_name']) ?></td>
-                            <td class="text-center" style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;"><?= date('M d, Y – h:i A', strtotime($q['created_at'])) ?></td>
+                            <td class="text-center quote-no-col">
+                                <?= htmlspecialchars($q['quotation_no']) ?>
+                            </td>
+                            
+                            <td class="text-left client-col">
+                                <?= htmlspecialchars($q['client_name']) ?>
+                            </td>
+                            
+                            <td class="text-center date-col">
+                                <span><?= date('M d, Y', strtotime($q['created_at'])) ?></span>
+                                <span class="time"><?= date('h:i A', strtotime($q['created_at'])) ?></span>
+                            </td>
+
+                            <td class="text-center date-col">
+                                <?php if (in_array($q['status'], ['approved', 'revision']) && !empty($q['updated_at'])): ?>
+                                    <span><?= date('M d, Y', strtotime($q['updated_at'])) ?></span>
+                                    <span class="time"><?= date('h:i A', strtotime($q['updated_at'])) ?></span>
+                                <?php else: ?>
+                                    <span style="color: var(--text-light); font-style: italic;">Awaiting Action</span>
+                                <?php endif; ?>
+                            </td>
+
                             <td class="text-center">
                                 <?php 
                                     if ($q['status'] === 'pending_admin') echo '<span class="badge badge-pending">⏳ Pending Admin</span>';
@@ -179,9 +204,10 @@ $quotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     elseif ($q['status'] === 'approved') echo '<span class="badge badge-approved">✅ Approved</span>';
                                 ?>
                                 <?php if (!empty($q['admin_notes'])): ?>
-                                    <div class="admin-note">Note: <?= htmlspecialchars($q['admin_notes']) ?></div>
+                                    <br><div class="admin-note"><strong>Note:</strong> <?= htmlspecialchars($q['admin_notes']) ?></div>
                                 <?php endif; ?>
                             </td>
+                            
                             <td class="text-center">
                                 <a href="generate_pdf.php?id=<?= $q['id'] ?>&type=sales" target="_blank" class="btn-view">View PDF</a>
                             </td>

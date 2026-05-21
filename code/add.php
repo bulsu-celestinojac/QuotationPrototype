@@ -511,7 +511,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
                 <div class="form-group span-2">
                     <label for="brand" class="required">Brand</label>
                     <div style="position: relative; display: flex; flex-direction: column;">
-                        <input type="text" name="brand" id="brand" autocomplete="off" required>
+                        <input type="text" name="brand" id="brand" autocomplete="off" required style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase();">
                         <div id="custom-brand-list" class="custom-dropdown" style="top: calc(100% + 4px);"></div>
                     </div>
                 </div>
@@ -544,7 +544,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_check_model']))
 
                 <div class="form-group">
                     <label for="buying_cost" class="required">Buying Cost</label>
-                    <input type="text" name="buying_cost" id="buying_cost" class="compact-field" autocomplete="off" required>
+                    <input type="text" name="buying_cost" id="buying_cost" class="compact-field" autocomplete="off" required oninput="this.value = this.value.replace(/[^0-9.]/g, '');">
                 </div>
 
                 <div class="form-group">

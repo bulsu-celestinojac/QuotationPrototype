@@ -14,7 +14,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) {
         $pdf_ext = strtolower(pathinfo($_FILES['pdf_file']['name'], PATHINFO_EXTENSION));
         
-        if ($pdf_ext === 'pdf') {
+        // Strict MIME Type checking
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime_type = finfo_file($finfo, $_FILES['pdf_file']['tmp_name']);
+        finfo_close($finfo);
+        
+        if ($pdf_ext === 'pdf' && $mime_type === 'application/pdf') {
             $stmt = $pdo->prepare("SELECT brand, model_no FROM items WHERE id = ?");
             $stmt->execute([$item_id]);
             $item = $stmt->fetch();
@@ -49,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         } else {
-            set_flash_message('error', 'Invalid file type. Only PDFs are allowed.');
+            set_flash_message('error', 'Invalid file type. Only authentic PDFs are allowed.');
         }
     }
 }
